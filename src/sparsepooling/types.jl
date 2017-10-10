@@ -14,6 +14,7 @@ type layer_sparse
 	w::Array{Float64, 2} #synaptic weight matrix in format TOxFROM
 	v::Array{Float64, 2} #recurrent/lateral inhibition weight matrix
 	t::Array{Float64, 1} #thresholds
+	p::Float64 #average activation/"firing rate"
 end
 
 type layer_pool
@@ -56,7 +57,8 @@ function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous an
 			zeros(ns[2]),
 			randn(ns[2], ns[1])/(10*sqrt(ns[1])),
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
-			zeros(ns[2])) #thresholds initialized with zeros
+			zeros(ns[2]), #thresholds initialized with zeros
+			0.05)
 end
 
 function layer_pool(ns::Array{Int64, 1})
