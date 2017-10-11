@@ -1,7 +1,8 @@
 
 #####################################################
-#forwardprop for different nonlinearities (for classifier)
+#forwardpropagation of activity
 
+#for classifier for different nonlinearities
 function forwardprop!(net; nonlinearity = Array{Function, 1})
 	for i in 1:net.nl
 		BLAS.gemv!('N', 1., net.w[i], net.x[i], 0., net.ax[i])
@@ -10,23 +11,35 @@ function forwardprop!(net; nonlinearity = Array{Function, 1})
 	end
 end
 
+#for pooling layers
+function forwardprop!(layer_pre, layer_post::layer_pool, nonlinearity = Function)
+	BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u)
+	BLAS.axpy!(1., layer_post.b, layer_post.u)
+	nonlinearity(layer_post.u, layer_post.a)
+end
 
 # Activation function with threshold
 function activation_function!(input,output,lambda)
 	for i in 1:length(input)
-		#output[i] = (abs(input[i]) > lambda)*(input[i]-sign(input[i])*lambda)
-		#output[i] = clamp((abs(input[i]) > lambda)*(input[i]-sign(input[i])*lambda),0.,Inf64)
 		output[i] = clamp(input[i]-lambda,0.,Inf64) #thresholded, linear rectifier
 	end
 end
 
-
 # Rate implementation of SC algorithm by Zylberberg et al PLoS Comp Bio 2011
 # Similar to Brito's sparse coding algorithm
-
+# time constant tau of DEQ equals: tau = 1
+# dt is measured in units of: tau = 1
+function forwardprop!(payer_pre, layer_post::layer_sparse; iterations = 50, dt = 1e-1)
+	for i in 1:iterations #or until convergence...
+		layer_post.u = dt*(layer_post.w*layer_pre.a - layer_post.v*layer_post.a)+(1-dt)*layer_post.u
+		activation_function(layer_post.u,layer_post.a)
+	end
+end
 
 #IMPLEMENT RECURRENCE ETC.!!!
 
+
+#Britos algorithm
 function forwardprop!(layer_pre,layer_post::layer_sparse, iter::Int64; iterations = 50, r = 1e-1,	learningrate_inh = 1e-2)
 	if iter == -1
 		one_over_iter = 0
