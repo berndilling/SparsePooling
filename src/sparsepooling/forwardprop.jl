@@ -19,9 +19,9 @@ function forwardprop!(layer_pre, layer_post::layer_pool, nonlinearity = Function
 end
 
 # Activation function with threshold
-function activation_function!(input,output,lambda)
+function activation_function!(input,output,threshold)
 	for i in 1:length(input)
-		output[i] = clamp(input[i]-lambda,0.,Inf64) #thresholded, linear rectifier
+		output[i] = clamp(input[i]-threshold[i],0.,Inf64) #thresholded, linear rectifier
 	end
 end
 
@@ -29,10 +29,11 @@ end
 # Similar to Brito's sparse coding algorithm
 # time constant tau of DEQ equals: tau = 1
 # dt is measured in units of: tau = 1
-function forwardprop!(payer_pre, layer_post::layer_sparse; iterations = 50, dt = 1e-1)
+function forwardprop!(layer_pre, layer_post::layer_sparse; iterations = 50, dt = 1e-1)
+	input_without_recurrence = BLAS.gemv('N',layer_post.w,layer_pre.a)
 	for i in 1:iterations #or until convergence...
-		layer_post.u = dt*(layer_post.w*layer_pre.a - layer_post.v*layer_post.a)+(1-dt)*layer_post.u
-		activation_function(layer_post.u,layer_post.a)
+		layer_post.u = dt*(input_without_recurrence - BLAS.gemv('N',layer_post.v,layer_post.a))+(1-dt)*layer_post.u
+		activation_function!(layer_post.u,layer_post.a,layer_post.t)
 	end
 end
 

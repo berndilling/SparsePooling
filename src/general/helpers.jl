@@ -31,3 +31,11 @@ function gethiddenrepstest()
 		#sae.reps[n_ae][1][:, patternindex]
 		sae.reps[n_ae-1][2][:, patternindex]
 end
+
+function generatehiddenreps_sparse(layer_pre, layer_post::layer_sparse, data, storage)
+	for i in 1:size(data)[2]
+		layer_pre.a = data[:,i]
+		forwardprop!(layer_pre, layer_post)
+		storage[i,:] = layer_post.a
+	end
+end
