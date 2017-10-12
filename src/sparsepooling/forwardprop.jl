@@ -28,16 +28,18 @@ end
 # Rate implementation of SC algorithm by Zylberberg et al PLoS Comp Bio 2011
 # Similar to Brito's sparse coding algorithm
 # time constant tau of DEQ equals: tau = 1
-# dt is measured in units of: tau = 1
-function forwardprop!(layer_pre, layer_post::layer_sparse; iterations = 50, dt = 1e-1)
+# dt is measured in units of: tau = 1 and it should be: dt << tau = 1
+function forwardprop!(layer_pre, layer_post::layer_sparse; dt = 1e-1, epsilon = 1e-2)
+	scaling_factor = epsilon/dt
+	voltage_incr = scaling_factor*norm(layer_post.u)+1 #+1 to make sure loop is entered
 	input_without_recurrence = BLAS.gemv('N',layer_post.w,layer_pre.a)
-	for i in 1:iterations #or until convergence...
-		layer_post.u = dt*(input_without_recurrence - BLAS.gemv('N',layer_post.v,layer_post.a))+(1-dt)*layer_post.u
+	while norm(voltage_incr) > scaling_factor*norm(layer_post.u)
+		voltage_incr = input_without_recurrence - BLAS.gemv('N',layer_post.v,layer_post.a) - layer_post.u
+		BLAS.axpy!(dt, voltage_incr, layer_post.u)
 		activation_function!(layer_post.u,layer_post.a,layer_post.t)
 	end
 end
 
-#IMPLEMENT RECURRENCE ETC.!!!
 
 
 #Britos algorithm

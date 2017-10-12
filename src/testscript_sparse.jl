@@ -7,10 +7,10 @@ using PyPlot
 include("sparsepooling_import.jl")
 
 #dataset to be used
-dataset = "Olshausen_white"#"MNIST144"
+dataset = "Olshausen"#"MNIST144"
 labelled = false
 
-iterations = 10^5
+iterations = 10^3
 
 if labelled
   smallimgs, labels, smallimgstest, labelstest, n_samples, n_testsamples =  import_data(dataset)
@@ -28,8 +28,8 @@ else
 end
 
 #Create network with two layers: ordinary sparse coding setup
-network = net([256,300],["input","sparse"])
+network = net([256,100],["input","sparse"])
 
 learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, iterations)
 
-save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/tests/test_sparse_olshausen.jld", "network", network)
+save(string(getsavepath(),"SparsePooling/analysis/sparse_",dataset,".jld"), "network", network)

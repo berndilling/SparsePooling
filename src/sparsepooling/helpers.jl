@@ -31,3 +31,11 @@ function gethiddenrepstest()
 		#sae.reps[n_ae][1][:, patternindex]
 		sae.reps[n_ae-1][2][:, patternindex]
 end
+
+function getsavepath()
+	if is_apple()
+		path = "/Users/Bernd/Documents/PhD/Projects/"
+	elseif is_linux()
+		path = "/home/illing/"
+	end
+end
