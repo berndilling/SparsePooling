@@ -22,8 +22,9 @@ function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse; lr
 
 	#Update input weight matrix
 	#layer_post.w += lr_w*layer_post.a*(layer_pre.a-layer_post.a*W) # with weight decay... or explicit weight normalization/homeostasis
-	BLAS.ger!(lr_w,layer_post.a,layer_pre.a,layer_post.w) #layer_post.w += lr_w*layer_post.a*(layer_pre.a'-layer_post.a*W)
-	_normalize_inputweights!(layer_post.w) # explicit weight normalization/homeostasis
+	BLAS.ger!(lr_w,layer_post.a,layer_pre.a,layer_post.w) #first part of weight update
+	scale!((1-lr_w*layer_post.a.^2),layer_post.w) #second part of weight update: weight decay à la Oja which comes out of learning rule 
+	#_normalize_inputweights!(layer_post.w) # explicit weight normalization/homeostasis
 
 	#Update thresholds
 	#layer_post.t += lr_thr*(layer_post.a-layer_post.p)
