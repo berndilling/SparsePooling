@@ -12,14 +12,19 @@ function forwardprop!(net; nonlinearity = Array{Function, 1})
 end
 
 #for pooling layers
-function forwardprop!(layer_pre, layer_post::layer_pool, nonlinearity = Function)
-	BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u)
-	BLAS.axpy!(1., layer_post.b, layer_post.u)
-	nonlinearity(layer_post.u, layer_post.a)
+#ATTENTION: FOR PCA nonlinearity should be linear!
+#tau_u: time constant of low-pass filter of membrane potential, measured in units of inputs/iterations/data presentations (= dt in this case)
+function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_u = 1e-1, calculate_trace = true)
+	BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
+	BLAS.axpy!(1., layer_post.b, layer_post.u) # add bias term
+	nonlinearity(layer_post.u, layer_post.a) # apply non-linearity
+	if calculate_trace
+		layer_post.u_tr = (1-one_over_tau_u)*layer_post.u_tr + one_over_tau_u*layer_post.u # update low-pass filtered membrane potential
+	end
 end
 
 # Activation function with threshold
-function activation_function!(input,output,threshold)
+function _activation_function!(input,output,threshold)
 	for i in 1:length(input)
 		output[i] = clamp(input[i]-threshold[i],0.,Inf64) #thresholded, linear rectifier
 	end
@@ -35,44 +40,7 @@ function forwardprop!(layer_pre, layer_post::layer_sparse; dt = 1e-1, epsilon = 
 	input_without_recurrence = BLAS.gemv('N',layer_post.w,layer_pre.a)
 	while norm(voltage_incr) > scaling_factor*norm(layer_post.u)
 		voltage_incr = input_without_recurrence - BLAS.gemv('N',layer_post.v,layer_post.a) - layer_post.u
-		BLAS.axpy!(dt, voltage_incr, layer_post.u)
-		activation_function!(layer_post.u,layer_post.a,layer_post.t)
-	end
-end
-
-
-
-#Britos algorithm
-function forwardprop!(layer_pre,layer_post::layer_sparse, iter::Int64; iterations = 50, r = 1e-1,	learningrate_inh = 1e-2)
-	if iter == -1
-		one_over_iter = 0
-	else
-		one_over_iter = 1./convert(Float64, iter)
-	end
-	for i in 1:net.nl
-		if nonlinearity[i] != lin!
-			error("nonlinearity != linear. Must be linear for sparse coding!")
-		else
-			net.x[i+1][:] = 0.
-			net.ax[i][:] = 0.
-			n,m = size(net.w[i])
-			for j in 1:n
-				net.A[i][j,j] = 0. #no self-inhibition
-			end
-			input = BLAS.gemv('N',net.w[i],net.x[i])
-			for k in 1:iterations
-				net.ax[i] = r*(input-BLAS.gemv('N',net.A[i],net.x[i+1]))+(1.0-r)*net.ax[i]
-				activation_Brito!(net.ax[i],net.x[i+1],lambdas[i])
-			end
-			if iter != -1 #only learn lateral inhibition weights during overall learning procedure, not during generatehiddenreps!
-				if one_over_iter > memory_decay #avoids zero-filling at beginning
-					net.B[i][1,:] = (1.-one_over_iter)*net.B[i][1,:] + one_over_iter*net.x[i+1]
-				else
-					net.B[i][1,:] = (1.-memory_decay)*net.B[i][1,:] + memory_decay*net.x[i+1]
-				end
-				BLAS.ger!(learningrate_inh,net.x[i+1]-net.B[i][1,:],net.x[i+1],net.A[i])
-				clamp!(net.A[i],0.,Inf64) #Dale's law
-			end
-		end
+		BLAS.axpy!(dt, voltage_incr, layer_post.u) # update membrane potential
+		_activation_function!(layer_post.u,layer_post.a,layer_post.t) # apply thresholded linear rectifier non-linearity
 	end
 end

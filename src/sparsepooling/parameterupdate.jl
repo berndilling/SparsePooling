@@ -23,7 +23,7 @@ function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse; lr
 	#Update input weight matrix
 	#layer_post.w += lr_w*layer_post.a*(layer_pre.a-layer_post.a*W) # with weight decay... or explicit weight normalization/homeostasis
 	BLAS.ger!(lr_w,layer_post.a,layer_pre.a,layer_post.w) #first part of weight update
-	scale!((1-lr_w*layer_post.a.^2),layer_post.w) #second part of weight update: weight decay à la Oja which comes out of learning rule 
+	scale!((1-lr_w*layer_post.a.^2),layer_post.w) #second part of weight update: weight decay à la Oja which comes out of learning rule
 	#_normalize_inputweights!(layer_post.w) # explicit weight normalization/homeostasis
 
 	#Update thresholds
@@ -33,9 +33,17 @@ end
 
 #BRITOS algorithm?
 
-#Algorithm for parameter update for pooling layers with PCA (Oja's rule)
-function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool, learningrate)
-
+#Algorithm for parameter update for pooling layers with PCA (Oja's rule) OR SANGERS RULE!
+#PAY ATTENTION: NONLINEARITY SHOULD BE LINEAR IN THIS CASE!!!
+function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; learningrate = 1e-2, rule = "Sanger")
+	if rule == "Oja"
+		#Oja's rule (should give 1. principal component for all hidden units)
+		BLAS.ger!(learningrate,layer_post.a,layer_pre.a,layer_post.w)
+		scale!((1-learningrate*layer_post.a.^2),layer_post.w)
+	elseif rule == "Sanger"
+		#Sanger's rule
+		BLAS.ger!(learningrate,layer_post.a,layer_pre.a-BLAS.gemv('T',layer_post.w,layer_post.a),layer_post.w)
+	end
 end
 
 #Algorithm for parameter update for pooling layers with trace rule/Slow feature analysis
