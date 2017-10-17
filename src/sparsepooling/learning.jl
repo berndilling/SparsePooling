@@ -23,7 +23,7 @@ function learn_layer_pool!(layer_pre,
 
 	@showprogress for i in 1:iterations
 		layer_pre.a = inputfunction() #CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten!
-		forwardprop!(layer_pre, layer_post)
+		forwardprop!(layer_pre, layer_post) #linear (without non-lin nor biases for PCA)
 		update_layer_parameters_pool_PCA!(layer_pre, layer_post)
 	end
 end

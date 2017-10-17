@@ -21,9 +21,14 @@ function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse; lr
 	clamp!(layer_post.v,0.,Inf64) #Dale's law (Is satisfied automatically as it seems, just to be sure!)
 
 	#Update input weight matrix
+	#Learning rule:
 	#layer_post.w += lr_w*layer_post.a*(layer_pre.a-layer_post.a*W) # with weight decay... or explicit weight normalization/homeostasis
-	BLAS.ger!(lr_w,layer_post.a,layer_pre.a,layer_post.w) #first part of weight update
-	scale!((1-lr_w*layer_post.a.^2),layer_post.w) #second part of weight update: weight decay à la Oja which comes out of learning rule
+	#Optimized:
+	# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
+	scale!((1-lr_w*layer_post.a.^2),layer_post.w)
+	# Second: First term (data-driven) of weight update
+	BLAS.ger!(lr_w,layer_post.a,layer_pre.a,layer_post.w)
+
 	#_normalize_inputweights!(layer_post.w) # explicit weight normalization/homeostasis
 
 	#Update thresholds
@@ -35,18 +40,25 @@ end
 
 #Algorithm for parameter update for pooling layers with PCA (Oja's rule) OR SANGERS RULE!
 #PAY ATTENTION: NONLINEARITY SHOULD BE LINEAR IN THIS CASE!!!
-function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; learningrate = 1e-2, rule = "Sanger")
+function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; learningrate = 1e-3, rule = "Sanger")
 	if rule == "Oja"
 		#Oja's rule (should give 1. principal component for all hidden units)
-		BLAS.ger!(learningrate,layer_post.a,layer_pre.a,layer_post.w)
+		# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
 		scale!((1-learningrate*layer_post.a.^2),layer_post.w)
+		# Second: First term (data-driven) of weight update
+		BLAS.ger!(learningrate,layer_post.a,layer_pre.a,layer_post.w)
+
 	elseif rule == "Sanger"
 		#Sanger's rule
-		BLAS.ger!(learningrate,layer_post.a,layer_pre.a-BLAS.gemv('T',layer_post.w,layer_post.a),layer_post.w)
+		# First: Second term of update rule: "weight-decay" prop. to old weights
+		layer_post.w += -learningrate*LowerTriangular(layer_post.a*layer_post.a')*layer_post.w
+		# Second: First term (data-driven) of weight update
+		BLAS.ger!(learningrate,layer_post.a,layer_pre.a,layer_post.w)
+		#BLAS.syr!('L', learningrate, layer_post.a, layer_post.w)
 	end
 end
 
 #Algorithm for parameter update for pooling layers with trace rule/Slow feature analysis
-function update_layer_parameters_pool_SLA!(layer_pre, layer_post::layer_pool, learningrate)
+function update_layer_parameters_pool_SFA!(layer_pre, layer_post::layer_pool, learningrate)
 
 end

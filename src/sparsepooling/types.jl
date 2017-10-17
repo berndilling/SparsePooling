@@ -15,6 +15,7 @@ type layer_sparse
 	v::Array{Float64, 2} #recurrent/lateral inhibition weight matrix
 	t::Array{Float64, 1} #thresholds
 	p::Float64 #average activation/"firing rate"
+	hidden_reps::Array{Float64, 2} #hidden representations of the layer (saved to accelerate further learning)
 end
 
 type layer_pool
@@ -23,6 +24,7 @@ type layer_pool
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
 	w::Array{Float64, 2} #synaptic weight matrix in format TOxFROM
 	b::Array{Float64, 1} #biases
+	hidden_reps::Array{Float64, 2} #hidden representations of the layer
 end
 
 # Supervised classifier on the activations of a "net" (could access multiple levels of hierarchy!)
@@ -53,20 +55,22 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 end
 
 function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous and present layer
-	layer_sparse(zeros(ns[2]),
-			zeros(ns[2]),
-			randn(ns[2], ns[1])/(10*sqrt(ns[1])),
+	layer_sparse(zeros(ns[2]), #membrane potential initialized with zeros
+			zeros(ns[2]), #activation initialized with zeros
+			randn(ns[2], ns[1])/(10*sqrt(ns[1])), #feed-forward weights initialized gaussian distr.
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
-			zeros(ns[2]), #thresholds initialized with zeros
-			0.05)
+			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
+			0.05, #average activation set to 5% (as in Zylberberg)
+			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
 end
 
 function layer_pool(ns::Array{Int64, 1})
-	layer_pool(zeros(ns[2]),
-			zeros(ns[2]),
-			zeros(ns[2]),
-			randn(ns[2], ns[1])/(10*sqrt(ns[1])),
-			rand(ns[2])/10)
+	layer_pool(zeros(ns[2]), #membrane potential initialized with zeros
+			zeros(ns[2]), #low-pass filtered membrane potential initialized with zeros
+			zeros(ns[2]), #activation initialized with zeros
+			randn(ns[2], ns[1])/(10*sqrt(ns[1])), #feed-forward weights initialized gaussian distr.
+			zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
+			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
 end
 
 function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier

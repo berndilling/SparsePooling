@@ -28,6 +28,15 @@ function getsavepath()
 	end
 end
 
-function generatehiddenreps_sparse(layer_pre, layer_post::layer_sparse)
+using ProgressMeter
 
+function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4))
+	print(string("Generate ",number_of_reps," hidden representations for layer type: ",typeof(layer_post)))
+	print("\n")
+	layer_post.hidden_reps = zeros(length(layer_post.a),number_of_reps)
+	@showprogress for i in 1:number_of_reps
+		layer_pre.a = smallimgs[:,i]
+		forwardprop!(layer_pre, layer_post)
+		layer_post.hidden_reps[:,i] = deepcopy(layer_post.a)
+	end
 end

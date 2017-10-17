@@ -7,7 +7,7 @@ using PyPlot
 include("sparsepooling_import.jl")
 
 #dataset to be used
-dataset = "Olshausen_white"#"MNIST144"
+dataset = "Olshausen"#"MNIST144"
 labelled = false
 
 iterations = 10^6
@@ -31,5 +31,6 @@ end
 network = net([256,100],["input","sparse"])
 
 learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, iterations)
+generatehiddenreps(network.layers[1], network.layers[2])
 
 save(string(getsavepath(),"SparsePooling/analysis/tests/sparse_test_weight_decay_",dataset,".jld"), "network", network)

@@ -10,7 +10,7 @@ include("sparsepooling_import.jl")
 dataset = "MNIST144"
 labelled = true
 
-iterations = 10^6
+iterations = 10^7
 
 if labelled
   smallimgs, labels, smallimgstest, labelstest, n_samples, n_testsamples =  import_data(dataset)
@@ -31,5 +31,6 @@ end
 network = net([144,10],["input","pool"])
 
 learn_layer_pool!(network.layers[1], network.layers[2], getsmallimg, iterations)
+generatehiddenreps(network.layers[1], network.layers[2])
 
 save(string(getsavepath(),"SparsePooling/analysis/tests/pool_test_",dataset,".jld"), "network", network)
