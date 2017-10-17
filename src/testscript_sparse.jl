@@ -7,8 +7,8 @@ using PyPlot
 include("sparsepooling_import.jl")
 
 #dataset to be used
-dataset = "Olshausen"#"MNIST144"
-labelled = false
+dataset = "CIFAR10"#"MNIST144_white"#"Olshausen_white"#"CIFAR10_whitened"#"Olshausen_white"#"MNIST144"
+labelled = true#false
 
 iterations = 10^6
 
@@ -28,7 +28,7 @@ else
 end
 
 #Create network with two layers: ordinary sparse coding setup
-network = net([256,100],["input","sparse"])
+network = net([size(smallimgs)[1],10],["input","sparse"])
 
 learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, iterations)
 generatehiddenreps(network.layers[1], network.layers[2])

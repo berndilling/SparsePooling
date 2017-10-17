@@ -9,6 +9,8 @@ function import_data(data::String)
 		datastring = "GitLab_exercise/MNIST_shifted.mat"
   elseif data == "MNIST144"
     datastring = "GitLab_exercise/mnist144.mat"
+  elseif data == "MNIST144_white"
+    datastring = "GitLab_exercise/MNIST144_whiteZCA.mat"
 	elseif data == "MNIST144_shifted"
 		datastring = "GitLab_exercise/MNIST144_shifted.mat"
   elseif data == "CIFAR10"

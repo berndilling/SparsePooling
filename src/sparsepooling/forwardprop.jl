@@ -19,7 +19,7 @@ end
 function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_u = 1e-1, lin = true, calculate_trace = true)
 	if lin
 		BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
-		layer_post.a = layer_post.u
+		layer_post.a = deepcopy(layer_post.u)
 	else
 		BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
 		BLAS.axpy!(1., layer_post.b, layer_post.u) # add bias term

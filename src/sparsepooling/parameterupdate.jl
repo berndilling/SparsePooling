@@ -40,7 +40,7 @@ end
 
 #Algorithm for parameter update for pooling layers with PCA (Oja's rule) OR SANGERS RULE!
 #PAY ATTENTION: NONLINEARITY SHOULD BE LINEAR IN THIS CASE!!!
-function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; learningrate = 1e-3, rule = "Sanger")
+function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; learningrate = 1e-2, rule = "Sanger")
 	if rule == "Oja"
 		#Oja's rule (should give 1. principal component for all hidden units)
 		# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
