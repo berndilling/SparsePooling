@@ -34,6 +34,20 @@ end
 function _activation_function!(input,output,threshold)
 	for i in 1:length(input)
 		output[i] = clamp(input[i]-threshold[i],0.,Inf64) #thresholded, linear rectifier
+		#output[i] = sqrt(clamp(input[i]-threshold[i],0.,Inf64)) #thresholded square root
+	end
+end
+
+# Activation function of an Leaky Integrate and Fire model (with refractatoriness)
+# OneOverMaxFiringRate: Parameter for refrect.: 0 -> no refractatoriness
+# Zylberberg has 50 as maximum spike rate in his model! -> OneOverMaxFiringRate = 1/50
+function _activation_function_refractLIF!(input,output,threshold; OneOverMaxFiringRate = 0.)
+	for i in 1:length(input)
+		if input[i] <= threshold[i]
+			output[i] = 0.
+		else
+			output[i] = 1./(OneOverMaxFiringRate+log(1/(1-threshold[i]/input[i])))
+		end
 	end
 end
 
@@ -41,13 +55,13 @@ end
 # Similar to Brito's sparse coding algorithm
 # time constant tau of DEQ equals: tau = 1
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
-function forwardprop!(layer_pre, layer_post::layer_sparse; dt = 1e-1, epsilon = 1e-2)
+function forwardprop!(layer_pre, layer_post::layer_sparse; dt = 1e-1, epsilon = 1e-2, activation_function = _activation_function_refractLIF!)
 	scaling_factor = epsilon/dt
 	voltage_incr = scaling_factor*norm(layer_post.u)+1 #+1 to make sure loop is entered
 	input_without_recurrence = BLAS.gemv('N',layer_post.w,layer_pre.a)
 	while norm(voltage_incr) > scaling_factor*norm(layer_post.u)
 		voltage_incr = input_without_recurrence - BLAS.gemv('N',layer_post.v,layer_post.a) - layer_post.u
 		BLAS.axpy!(dt, voltage_incr, layer_post.u) # update membrane potential
-		_activation_function!(layer_post.u,layer_post.a,layer_post.t) # apply thresholded linear rectifier non-linearity
+		activation_function(layer_post.u,layer_post.a,layer_post.t) # apply activation function
 	end
 end

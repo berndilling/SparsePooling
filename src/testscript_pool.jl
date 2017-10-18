@@ -10,13 +10,16 @@ include("sparsepooling_import.jl")
 dataset = "CIFAR10"#"Olshausen_white"#"MNIST144"#_white"#"CIFAR10_whitened"#"MNIST144"
 labelled = true
 
-iterations = 10^6
+iterations = 10^5
 
 if labelled
   smallimgs, labels, smallimgstest, labelstest, n_samples, n_testsamples =  import_data(dataset)
 else
   smallimgs, n_samples = import_unlabelled_data(dataset)
 end
+
+#scale data between [-1,1]
+rescaledata!(smallimgs)
 
 #THIS MIGHT NOT EVEN BE HELPFUL!
 #substract line-wise (pixel/variable-wise) mean
@@ -28,7 +31,7 @@ else
 end
 
 #Create network with two layers: ordinary sparse coding setup
-network = net([size(smallimgs)[1],10],["input","pool"])
+network = net([size(smallimgs)[1],20],["input","pool"])
 
 learn_layer_pool!(network.layers[1], network.layers[2], getsmallimg, iterations)
 generatehiddenreps(network.layers[1], network.layers[2])
