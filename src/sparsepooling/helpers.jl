@@ -31,6 +31,7 @@ end
 using ProgressMeter
 
 function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4))
+	print("\n")
 	print(string("Generate ",number_of_reps," hidden representations for layer type: ",typeof(layer_post)))
 	print("\n")
 	layer_post.hidden_reps = zeros(length(layer_post.a),number_of_reps)
@@ -39,4 +40,9 @@ function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4))
 		forwardprop!(layer_pre, layer_post)
 		layer_post.hidden_reps[:,i] = deepcopy(layer_post.a)
 	end
+end
+
+function evaluate_loss(layer_pre,layer_post,i)
+	generatehiddenreps(layer_pre, layer_post)
+	return [i,mean((smallimgs[:,1:Int(5e4)] - BLAS.gemm('T', 'N', layer_post.w, layer_post.hidden_reps)).^2)]
 end
