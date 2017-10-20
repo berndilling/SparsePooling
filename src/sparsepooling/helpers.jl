@@ -42,7 +42,15 @@ function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4))
 	end
 end
 
-function evaluate_loss(layer_pre,layer_post,i)
+function _evaluate_errors(layer_pre, layer_post, i)
 	generatehiddenreps(layer_pre, layer_post)
 	return [i,mean((smallimgs[:,1:Int(5e4)] - BLAS.gemm('T', 'N', layer_post.w, layer_post.hidden_reps)).^2)]
+end
+
+function evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)
+	if i == 1
+		squared_errors[:,1] = _evaluate_errors(layer_pre,layer_post,i)
+	elseif i % Int(iterations/nr_evaluations) == 0
+		squared_errors[:,Int(i*nr_evaluations/iterations)+1] = _evaluate_errors(layer_pre,layer_post,i)
+	end
 end
