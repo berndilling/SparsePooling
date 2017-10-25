@@ -8,21 +8,27 @@ function learn_layer_sparse!(layer_pre,
 				inputfunction::Function,
 				iterations::Int64;
 				p = 0.05,
-				evaluate_loss_boolian = true,
+				evaluate_loss_boolian = false,
 				nr_evaluations = 100)
 
+	ff_boolian = true
 	squared_errors = zeros(2,nr_evaluations+1) # values of squared reconstruction error
-	losses = zeros(2,nr_evaluations+1) # values of loss function (Zylberberg)
+	feedforward_differences = zeros(length(layer_post.u),iterations) # difference between pure feedworward and recurrent feedforward
 	@showprogress for i in 1:iterations
 		layer_pre.a = inputfunction() #CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten!
 		forwardprop!(layer_pre, layer_post)
+		feedforward_differences[:,i] = evaluate_ff_difference(layer_pre, layer_post)
 		update_layer_parameters_sparse!(layer_pre, layer_post)
 		if evaluate_loss_boolian #ATTENTION: NOT REAL LOSS FUNCTION FOR SPARSE CODING! ONLY RECONSTRUCTION ERROR!
 			evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)
 		end
 		#losses[i] = squared_errors[i] + sum(layer_post.a)-length(layer_post.a)*p + sum(layer_post.a*layer_post.a')-length(layer_post.a)*p^2
 	end
-	return squared_errors#, losses
+	if ff_boolian
+		return squared_errors, feedforward_differences
+	else
+		return squared_errors
+	end
 end
 
 #learning pool layer (post)

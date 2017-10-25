@@ -54,3 +54,8 @@ function evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squ
 		squared_errors[:,Int(i*nr_evaluations/iterations)+1] = _evaluate_errors(layer_pre,layer_post,i)
 	end
 end
+
+# to evaluate difference between pure feedforward and recurrent sparse coding feed-forward
+function evaluate_ff_difference(layer_pre, layer_post::layer_sparse)
+	layer_post.u-BLAS.gemv('N',layer_post.w,layer_pre.a)
+end

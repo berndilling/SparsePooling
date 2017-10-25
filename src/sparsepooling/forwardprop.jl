@@ -39,6 +39,8 @@ function _activation_function!(input,output,threshold)
 end
 
 # Activation function of an Leaky Integrate and Fire model (with refractatoriness)
+# IMPLIES U_RESET = 0!
+# USE ONLY IF THRESHOLDS (AND MEMBRANE POTENTIALS?) ARE ABOVE 0!
 # OneOverMaxFiringRate: Parameter for refrect.: 0 -> no refractatoriness
 # Zylberberg has 50 as maximum spike rate in his model! -> OneOverMaxFiringRate = 1/50
 function _activation_function_refractLIF!(input,output,threshold; OneOverMaxFiringRate = 1/50)
@@ -46,7 +48,7 @@ function _activation_function_refractLIF!(input,output,threshold; OneOverMaxFiri
 		if input[i] <= threshold[i]
 			output[i] = 0.
 		else
-			output[i] = 1./(OneOverMaxFiringRate+log(1/(1-threshold[i]/input[i])))
+			output[i] = 1./(OneOverMaxFiringRate-log(1-threshold[i]/input[i]))
 		end
 	end
 end

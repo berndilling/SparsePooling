@@ -34,6 +34,8 @@ function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse; lr
 	#Update thresholds
 	#layer_post.t += lr_thr*(layer_post.a-layer_post.p)
 	BLAS.axpy!(lr_thr,layer_post.a-layer_post.p,layer_post.t)
+	#avoid negative thesholds:
+	clamp!(layer_post.t,0.,Inf64)
 end
 
 #BRITOS algorithm?
