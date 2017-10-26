@@ -10,7 +10,7 @@ include("sparsepooling_import.jl")
 dataset = "Olshausen_white"#"CIFAR10_whitened"#"Olshausen_white"#"MNIST144"
 labelled = false
 
-iterations = 10^6
+iterations = 10^5
 
 if labelled
   smallimgs, labels, smallimgstest, labelstest, n_samples, n_testsamples =  import_data(dataset)
@@ -19,7 +19,7 @@ else
 end
 
 #scale data between [-1,1]
-#rescaledata!(smallimgs)
+rescaledata!(smallimgs)
 
 #THIS MIGHT NOT EVEN BE HELPFUL!
 #substract line-wise (pixel/variable-wise) mean
@@ -31,10 +31,10 @@ else
 end
 
 #Create network with two layers: ordinary sparse coding setup
-network = net([size(smallimgs)[1],100],["input","sparse"])
+network = net([size(smallimgs)[1],400],["input","sparse"])
 
 errors, ffd = learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, iterations)
 generatehiddenreps(network.layers[1], network.layers[2])
 
-save(string(getsavepath(),"SparsePooling/analysis/tests/sparse_test_feedforward_",dataset,".jld"),
+save(string(getsavepath(),"SparsePooling/analysis/tests/sparse_test_overcomplete_",dataset,".jld"),
     "network", network, "squared_errors", errors, "ffd", ffd)

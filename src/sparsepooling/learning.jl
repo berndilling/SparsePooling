@@ -17,7 +17,7 @@ function learn_layer_sparse!(layer_pre,
 	@showprogress for i in 1:iterations
 		layer_pre.a = inputfunction() #CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten!
 		forwardprop!(layer_pre, layer_post)
-		feedforward_differences[:,i] = evaluate_ff_difference(layer_pre, layer_post)
+		#feedforward_differences[:,i] = evaluate_ff_difference(layer_pre, layer_post)
 		update_layer_parameters_sparse!(layer_pre, layer_post)
 		if evaluate_loss_boolian #ATTENTION: NOT REAL LOSS FUNCTION FOR SPARSE CODING! ONLY RECONSTRUCTION ERROR!
 			evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)

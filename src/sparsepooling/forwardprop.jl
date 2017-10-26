@@ -57,7 +57,7 @@ end
 # Similar to Brito's sparse coding algorithm
 # time constant tau of DEQ equals: tau = 1
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
-function forwardprop!(layer_pre, layer_post::layer_sparse; dt = 1e-1, epsilon = 1e-2, activation_function = _activation_function_refractLIF!)
+function forwardprop!(layer_pre, layer_post::layer_sparse; dt = 1e-1, epsilon = 1e-2, activation_function = _activation_function!)#_refractLIF!)
 	scaling_factor = epsilon/dt
 	voltage_incr = scaling_factor*norm(layer_post.u)+1 #+1 to make sure loop is entered
 	input_without_recurrence = BLAS.gemv('N',layer_post.w,layer_pre.a)

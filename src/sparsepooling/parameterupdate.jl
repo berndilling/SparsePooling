@@ -14,11 +14,11 @@ function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse; lr
 	#Update lateral inhibition matrix
 	#layer_post.v += lr_v*(layer_post.a*layer_post.a'-layer_post.p^2)
 	BLAS.ger!(lr_v,layer_post.a,layer_post.a,layer_post.v)
-	layer_post.v += -layer_post.p^2
+	layer_post.v += -lr_v*layer_post.p^2
 	for j in 1:size(layer_post.v)[1]
 		layer_post.v[j,j] = 0. #no self-inhibition
 	end
-	clamp!(layer_post.v,0.,Inf64) #Dale's law (Is satisfied automatically as it seems, just to be sure!)
+	clamp!(layer_post.v,0.,Inf64) #Dale's law
 
 	#Update input weight matrix
 	#Learning rule:

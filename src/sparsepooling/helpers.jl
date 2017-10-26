@@ -59,3 +59,9 @@ end
 function evaluate_ff_difference(layer_pre, layer_post::layer_sparse)
 	layer_post.u-BLAS.gemv('N',layer_post.w,layer_pre.a)
 end
+
+function microsaccade(imagevector; max_amplitude = 3)
+	dim = Int(sqrt(length(imagevector)))
+	amps = rand(-max_amplitude:max_amplitude,2) #draw random translation
+	circshift(reshape(imagevector,dim,dim),amps)[:]
+end
