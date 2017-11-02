@@ -35,7 +35,7 @@ function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse; lr
 	#layer_post.t += lr_thr*(layer_post.a-layer_post.p)
 	BLAS.axpy!(lr_thr,layer_post.a-layer_post.p,layer_post.t)
 	#avoid negative thesholds:
-	clamp!(layer_post.t,0.,Inf64)
+	#clamp!(layer_post.t,0.,Inf64)
 end
 
 #BRITOS algorithm?
@@ -53,6 +53,7 @@ function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; le
 	elseif rule == "Sanger"
 		#Sanger's rule
 		# First: Second term of update rule: "weight-decay" prop. to old weights
+		# + lateral competition!
 		layer_post.w += -learningrate*LowerTriangular(layer_post.a*layer_post.a')*layer_post.w
 		# Second: First term (data-driven) of weight update
 		BLAS.ger!(learningrate,layer_post.a,layer_pre.a,layer_post.w)
@@ -61,6 +62,9 @@ function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; le
 end
 
 #Algorithm for parameter update for pooling layers with trace rule/Slow feature analysis
-function update_layer_parameters_pool_SFA!(layer_pre, layer_post::layer_pool, learningrate)
-
+function update_layer_parameters_pool_SFA!(layer_pre, layer_post::layer_pool; learningrate = 1e-2)
+	# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
+	scale!((1-learningrate*layer_post.a_tr),layer_post.w)
+	# Second: First term (data-driven) of weight update
+	BLAS.ger!(learningrate,layer_post.a_tr,layer_pre.a,layer_post.w)
 end

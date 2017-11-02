@@ -47,6 +47,9 @@ function _evaluate_errors(layer_pre, layer_post, i)
 	return [i,mean((smallimgs[:,1:Int(5e4)] - BLAS.gemm('T', 'N', layer_post.w, layer_post.hidden_reps)).^2)]
 end
 
+#up to now: only squared reconstruction error!
+#for SC: full loss function:
+#losses[i] = squared_errors[i] + sum(layer_post.a)-length(layer_post.a)*p + sum(layer_post.a*layer_post.a')-length(layer_post.a)*p^2
 function evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)
 	if i == 1
 		squared_errors[:,1] = _evaluate_errors(layer_pre,layer_post,i)

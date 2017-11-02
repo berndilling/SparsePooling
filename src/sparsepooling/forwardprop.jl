@@ -13,10 +13,14 @@ end
 
 #for pooling layers
 #ATTENTION: FOR PCA nonlinearity should be linear!
-#tau_u: time constant of low-pass filter of membrane potential, measured in units of inputs/iterations/data presentations (= dt in this case)
+#tau_a: time constant of low-pass filter of activity, measured in units of inputs/iterations/data presentations (= dt in this case)
 #lin: boolian if linear (no nonlinearity, no biases) forwardprop should be executed (for PCA)
-#calculate_trace: boolian if trace (low-pass filtered membr. pot.) should be calculated
-function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_u = 1e-1, lin = true, calculate_trace = true)
+#calculate_trace: boolian if trace (low-pass filtered activity) should be calculated
+function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_a = 1e-1, lin = true, calculate_trace = true)
+	if calculate_trace
+		# update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
+		layer_post.a_tr = (1-one_over_tau_u)*layer_post.a_tr + one_over_tau_u*layer_post.a
+	end
 	if lin
 		BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
 		layer_post.a = deepcopy(layer_post.u)
@@ -24,9 +28,6 @@ function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, on
 		BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
 		BLAS.axpy!(1., layer_post.b, layer_post.u) # add bias term
 		nonlinearity(layer_post.u, layer_post.a) # apply non-linearity
-		if calculate_trace
-			layer_post.u_tr = (1-one_over_tau_u)*layer_post.u_tr + one_over_tau_u*layer_post.u # update low-pass filtered membrane potential
-		end
 	end
 end
 

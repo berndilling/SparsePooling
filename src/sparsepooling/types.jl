@@ -20,8 +20,8 @@ end
 
 type layer_pool
 	u::Array{Float64, 1} #membrane potential
-	u_tr::Array{Float64, 1} #low pass filtered membrane potential: "trace"
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
+	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
 	w::Array{Float64, 2} #synaptic weight matrix in format TOxFROM
 	b::Array{Float64, 1} #biases
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer
