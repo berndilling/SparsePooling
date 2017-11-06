@@ -11,6 +11,11 @@ function getsmallimg()
     smallimgs[:, patternindex]
 end
 
+function getsmallimg(iteration) # to avoid conflicts when switching from moving bars
+    patternindex = rand(1:size(smallimgs)[2])
+    smallimgs[:, patternindex]
+end
+
 function getsample()
     patternindex = rand(1:n_samples)
     smallimgs[:, patternindex]
@@ -18,6 +23,15 @@ end
 
 function getlabel(x)
     [labels[patternindex] == i for i in 0:9]
+end
+
+#get bars moving in one direction 1 pixel per timestep/iteration
+#smallimgs should be array of bars with (used) length "length"
+function get_moving_vbar(iteration; length = 12)
+		smallimgs[:,((iteration-1) % length) + 1]
+end
+function get_moving_hbar(iteration; length = 12)
+		smallimgs[:,((iteration-1) % length) + 12]
 end
 
 function getsavepath()

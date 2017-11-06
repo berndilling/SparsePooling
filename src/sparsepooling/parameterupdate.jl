@@ -64,7 +64,7 @@ end
 #Algorithm for parameter update for pooling layers with trace rule/Slow feature analysis
 function update_layer_parameters_pool_SFA!(layer_pre, layer_post::layer_pool; learningrate = 1e-2)
 	# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
-	scale!((1-learningrate*layer_post.a_tr),layer_post.w)
+	scale!((1-learningrate*layer_post.a_tr.^2),layer_post.w)
 	# Second: First term (data-driven) of weight update
 	BLAS.ger!(learningrate,layer_post.a_tr,layer_pre.a,layer_post.w)
 end

@@ -79,6 +79,11 @@ function import_unlabelled_data(data::String)
     print(string("load: ",data,"\n"))
   	smallimgs = load(string(path,datastring),"wpatches")
     n_samples = size(smallimgs)[2]
+  elseif data == "bars"
+    datastring = "SparsePooling/artificial_data/moving_bars/all_bars.jld"
+    print(string("load: ",data,"\n"))
+  	smallimgs = load(string(path,datastring),"data")
+    n_samples = size(smallimgs)[2]
   end
 
 	return smallimgs, n_samples #n_testsamples = 0
