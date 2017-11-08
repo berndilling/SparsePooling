@@ -84,6 +84,11 @@ function import_unlabelled_data(data::String)
     print(string("load: ",data,"\n"))
   	smallimgs = load(string(path,datastring),"data")
     n_samples = size(smallimgs)[2]
+  elseif data == "bars_superimposed"
+    datastring = "SparsePooling/artificial_data/moving_bars/superimposed_bars.jld"
+    print(string("load: ",data,"\n"))
+  	smallimgs = load(string(path,datastring),"data")
+    n_samples = size(smallimgs)[2]
   end
 
 	return smallimgs, n_samples #n_testsamples = 0

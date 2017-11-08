@@ -60,7 +60,7 @@ function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous an
 			randn(ns[2], ns[1])/(10*sqrt(ns[1])), #feed-forward weights initialized gaussian distr.
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
-			0.05, #average activation set to 5% (as in Zylberberg)
+			1/12, #average activation set to 5% (as in Zylberberg)
 			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
 end
 

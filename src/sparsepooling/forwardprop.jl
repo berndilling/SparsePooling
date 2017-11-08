@@ -16,7 +16,7 @@ end
 #tau_a: time constant of low-pass filter of activity, measured in units of inputs/iterations/data presentations (= dt in this case)
 #lin: boolian if linear (no nonlinearity, no biases) forwardprop should be executed (for PCA)
 #calculate_trace: boolian if trace (low-pass filtered activity) should be calculated
-function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_a = 1e-2, lin = true, calculate_trace = true)
+function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_a = 3e-1, lin = true, calculate_trace = true)
 	if calculate_trace
 		# update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
 		layer_post.a_tr = (1-one_over_tau_a)*layer_post.a_tr + one_over_tau_a*layer_post.a

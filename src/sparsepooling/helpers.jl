@@ -1,4 +1,6 @@
 
+using Distributions
+
 #####################################################
 #Helpers
 
@@ -81,4 +83,15 @@ function microsaccade(imagevector; max_amplitude = 3)
 	dim = Int(sqrt(length(imagevector)))
 	amps = rand(-max_amplitude:max_amplitude,2) #draw random translation
 	circshift(reshape(imagevector,dim,dim),amps)[:]
+end
+
+# generate superimposed bars
+# data: array with vertical and horizontal bars (144*24-array)
+function create_superimposed_bars(bars; prob = 1/12, nr_examples = 50000)
+	data = zeros(144,nr_examples)
+	for i in 1:nr_examples
+		select = rand(Bernoulli(prob),24)
+		data[:,i] = clamp(sum(bars*Diagonal(select),2),0,1)
+	end
+	return data
 end
