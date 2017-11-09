@@ -16,7 +16,7 @@ end
 #tau_a: time constant of low-pass filter of activity, measured in units of inputs/iterations/data presentations (= dt in this case)
 #lin: boolian if linear (no nonlinearity, no biases) forwardprop should be executed (for PCA)
 #calculate_trace: boolian if trace (low-pass filtered activity) should be calculated
-function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_a = 3e-1, lin = true, calculate_trace = true)
+function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_a = 1e-1, lin = true, calculate_trace = true)
 	if calculate_trace
 		# update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
 		layer_post.a_tr = (1-one_over_tau_a)*layer_post.a_tr + one_over_tau_a*layer_post.a
@@ -32,10 +32,23 @@ function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, on
 end
 
 # Activation function with threshold
-function _activation_function!(input,output,threshold)
-	for i in 1:length(input)
-		output[i] = clamp(input[i]-threshold[i],0.,Inf64) #thresholded, linear rectifier
-		#output[i] = sqrt(clamp(input[i]-threshold[i],0.,Inf64)) #thresholded square root
+function _activation_function!(input,output,threshold; function_type = "pwl")
+	if function_type == "relu"
+		for i in 1:length(input)
+			output[i] = clamp(input[i]-threshold[i],0.,Inf64) #thresholded, linear rectifier
+		end
+	elseif function_type == "resqroot"
+		for i in 1:length(input)
+			output[i] = sqrt(clamp(input[i]-threshold[i],0.,Inf64)) #thresholded square root
+		end
+	elseif function_type == "heavyside"
+		for i in 1:length(input)
+			output[i] = Float64(input[i] > threshold[i])# heavyside
+		end
+	elseif function_type == "pwl"
+		for i in 1:length(input)
+			output[i] = clamp(input[i]-threshold[i],0.,1.) #piece-wise linear
+		end
 	end
 end
 

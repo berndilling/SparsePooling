@@ -1,5 +1,6 @@
 
 using Distributions
+using ProgressMeter
 
 #####################################################
 #Helpers
@@ -29,6 +30,9 @@ end
 
 #get bars moving in one direction 1 pixel per timestep/iteration
 #smallimgs should be array of bars with (used) length "length"
+function get_moving_bar(iteration; length = 24)
+		smallimgs[:,((iteration-1) % length) + 1]
+end
 function get_moving_vbar(iteration; length = 12)
 		smallimgs[:,((iteration-1) % length) + 1]
 end
@@ -43,8 +47,6 @@ function getsavepath()
 		path = "/home/illing/"
 	end
 end
-
-using ProgressMeter
 
 function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4))
 	print("\n")
@@ -94,4 +96,8 @@ function create_superimposed_bars(bars; prob = 1/12, nr_examples = 50000)
 		data[:,i] = clamp(sum(bars*Diagonal(select),2),0,1)
 	end
 	return data
+end
+
+function set_init_bars!(layer::layer_sparse,hidden_size)
+	layer.w = rand(size(layer.w)[1],size(layer.w)[2])/hidden_size
 end

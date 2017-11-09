@@ -49,7 +49,6 @@ function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; le
 		scale!((1-learningrate*layer_post.a.^2),layer_post.w)
 		# Second: First term (data-driven) of weight update
 		BLAS.ger!(learningrate,layer_post.a,layer_pre.a,layer_post.w)
-
 	elseif rule == "Sanger"
 		#Sanger's rule
 		# First: Second term of update rule: "weight-decay" prop. to old weights
@@ -62,9 +61,19 @@ function update_layer_parameters_pool_PCA!(layer_pre, layer_post::layer_pool; le
 end
 
 #Algorithm for parameter update for pooling layers with trace rule/Slow feature analysis
-function update_layer_parameters_pool_SFA!(layer_pre, layer_post::layer_pool; learningrate = 1e-2)
-	# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
-	scale!((1-learningrate*layer_post.a_tr.^2),layer_post.w)
-	# Second: First term (data-driven) of weight update
-	BLAS.ger!(learningrate,layer_post.a_tr,layer_pre.a,layer_post.w)
+function update_layer_parameters_pool_SFA!(layer_pre, layer_post::layer_pool; learningrate = 1e-2, rule = "Sanger-like")
+	if rule == "Oja-like"
+		# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
+		scale!((1-learningrate*layer_post.a_tr.^2),layer_post.w)
+		# Second: First term (data-driven) of weight update
+		BLAS.ger!(learningrate,layer_post.a_tr,layer_pre.a,layer_post.w)
+	elseif rule == "Sanger-like"
+		#Sanger's rule
+		# First: Second term of update rule: "weight-decay" prop. to old weights
+		# + lateral competition!
+		layer_post.w += -learningrate*LowerTriangular(layer_post.a_tr*layer_post.a_tr')*layer_post.w
+		# Second: First term (data-driven) of weight update
+		BLAS.ger!(learningrate,layer_post.a_tr,layer_pre.a,layer_post.w)
+		#BLAS.syr!('L', learningrate, layer_post.a, layer_post.w)
+	end
 end
