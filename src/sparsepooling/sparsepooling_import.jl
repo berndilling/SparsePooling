@@ -1,10 +1,11 @@
 #includes all relevant "modules"
 
 #path to modules
-path = "sparsepooling/"
+path = "./"
 
-include(string(path,"types.jl"))
+#CHANGING IMPORT ORDER MIGHT CAUSE PROBLEMS!
 include(string(path,"nonlins.jl"))
+include(string(path,"types.jl"))
 include(string(path,"helpers.jl"))
 include(string(path,"dataimport.jl"))
 include(string(path,"forwardprop.jl"))

@@ -1,7 +1,4 @@
-using MAT
-using HDF5
-using JLD
-using PyPlot
+using MAT, HDF5, JLD, PyPlot
 
 include("sparsepooling_import.jl")
 
@@ -13,7 +10,7 @@ dataset_sparse = "bars_superimposed"
 dataset_pool = "bars"
 labelled = false
 
-hidden_size = 72
+hidden_size = 24
 
 iterations = 10^5
 
@@ -35,6 +32,7 @@ if sparse_part
   set_init_bars!(network.layers[2],hidden_size)
   # only learn thresholds to reach stable values
   errors, ffd = learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, 10^3, lr_v = 0., lr_w = 0., lr_thr = 1e-1)
+  # learn sparse layer
   errors, ffd = learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, iterations)
   generatehiddenreps(network.layers[1], network.layers[2], number_of_reps = size(smallimgs)[2])
 

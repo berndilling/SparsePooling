@@ -4,13 +4,13 @@ using HDF5
 using JLD
 using PyPlot
 
-include("sparsepooling_import.jl")
+include("./sparsepooling/sparsepooling_import.jl")
 
 #dataset to be used
 dataset = "MNIST144"#"CIFAR10"#"Olshausen_white"#"MNIST144"#_white"#"CIFAR10_whitened"#"MNIST144"
 labelled = true
 
-iterations = 10^6
+iterations = 10^5#6
 
 if labelled
   smallimgs, labels, smallimgstest, labelstest, n_samples, n_testsamples =  import_data(dataset)
@@ -36,4 +36,5 @@ network = net([size(smallimgs)[1],100],["input","pool"])
 errors = learn_layer_pool!(network.layers[1], network.layers[2], getsmallimg, iterations)
 generatehiddenreps(network.layers[1], network.layers[2])
 
-save(string(getsavepath(),"SparsePooling/analysis/tests/pool_test_loss_",dataset,".jld"), "network", network, "squared_errors", errors)
+print("done")
+#save(string(getsavepath(),"SparsePooling/analysis/tests/pool_test_loss_",dataset,".jld"), "network", network, "squared_errors", errors)

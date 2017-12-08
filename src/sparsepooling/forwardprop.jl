@@ -16,23 +16,23 @@ end
 #tau_a: time constant of low-pass filter of activity, measured in units of inputs/iterations/data presentations (= dt in this case)
 #lin: boolian if linear (no nonlinearity, no biases) forwardprop should be executed (for PCA)
 #calculate_trace: boolian if trace (low-pass filtered activity) should be calculated
-function forwardprop!(layer_pre, layer_post::layer_pool; nonlinearity = lin!, one_over_tau_a = 1e-1, lin = true, calculate_trace = true)
-	if calculate_trace
+function forwardprop!(layer_pre, layer_post::layer_pool)
+	if layer_post.parameters.calculate_trace
 		# update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
-		layer_post.a_tr = (1-one_over_tau_a)*layer_post.a_tr + one_over_tau_a*layer_post.a
+		layer_post.a_tr = (1-layer_post.parameters.one_over_tau_a)*layer_post.a_tr + layer_post.parameters.one_over_tau_a*layer_post.a
 	end
-	if lin
+	if layer_post.parameters.lin
 		BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
 		layer_post.a = deepcopy(layer_post.u)
 	else
 		BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
 		BLAS.axpy!(1., layer_post.b, layer_post.u) # add bias term
-		nonlinearity(layer_post.u, layer_post.a) # apply non-linearity
+		layer_post.parameters.nonlinearity(layer_post.u, layer_post.a) # apply non-linearity
 	end
 end
 
 # Activation function with threshold
-function _activation_function!(input,output,threshold; function_type = "pwl")
+function _activation_function!(input,output,threshold,function_type,OneOverMaxFiringRate)
 	if function_type == "relu"
 		for i in 1:length(input)
 			output[i] = clamp(input[i]-threshold[i],0.,Inf64) #thresholded, linear rectifier
@@ -49,8 +49,17 @@ function _activation_function!(input,output,threshold; function_type = "pwl")
 		for i in 1:length(input)
 			output[i] = clamp(input[i]-threshold[i],0.,1.) #piece-wise linear
 		end
+	elseif function_type == "LIF"
+		for i in 1:length(input)
+			if input[i] <= threshold[i]
+				output[i] = 0.
+			else
+				output[i] = 1./(OneOverMaxFiringRate-log(1-threshold[i]/input[i]))
+			end
+		end
 	end
 end
+
 
 # Activation function of an Leaky Integrate and Fire model (with refractatoriness)
 # IMPLIES U_RESET = 0!
@@ -71,13 +80,19 @@ end
 # Similar to Brito's sparse coding algorithm
 # time constant tau of DEQ equals: tau = 1
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
-function forwardprop!(layer_pre, layer_post::layer_sparse; dt = 1e-1, epsilon = 1e-2, activation_function = _activation_function!)#_refractLIF!)
-	scaling_factor = epsilon/dt
+function forwardprop!(layer_pre, layer_post::layer_sparse)
+	if layer_post.parameters.calculate_trace
+		# update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
+		layer_post.a_tr = (1-layer_post.parameters.one_over_tau_a)*layer_post.a_tr + layer_post.parameters.one_over_tau_a*layer_post.a
+	end
+	scaling_factor = layer_post.parameters.epsilon/layer_post.parameters.dt
 	voltage_incr = scaling_factor*norm(layer_post.u)+1 #+1 to make sure loop is entered
 	input_without_recurrence = BLAS.gemv('N',layer_post.w,layer_pre.a)
 	while norm(voltage_incr) > scaling_factor*norm(layer_post.u)
 		voltage_incr = input_without_recurrence - BLAS.gemv('N',layer_post.v,layer_post.a) - layer_post.u
-		BLAS.axpy!(dt, voltage_incr, layer_post.u) # update membrane potential
-		activation_function(layer_post.u,layer_post.a,layer_post.t) # apply activation function
+		BLAS.axpy!(layer_post.parameters.dt, voltage_incr, layer_post.u) # update membrane potential
+		_activation_function!(layer_post.u,layer_post.a,layer_post.t,
+			layer_post.parameters.activationfunction,
+			layer_post.parameters.OneOverMaxFiringRate) # apply activation function
 	end
 end

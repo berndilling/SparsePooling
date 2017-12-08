@@ -4,7 +4,7 @@ using HDF5
 using JLD
 using PyPlot
 
-include("sparsepooling_import.jl")
+include("./sparsepooling/sparsepooling_import.jl")
 
 #dataset to be used
 dataset = "MNIST144_white"#"Olshausen_white"#"CIFAR10_whitened"#"Olshausen_white"#"MNIST144"
@@ -36,5 +36,6 @@ network = net([size(smallimgs)[1],300],["input","sparse"])
 errors, ffd = learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, iterations)
 generatehiddenreps(network.layers[1], network.layers[2])
 
-save(string(getsavepath(),"SparsePooling/analysis/tests/sparse_test_overcomplete_",dataset,".jld"),
-    "network", network, "squared_errors", errors, "ffd", ffd)
+print("done")
+#save(string(getsavepath(),"SparsePooling/analysis/tests/sparse_test_overcomplete_",dataset,".jld"),
+#    "network", network, "squared_errors", errors, "ffd", ffd)

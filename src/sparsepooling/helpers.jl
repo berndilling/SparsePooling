@@ -30,14 +30,15 @@ end
 
 #get bars moving in one direction 1 pixel per timestep/iteration
 #smallimgs should be array of bars with (used) length "length"
-function get_moving_bar(iteration; length = 24)
-		smallimgs[:,((iteration-1) % length) + 1]
+#repetitions: same bar will be presented for ("repetitions") subsequent frames
+function get_moving_bar(iteration; repetitions = 3)
+		smallimgs[:,Int(ceil((iteration/repetitions-1) % 24)) + 1]
 end
-function get_moving_vbar(iteration; length = 12)
-		smallimgs[:,((iteration-1) % length) + 1]
+function get_moving_vbar(iteration; repetitions = 3)
+		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 1]
 end
-function get_moving_hbar(iteration; length = 12)
-		smallimgs[:,((iteration-1) % length) + 12]
+function get_moving_hbar(iteration; repetitions = 3)
+		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 12]
 end
 
 function getsavepath()

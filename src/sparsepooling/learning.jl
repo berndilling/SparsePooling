@@ -7,13 +7,10 @@ function learn_layer_sparse!(layer_pre,
 				layer_post::layer_sparse,
 				inputfunction::Function,
 				iterations::Int64;
-				lr_v = 1e-1,
-				lr_w = 1e-3,
-				lr_thr = 1e-2,
-				p = 0.05,
-				evaluate_loss_boolian = false,
+				evaluate_loss_boolian = true,
 				nr_evaluations = 100)
 
+	print("learning sparse layer...\n")
 	ff_boolian = true
 	squared_errors = zeros(2,nr_evaluations+1) # values of squared reconstruction error
 	feedforward_differences = zeros(length(layer_post.u),iterations) # difference between pure feedworward and recurrent feedforward
@@ -24,7 +21,7 @@ function learn_layer_sparse!(layer_pre,
 		layer_post.a = zeros(length(layer_post.a)) # reset activities
 		forwardprop!(layer_pre, layer_post)
 		#feedforward_differences[:,i] = evaluate_ff_difference(layer_pre, layer_post)
-		update_layer_parameters_sparse!(layer_pre, layer_post, lr_v = lr_v, lr_w = lr_w, lr_thr = lr_thr)
+		update_layer_parameters_sparse!(layer_pre, layer_post)
 		if evaluate_loss_boolian #ATTENTION: NOT REAL LOSS FUNCTION FOR SPARSE CODING! ONLY RECONSTRUCTION ERROR!
 			evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)
 		end
@@ -41,15 +38,15 @@ function learn_layer_pool!(layer_pre,
 				layer_post::layer_pool,
 				inputfunction::Function,
 				iterations::Int64;
-				update_function = update_layer_parameters_pool_SFA!, #update_layer_parameters_pool_PCA!,#
 				evaluate_loss_boolian = false,
 				nr_evaluations = 20)
 
+	print("learning pooling layer...\n")
 	squared_errors = zeros(2,nr_evaluations+1) # values of squared reconstruction error
 	@showprogress for i in 1:iterations
 		layer_pre.a = inputfunction(i) #CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten!
 		forwardprop!(layer_pre, layer_post) #linear (without non-lin nor biases for PCA)
-		update_function(layer_pre, layer_post)
+		update_layer_parameters_pool!(layer_pre, layer_post)
 		if evaluate_loss_boolian
 			evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)
 		end
