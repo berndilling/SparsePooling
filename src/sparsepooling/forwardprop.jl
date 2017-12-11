@@ -11,6 +11,10 @@ function forwardprop!(net; nonlinearity = Array{Function, 1})
 	end
 end
 
+# update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
+function calculatetrace!(layer_post)
+	layer_post.a_tr = (1-layer_post.parameters.one_over_tau_a)*layer_post.a_tr + layer_post.parameters.one_over_tau_a*layer_post.a
+end
 #for pooling layers
 #ATTENTION: FOR PCA nonlinearity should be linear!
 #tau_a: time constant of low-pass filter of activity, measured in units of inputs/iterations/data presentations (= dt in this case)
@@ -18,16 +22,18 @@ end
 #calculate_trace: boolian if trace (low-pass filtered activity) should be calculated
 function forwardprop!(layer_pre, layer_post::layer_pool)
 	if layer_post.parameters.calculate_trace
-		# update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
-		layer_post.a_tr = (1-layer_post.parameters.one_over_tau_a)*layer_post.a_tr + layer_post.parameters.one_over_tau_a*layer_post.a
+		calculatetrace!(layer_post)
+		calculatetrace!(layer_pre)
 	end
-	if layer_post.parameters.lin
+	if layer_post.parameters.nonlinearity == "linear"
 		BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
 		layer_post.a = deepcopy(layer_post.u)
-	else
+	elseif layer_post.parameters.nonlinearity == "relu"
 		BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
 		BLAS.axpy!(1., layer_post.b, layer_post.u) # add bias term
-		layer_post.parameters.nonlinearity(layer_post.u, layer_post.a) # apply non-linearity
+		relu!(layer_post.u, layer_post.a) # apply non-linearity
+	else
+		error("non-linear option not defined yet in pooling layer!")
 	end
 end
 
@@ -82,8 +88,8 @@ end
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
 function forwardprop!(layer_pre, layer_post::layer_sparse)
 	if layer_post.parameters.calculate_trace
-		# update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
-		layer_post.a_tr = (1-layer_post.parameters.one_over_tau_a)*layer_post.a_tr + layer_post.parameters.one_over_tau_a*layer_post.a
+		calculatetrace!(layer_post)
+		calculatetrace!(layer_pre)
 	end
 	scaling_factor = layer_post.parameters.epsilon/layer_post.parameters.dt
 	voltage_incr = scaling_factor*norm(layer_post.u)+1 #+1 to make sure loop is entered

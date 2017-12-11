@@ -31,14 +31,21 @@ end
 #get bars moving in one direction 1 pixel per timestep/iteration
 #smallimgs should be array of bars with (used) length "length"
 #repetitions: same bar will be presented for ("repetitions") subsequent frames
-function get_moving_bar(iteration; repetitions = 3)
+function get_moving_bar(iteration; repetitions = 1)
 		smallimgs[:,Int(ceil((iteration/repetitions-1) % 24)) + 1]
 end
-function get_moving_vbar(iteration; repetitions = 3)
+function get_moving_vbar(iteration; repetitions = 1)
 		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 1]
 end
-function get_moving_hbar(iteration; repetitions = 3)
+function get_moving_hbar(iteration; repetitions = 1)
 		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 12]
+end
+function get_jittered_bar(iteration; repetitions_per_orientation = 30)
+		if Int(ceil(iteration/repetitions_per_orientation)-1) % 2 == 0
+			smallimgs[:,rand(1:12)]
+		else#if iteration % repetitions_per_orientation >= 0
+			smallimgs[:,rand(13:24)]
+		end
 end
 
 function getsavepath()

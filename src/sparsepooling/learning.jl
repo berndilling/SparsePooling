@@ -7,7 +7,7 @@ function learn_layer_sparse!(layer_pre,
 				layer_post::layer_sparse,
 				inputfunction::Function,
 				iterations::Int64;
-				evaluate_loss_boolian = true,
+				evaluate_loss_boolian = false,#true,
 				nr_evaluations = 100)
 
 	print("learning sparse layer...\n")

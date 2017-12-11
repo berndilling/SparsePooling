@@ -10,7 +10,7 @@ include("./sparsepooling/sparsepooling_import.jl")
 dataset = "MNIST144_white"#"Olshausen_white"#"CIFAR10_whitened"#"Olshausen_white"#"MNIST144"
 labelled = true#false
 
-iterations = 10^5
+iterations = 10^2#5
 
 if labelled
   smallimgs, labels, smallimgstest, labelstest, n_samples, n_testsamples =  import_data(dataset)

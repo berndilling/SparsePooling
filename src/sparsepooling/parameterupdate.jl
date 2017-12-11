@@ -8,6 +8,10 @@ function _normalize_inputweights!(weights)
 	end
 end
 
+############################################################################
+## Sparse layer
+############################################################################
+
 #Algorithm for parameter update in sparse coding as proposed by Zylberberg et al PLoS Comp Bio 2011
 # Parameters in this paper (lr_v,lr_w,lr_thr)=(0.1,0.001,0.01) (started with higher rates and then decreased)
 function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse)
@@ -38,7 +42,24 @@ function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse)
 	#clamp!(layer_post.t,0.,Inf64)
 end
 
-#BRITOS algorithm?
+# TODO BRITOS algorithm?
+
+############################################################################
+## Pooling layer
+############################################################################
+
+function lateral_competition!(w, a, lr)
+    n, m = size(w)
+    dw = similar(w)
+    tmp = zeros(m)
+    for i in 1:n
+        for j in 1:m
+            tmp[j] += a[i] * w[i, j]
+            dw[i, j] = a[i] * tmp[j]
+        end
+    end
+    BLAS.axpy!(-lr, dw, w)
+end
 
 #Algorithm for parameter update for pooling layers with PCA (Oja's rule) OR SANGERS RULE!
 #PAY ATTENTION: NONLINEARITY SHOULD BE LINEAR IN THIS CASE!!!
@@ -54,24 +75,44 @@ function update_layer_parameters_pool!(layer_pre, layer_post::layer_pool)
 			#Sanger's rule
 			# First: Second term of update rule: "weight-decay" prop. to old weights
 			# + lateral competition!
-			layer_post.w += -layer_post.parameters.learningrate*LowerTriangular(layer_post.a*layer_post.a')*layer_post.w
+			#layer_post.w += -layer_post.parameters.learningrate*LowerTriangular(layer_post.a*layer_post.a')*layer_post.w
+			lateral_competition!(layer_post.w, layer_post.a, layer_post.parameters.learningrate)
 			# Second: First term (data-driven) of weight update
 			BLAS.ger!(layer_post.parameters.learningrate,layer_post.a,layer_pre.a,layer_post.w)
 			#BLAS.syr!('L', learningrate, layer_post.a, layer_post.w)
 		end
 	elseif layer_post.parameters.updatetype == "SFA"
-		if layer_post.parameters.updaterule == "Oja-like"
+		if layer_post.parameters.updaterule == "Oja"
 			# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
 			scale!((1-layer_post.parameters.learningrate*layer_post.a_tr.^2),layer_post.w)
 			# Second: First term (data-driven) of weight update
-			BLAS.ger!(learningrate,layer_post.a_tr,layer_pre.a,layer_post.w)
-		elseif layer_post.parameters.updaterule == "Sanger-like"
+			BLAS.ger!(layer_post.parameters.learningrate,layer_post.a_tr,layer_pre.a,layer_post.w)
+		elseif layer_post.parameters.updaterule == "Sanger"
 			#Sanger's rule
 			# First: Second term of update rule: "weight-decay" prop. to old weights
 			# + lateral competition!
-			layer_post.w += -layer_post.parameters.learningrate*LowerTriangular(layer_post.a_tr*layer_post.a_tr')*layer_post.w
+			#layer_post.w += -layer_post.parameters.learningrate*LowerTriangular(layer_post.a_tr*layer_post.a_tr')*layer_post.w
+			lateral_competition!(layer_post.w, layer_post.a_tr, layer_post.parameters.learningrate)
 			# Second: First term (data-driven) of weight update
 			BLAS.ger!(layer_post.parameters.learningrate,layer_post.a_tr,layer_pre.a,layer_post.w)
+			#BLAS.syr!('L', learningrate, layer_post.a, layer_post.w)
+		end
+
+	# TODO implement subtraction of pre-synaptic trace to avoid permanently active neurons!
+	elseif layer_post.parameters.updatetype == "SFA_subtracttrace"
+		if layer_post.parameters.updaterule == "Oja"
+			# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
+			scale!((1-layer_post.parameters.learningrate*layer_post.a_tr.^2),layer_post.w)
+			# Second: First term (data-driven) of weight update
+			BLAS.ger!(layer_post.parameters.learningrate,layer_post.a_tr,layer_pre.a-layer_pre.a_tr,layer_post.w)
+		elseif layer_post.parameters.updaterule == "Sanger"
+			#Sanger's rule
+			# First: Second term of update rule: "weight-decay" prop. to old weights
+			# + lateral competition!
+			#layer_post.w += -layer_post.parameters.learningrate*LowerTriangular(layer_post.a_tr*layer_post.a_tr')*layer_post.w
+			lateral_competition!(layer_post.w, layer_post.a_tr, layer_post.parameters.learningrate)
+			# Second: First term (data-driven) of weight update
+			BLAS.ger!(layer_post.parameters.learningrate,layer_post.a_tr,layer_pre.a-layer_pre.a_tr,layer_post.w)
 			#BLAS.syr!('L', learningrate, layer_post.a, layer_post.w)
 		end
 	end
