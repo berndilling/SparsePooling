@@ -14,9 +14,9 @@ function getsmallimg()
     smallimgs[:, patternindex]
 end
 
-function getsmallimg(iteration) # to avoid conflicts when switching from moving bars
-    patternindex = rand(1:size(smallimgs)[2])
-    smallimgs[:, patternindex]
+function getsmallimg(iteration) #select images in fixed order
+		if iteration > size(smallimgs)[2] iteration = iteration % size(smallimgs)[2] end
+    smallimgs[:, iteration]
 end
 
 function getsample()
@@ -68,6 +68,42 @@ function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4))
 	end
 end
 
+function generatemovingpatches(patches, layer_pre, layer_post;
+	nr_presentations_per_patch = 30, number_of_patches = Int(5e4))
+		dim = Int(ceil(sqrt(size(patches)[1])))
+		movingpatches = zeros(Int(size(patches)[1]),Int(nr_presentations_per_patch*number_of_patches))
+		hiddenreps = zeros(length(layer_post.a),Int(nr_presentations_per_patch*number_of_patches))
+		@showprogress for i in 1:number_of_patches
+			index = rand(1:Int(size(patches)[2]))
+			dir = rand(-1:1,2) # select 1 of 9 possible directions
+			for j in 1:nr_presentations_per_patch
+				movingpatches[:,(i-1)*nr_presentations_per_patch+j] = circshift(reshape(patches[:,index],dim,dim),j.*dir)[:]
+				layer_pre.a = movingpatches[:,(i-1)*nr_presentations_per_patch+j]
+				forwardprop_lc!(layer_pre, layer_post)
+				hiddenreps[:,(i-1)*nr_presentations_per_patch+j] = deepcopy(layer_post.a)
+			end
+		end
+		return movingpatches, hiddenreps
+end
+
+function generatejitteredpatches(patches, layer_pre, layer_post; max_amplitude = 3,
+	nr_presentations_per_patch = 30, number_of_patches = Int(5e4))
+		dim = Int(ceil(sqrt(size(patches)[1])))
+		jitteredpatches = zeros(Int(size(patches)[1]),Int(nr_presentations_per_patch*number_of_patches))
+		hiddenreps = zeros(length(layer_post.a),Int(nr_presentations_per_patch*number_of_patches))
+		@showprogress for i in 1:number_of_patches
+			index = rand(1:Int(size(patches)[2]))
+			for j in 1:nr_presentations_per_patch
+				amps = rand(-max_amplitude:max_amplitude,2) #draw random translation
+				jitteredpatches[:,(i-1)*nr_presentations_per_patch+j] = circshift(reshape(patches[:,index],dim,dim),amps)[:]
+				layer_pre.a = jitteredpatches[:,(i-1)*nr_presentations_per_patch+j]
+				forwardprop_lc!(layer_pre, layer_post)
+				hiddenreps[:,(i-1)*nr_presentations_per_patch+j] = deepcopy(layer_post.a)
+			end
+		end
+		return jitteredpatches, hiddenreps
+end
+
 function _evaluate_errors(layer_pre, layer_post, i)
 	generatehiddenreps(layer_pre, layer_post)
 	return [i,mean((smallimgs[:,1:Int(5e4)] - BLAS.gemm('T', 'N', layer_post.w, layer_post.hidden_reps)).^2)]
@@ -89,6 +125,25 @@ function evaluate_ff_difference(layer_pre, layer_post::layer_sparse)
 	layer_post.u-BLAS.gemv('N',layer_post.w,layer_pre.a)
 end
 
+function getsomepeaks(array; factor = 1.0)
+	mean_value = mean(array)
+	std_value = std(array)
+	indices = []
+	for i in 1:length(array)
+		if array[i] >= factor*std_value+mean_value push!(indices,i) end
+	end
+	return indices
+end
+function getsomenegativepeaks(array; factor = 0.5)
+	mean_value = mean(array)
+	std_value = std(array)
+	indices = []
+	for i in 1:length(array)
+		if array[i] <= mean_value-factor*std_value push!(indices,i) end
+	end
+	return indices
+end
+
 function microsaccade(imagevector; max_amplitude = 3)
 	dim = Int(sqrt(length(imagevector)))
 	amps = rand(-max_amplitude:max_amplitude,2) #draw random translation
@@ -108,4 +163,15 @@ end
 
 function set_init_bars!(layer::layer_sparse,hidden_size)
 	layer.w = rand(size(layer.w)[1],size(layer.w)[2])/hidden_size
+	layer.parameters.learningrate_v = 1e-1
+  layer.parameters.learningrate_w = 2e-2
+  layer.parameters.learningrate_thr = 2e-2
+end
+
+function set_init_bars!(layer::layer_pool)
+	layer.parameters.activationfunction = "linear"#"relu" #pwl & relu works nice but no idea why!
+	layer.parameters.updatetype = "SFA"#"SFA_subtracttrace"
+	layer.parameters.updaterule = "Sanger"
+	layer.parameters.learningrate = 1e-2
+	layer.parameters.one_over_tau_a = 1e-1
 end

@@ -6,7 +6,7 @@
 type parameters_input
 	one_over_tau_a::Float64
 end
-function parameters_input(; one_over_tau_a = 1e-1)
+function parameters_input(; one_over_tau_a = 1e-3)
 	parameters_input(one_over_tau_a)
 end
 type layer_input
@@ -16,22 +16,23 @@ type layer_input
 end
 
 type parameters_sparse
-	learningrate_v::Float64
-	learningrate_w::Float64
-	learningrate_thr::Float64
+	learningrate_v::Float64 # learning rate for lateral inhibition
+	learningrate_w::Float64 # learning rate for feedforward weights
+	learningrate_thr::Float64 # learning rate for thresholds
 	dt::Float64 #time step for integration
 	epsilon::Float64 #convergence criterium for recurrence
-	activationfunction::String #"relu"/"resqroot"/"heavyside"/"pwl"/"LIF"
-	OneOverMaxFiringRate::Float64
+	activationfunction::String #"relu"/"resqroot"/"heavyside"/"pwl"/"sigm"/"LIF"
+	OneOverMaxFiringRate::Float64 #used for LIF nonlin. determines refractory period/saturation
 	calculate_trace::Bool
-	one_over_tau_a::Float64
+	one_over_tau_a::Float64 # time constant for low pass filtered activity "trace"
+	p::Float64 #average activation/"firing rate"
 end
 function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 1e-3, learningrate_thr = 1e-2,
 		dt = 1e-1, epsilon = 1e-4, activationfunction = "pwl", OneOverMaxFiringRate = 1/50,
-		calculate_trace = true, one_over_tau_a = 1e-1)
+		calculate_trace = true, one_over_tau_a = 1e-1, p = 1/12) #p: average activation set to 5% (as in Zylberberg)
 	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, activationfunction, OneOverMaxFiringRate,
-			calculate_trace, one_over_tau_a)
+			calculate_trace, one_over_tau_a, p)
 end
 type layer_sparse
 	parameters::parameters_sparse
@@ -41,20 +42,28 @@ type layer_sparse
 	w::Array{Float64, 2} #synaptic weight matrix in format TOxFROM
 	v::Array{Float64, 2} #recurrent/lateral inhibition weight matrix
 	t::Array{Float64, 1} #thresholds
-	p::Float64 #average activation/"firing rate"
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer (saved to accelerate further learning)
 end
 
 type parameters_pool
 	learningrate::Float64
+	learningrate_v::Float64 # learning rate for lateral inhibition
+	learningrate_w::Float64 # learning rate for feedforward weights
+	learningrate_thr::Float64 # learning rate for thresholds
+	dt::Float64 #time step for integration
+	epsilon::Float64 #convergence criterium for recurrence
 	updatetype::String
 	updaterule::String #"Sanger"/"Oja"
-	nonlinearity::String
+	activationfunction::String
 	calculate_trace::Bool
 	one_over_tau_a ::Float64
+	p::Float64
 end
-function parameters_pool(; learningrate = 1e-2, updatetype = "SFA", updaterule = "Sanger", nonlinearity = "linear", calculate_trace = true, one_over_tau_a = 1e-1)
-	parameters_pool(learningrate, updatetype, updaterule, nonlinearity, calculate_trace, one_over_tau_a)
+function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 1e-3, learningrate_thr = 1e-2,
+		dt = 1e-1, epsilon = 1e-4, updatetype = "SFA", updaterule = "Sanger",
+	activationfunction = "linear", calculate_trace = true, one_over_tau_a = 1e-1, p = 1.)
+	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
+			dt, epsilon, updatetype, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
 end
 type layer_pool
 	parameters::parameters_pool
@@ -105,7 +114,6 @@ function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous an
 			randn(ns[2], ns[1])/(10*sqrt(ns[1])), #feed-forward weights initialized gaussian distr.
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
-			1/12, #average activation set to 5% (as in Zylberberg)
 			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
 end
 
