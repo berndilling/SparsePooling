@@ -47,14 +47,18 @@ function update_layer_parameters_lc!(layer_pre, layer_post::layer_sparse)
 end
 function update_layer_parameters_lc!(layer_pre, layer_post::layer_pool)
 	BLAS.ger!(layer_post.parameters.learningrate_v,layer_post.a_tr,layer_post.a_tr,layer_post.v)
+	#BLAS.ger!(layer_post.parameters.learningrate_v,layer_post.a,layer_post.a,layer_post.v)
 	layer_post.v += -layer_post.parameters.learningrate_v*layer_post.parameters.p^2
 	for j in 1:size(layer_post.v)[1]
 		layer_post.v[j,j] = 0. #no self-inhibition
 	end
 	clamp!(layer_post.v,0.,Inf64) #Dale's law
 	scale!((1-layer_post.parameters.learningrate_w*layer_post.a_tr.^2),layer_post.w)
+	#scale!((1-layer_post.parameters.learningrate_w*layer_post.a.^2),layer_post.w)
 	BLAS.ger!(layer_post.parameters.learningrate_w,layer_post.a_tr,layer_pre.a,layer_post.w)
+	#BLAS.ger!(layer_post.parameters.learningrate_w,layer_post.a,layer_pre.a,layer_post.w)
 	BLAS.axpy!(layer_post.parameters.learningrate_thr,layer_post.a_tr-layer_post.parameters.p,layer_post.t)
+	#BLAS.axpy!(layer_post.parameters.learningrate_thr,layer_post.a-layer_post.parameters.p,layer_post.t)
 	#clamp!(layer_post.t,0.,Inf64)
 end
 

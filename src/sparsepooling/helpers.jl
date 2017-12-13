@@ -56,14 +56,18 @@ function getsavepath()
 	end
 end
 
-function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4))
+function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4), mode = "no_lc")
 	print("\n")
 	print(string("Generate ",number_of_reps," hidden representations for layer type: ",typeof(layer_post)))
 	print("\n")
 	layer_post.hidden_reps = zeros(length(layer_post.a),number_of_reps)
 	@showprogress for i in 1:number_of_reps
 		layer_pre.a = smallimgs[:,i]
-		forwardprop!(layer_pre, layer_post)
+		if mode == "lc"
+			forwardprop_lc!(layer_pre, layer_post)
+		else
+			forwardprop!(layer_pre, layer_post)
+		end
 		layer_post.hidden_reps[:,i] = deepcopy(layer_post.a)
 	end
 end

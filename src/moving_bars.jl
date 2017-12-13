@@ -64,18 +64,20 @@ if pool_part
   smallimgs = deepcopy(network.layers[2].hidden_reps)
   subtractmean!(smallimgs) #Otherwise first SF/PC is the mean...
   network_2 = net([size(smallimgs)[1],hidden_pool],["input","pool"])
-  set_init_bars!(network_2.layers[2])
-  network_2.layers[2].parameters.updatetype = "SFA_subtracttrace"
-  errors = learn_layer_pool!(network_2.layers[1], network_2.layers[2], get_jittered_bar, iterations)#get_moving_vbar #get_moving_vbar
+    # set_init_bars!(network_2.layers[2])
+    # network_2.layers[2].parameters.activationfunction = "relu"
+    # network_2.layers[2].parameters.updatetype = "SFA_subtracttrace"
+    # errors = learn_layer_pool!(network_2.layers[1], network_2.layers[2], get_jittered_bar, iterations)#get_moving_vbar #get_moving_vbar
+    # generatehiddenreps(network_2.layers[1], network_2.layers[2], number_of_reps = size(smallimgs)[2])
 
-  # use SC algorithm for pooling layer (DOESN'T REALLY WORK YET)
-  # network_2.layers[2].parameters.learningrate_v = 1e-1
-  # network_2.layers[2].parameters.learningrate_w = 2e-2
-  # network_2.layers[2].parameters.learningrate_thr = 2e-2
-  # network_2.layers[2].parameters.activationfunction = "pwl"
-  # network_2.layers[2].parameters.p = 1.
-  # errors = learn_layer_SC!(network_2.layers[1], network_2.layers[2], get_jittered_bar, iterations)#get_moving_vbar #get_moving_vbar
-  generatehiddenreps(network_2.layers[1], network_2.layers[2], number_of_reps = size(smallimgs)[2])
+  #use SC algorithm for pooling layer (DOESN'T REALLY WORK YET)
+  network_2.layers[2].parameters.learningrate_v = 1e-1
+  network_2.layers[2].parameters.learningrate_w = 2e-2
+  network_2.layers[2].parameters.learningrate_thr = 2e-2
+  network_2.layers[2].parameters.activationfunction = "relu"
+  network_2.layers[2].parameters.p = .5
+  errors = learn_layer_SC!(network_2.layers[1], network_2.layers[2], get_jittered_bar, iterations, order = "ordered")#get_moving_vbar #get_moving_vbar
+  generatehiddenreps(network_2.layers[1], network_2.layers[2]; number_of_reps = size(smallimgs)[2], mode = "lc")
 
   save(string(getsavepath(),"SparsePooling/analysis/SFA/pool_",dataset_pool,".jld"),
       "network", network_2, "squared_errors", errors)
@@ -125,6 +127,8 @@ end
 
 figure()
 title("hidden activations of pooling layer")
+print(find(x -> (x < 0),network_2.layers[2].hidden_reps))
+print(network_2.layers[2].hidden_reps)
 for i in 1:hidden_pool
   plot(network_2.layers[2].hidden_reps[i,:])
 end

@@ -7,12 +7,14 @@ function learn_layer_sparse!(layer_pre,
 				layer_post::layer_sparse,
 				inputfunction::Function,
 				iterations::Int64;
+				order = "random",
 				evaluate_loss_boolian = false,#true,
 				nr_evaluations = 100)
 				learn_layer_SC!(layer_pre,
 								layer_post,
 								inputfunction,
 								iterations,
+								order = order,
 								evaluate_loss_boolian = evaluate_loss_boolian,
 								nr_evaluations = nr_evaluations)
 end
@@ -20,6 +22,7 @@ function learn_layer_SC!(layer_pre,
 				layer_post,
 				inputfunction::Function,
 				iterations::Int64;
+				order = "random",
 				evaluate_loss_boolian = false,#true,
 				nr_evaluations = 100)
 
@@ -28,8 +31,12 @@ function learn_layer_SC!(layer_pre,
 	squared_errors = zeros(2,nr_evaluations+1) # values of squared reconstruction error
 	feedforward_differences = zeros(length(layer_post.u),iterations) # difference between pure feedworward and recurrent feedforward
 	@showprogress for i in 1:iterations
-		layer_pre.a = inputfunction()#inputfunction(i) #CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten!
-		#added 6.11.17
+		#CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten! added 6.11.17
+		if order == "random"
+			layer_pre.a = inputfunction()
+		elseif order == "ordered"
+			layer_pre.a = inputfunction(i)
+		end
 		layer_post.u = zeros(length(layer_post.u)) # reset membrane potential
 		layer_post.a = zeros(length(layer_post.a)) # reset activities
 		forwardprop_lc!(layer_pre, layer_post)
@@ -57,7 +64,8 @@ function learn_layer_pool!(layer_pre,
 	print("learning pooling layer...\n")
 	squared_errors = zeros(2,nr_evaluations+1) # values of squared reconstruction error
 	@showprogress for i in 1:iterations
-		layer_pre.a = inputfunction(i) #CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten!
+		#CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten!
+		layer_pre.a = inputfunction(i) #CAUTION: IMAGES PRESENTED IN FIXED ORDER!
 		forwardprop!(layer_pre, layer_post) #linear (without non-lin nor biases for PCA)
 		update_layer_parameters_pool!(layer_pre, layer_post)
 		if evaluate_loss_boolian
