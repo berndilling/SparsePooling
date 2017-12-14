@@ -15,7 +15,7 @@ function getsmallimg()
 end
 
 function getsmallimg(iteration) #select images in fixed order
-		if iteration > size(smallimgs)[2] iteration = iteration % size(smallimgs)[2] end
+		if iteration > size(smallimgs)[2] iteration = (iteration % size(smallimgs)[2])+1 end
     smallimgs[:, iteration]
 end
 
@@ -70,6 +70,44 @@ function generatehiddenreps(layer_pre, layer_post; number_of_reps = Int(5e4), mo
 		end
 		layer_post.hidden_reps[:,i] = deepcopy(layer_post.a)
 	end
+end
+
+function generateratetriggeredrecfields(layer_pre, layer_post; number_of_reps = Int(5e4), mode = "no_lc")
+	#smallimgs in main have to be (sparse coding) hidden reps of jitteredpatches
+	print("\n")
+	print(string("Generate rate triggered receptive fields for layer type: ",typeof(layer_post)))
+	print("\n")
+	ratetriggeredrecfields = zeros(length(layer_post.a),length(layer_pre.a))
+	@showprogress for i in 1:number_of_reps
+		layer_pre.a = smallimgs[:,i]
+		if mode == "lc"
+			forwardprop_lc!(layer_pre, layer_post)
+		else
+			forwardprop!(layer_pre, layer_post)
+		end
+		ratetriggeredrecfields += deepcopy(layer_post.a*layer_pre.a')
+	end
+	ratetriggeredrecfields./number_of_reps
+end
+
+function generatecomplexrecfields(layer_pre,layer_post,jitteredpatches; mode = "no_lc")
+	#smallimgs in main have to be (sparse coding) hidden reps of jitteredpatches
+	print("\n")
+	print(string("Generate complex rec. fields for layer type: ",typeof(layer_post)))
+	print("\n")
+	print("CAUTION: smallimgs in main have to be sparse coding hidden reps!")
+	print("\n")
+	complexrecfields = zeros(length(layer_post.a),size(jitteredpatches)[1])
+	@showprogress for i in 1:size(jitteredpatches)[2]
+		layer_pre.a = smallimgs[:,i]
+		if mode == "lc"
+			forwardprop_lc!(layer_pre, layer_post)
+		else
+			forwardprop!(layer_pre, layer_post)
+		end
+		complexrecfields += deepcopy(layer_post.a*jitteredpatches[:,i]')
+	end
+	complexrecfields./size(jitteredpatches)[2]
 end
 
 function generatemovingpatches(patches, layer_pre, layer_post;
@@ -129,6 +167,16 @@ function evaluate_ff_difference(layer_pre, layer_post::layer_sparse)
 	layer_post.u-BLAS.gemv('N',layer_post.w,layer_pre.a)
 end
 
+function gethighestvalues(array; number = 0.1*length(array))
+	array1 = deepcopy(array)
+  indices = []
+	for i in 1:number
+		index = findmax(array1)[2]
+		push!(indices,index)
+		array1[index] = -Inf64
+	end
+	return indices
+end
 function getsomepeaks(array; factor = 1.0)
 	mean_value = mean(array)
 	std_value = std(array)

@@ -17,12 +17,12 @@ labelled = false
 
 number_of_hidden_reps = 10^4
 nr_presentations_per_patch = 50
-iterations_pool = 10^6#number_of_hidden_reps*nr_presentations_per_patch
+iterations_pool = 10^6 #number_of_hidden_reps*nr_presentations_per_patch
 
-number_of_hidden_reps_pool = 500 #just for testing pooling
+number_of_hidden_reps_pool = 1000 #just for testing pooling
 
 hidden_size = 100
-hidden_pool = 4
+hidden_pool = 5
 
 smallimgs_sparse, n_samples = import_unlabelled_data(dataset_sparse)
 smallimgs_pool, n_samples = import_unlabelled_data(dataset_pool)
@@ -79,12 +79,15 @@ if pool_part
     smallimgs = load(string(getsavepath(),"SparsePooling/analysis/SFA/SC_hidden_rep_jittered_",dataset_sparse,".jld"),"hidden_reps")
   end
   network_2 = net([size(smallimgs)[1],hidden_pool],["input","pool"])
-  network_2.layers[2].parameters.learningrate = 1e-3
+  network_2.layers[2].parameters.learningrate = 1e-3#1e-3
   network_2.layers[2].parameters.activationfunction = "relu"#"linear"
-  network_2.layers[2].parameters.updatetype = "SFA_subtracttrace"
+    network_2.layers[2].parameters.updatetype = "SFA_subtracttrace" #subtract input trace (might not be necessary)
+    network_2.layers[1].parameters.one_over_tau_a = 1e-6 # subract long-term mean of input
   network_2.layers[2].parameters.updaterule = "Sanger"
-  errors = learn_layer_pool!(network_2.layers[1], network_2.layers[2], getsmallimg, Int(size(smallimgs)[2]))
+  errors = learn_layer_pool!(network_2.layers[1], network_2.layers[2], getsmallimg, iterations_pool)#Int(size(smallimgs)[2]))
   generatehiddenreps(network_2.layers[1], network_2.layers[2], number_of_reps = number_of_hidden_reps_pool)
+  poolingrecfields = generateratetriggeredrecfields(network_2.layers[1], network_2.layers[2], number_of_reps = Int(size(smallimgs)[2]))
+  complexrecfields = generatecomplexrecfields(network_2.layers[1],network_2.layers[2],jitteredpatches)
 
   save(string(getsavepath(),"SparsePooling/analysis/SFA/pool_",dataset_pool,".jld"),
       "network", network_2, "squared_errors", errors)
@@ -123,11 +126,9 @@ plot(network.layers[2].t[:])
 figure()
 title("weights of pooling layer")
 peaks = Array{Array{Int64, 1}, 1}()
-npeaks = Array{Array{Int64, 1}, 1}()
 for i in 1:hidden_pool
   plot(network_2.layers[2].w[i,:])
-  push!(peaks,getsomepeaks(network_2.layers[2].w[i,:], factor = 1.3))
-  push!(npeaks,getsomenegativepeaks(network_2.layers[2].w[i,:], factor = 1.))
+  push!(peaks,gethighestvalues(poolingrecfields[i,:]; number = ceil(0.05*hidden_size)))
 end
 
 figure()
@@ -143,25 +144,16 @@ for i in 1:hidden_pool
   end
   figure()
 end
-# for i in 1:1#hidden_pool
-#   for j in 1:length(npeaks[i])
-#     figure()
-#     imshow(reshape(network.layers[2].w[npeaks[i][j],:],16,16))
-#   end
-# end
-# a = find(x -> (x > 0),network_2.layers[2].w[1,:])
-# for i in 1:length(a)
-#   figure()
-#   imshow(reshape(network.layers[2].w[a[i],:],12,12))
-# end
 
-# Testing spike trigered response equals feed-forward weights:
-# str = network.layers[2].hidden_reps*smallimgs'
-# str_ws = zeros(12*4,12*6)
-# for i in 1:4
-#   for j in 1:6
-#     str_ws[(i-1)*12+1:i*12,(j-1)*12+1:j*12] = reshape(str[(i-1)*4+j,:],12,12)
-#   end
-# end
-# figure()
-# imshow(str_ws)
+figure()
+title("pooling rec. fields (rate triggered, av. over input)")
+xlabel("input neuron")
+ylabel("rate triggered response")
+for i in 1:hidden_pool
+  plot(poolingrecfields[i,:])
+end
+
+for i in 1:hidden_pool
+  figure()
+  imshow(reshape(complexrecfields[i,:],16,16))
+end
