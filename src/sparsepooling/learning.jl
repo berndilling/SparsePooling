@@ -27,9 +27,9 @@ function learn_layer_SC!(layer_pre,
 				nr_evaluations = 100)
 
 	print("learning sparse layer...\n")
-	ff_boolian = true
+	ff_boolian = false
 	squared_errors = zeros(2,nr_evaluations+1) # values of squared reconstruction error
-	feedforward_differences = zeros(length(layer_post.u),iterations) # difference between pure feedworward and recurrent feedforward
+	#feedforward_differences = zeros(length(layer_post.u),iterations) # difference between pure feedworward and recurrent feedforward
 	@showprogress for i in 1:iterations
 		#CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten! added 6.11.17
 		if order == "random"
