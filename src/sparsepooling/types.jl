@@ -45,6 +45,22 @@ type layer_sparse
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer (saved to accelerate further learning)
 end
 
+type parameters_sparse_patchy
+	n_of_sparse_layer_patches::Int64 #number of independent sparse layer patches
+	patch_size::Int64 #number of each in-fan: patch_size*patch_size
+	overlap::Int64 #overlap of patches in pixels
+end
+function parameters_sparse_patchy(; n_of_sparse_layer_patches = 64,
+	patch_size = 8, overlap = 4)
+	parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap)
+end
+type layer_sparse_patchy
+	parameters::parameters_sparse_patchy
+	sparse_layer_patches::Array{layer_sparse, 1}
+	common_sparse_activation::Array{Float64, 1} #combined sparse activity of all sparse layer patches
+	common_sparse_trace::Array{Float64, 1} #same for activity trace
+end
+
 type parameters_pool
 	learningrate::Float64
 	learningrate_v::Float64 # learning rate for lateral inhibition
@@ -93,7 +109,7 @@ end
 type net
 	nr_layers::Int64 #number of layers
 	layer_sizes::Array{Int64, 1} #sizes of layers (number of neurons)
-	layer_types::Array{String, 1} #type of layers: sparse or pool (...maybe others later)
+	layer_types::Array{String, 1} #type of layers: sparse, sparse_patchy or pool (...maybe others later)
 	layers::Array{Any, 1} #layers of the network
 end
 
@@ -115,6 +131,16 @@ function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous an
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
 			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
+end
+
+function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 64,
+	patch_size = 8, overlap = 4) #ns: size of in-fan and hidden layer per sparse layer patch
+	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap),
+	[layer_sparse(ns) for i in 1:n_of_sparse_layer_patches],
+	zeros(ns[2]*n_of_sparse_layer_patches),
+	zeros(ns[2]*n_of_sparse_layer_patches)
+	)
+
 end
 
 function layer_pool(ns::Array{Int64, 1})
@@ -145,6 +171,8 @@ function net(sl::Array{Int64, 1}, tl::Array{String, 1}) #sl: Sizes of layers, tl
 	for i in 2:nl
 		if tl[i] == "sparse"
 			push!(network.layers,layer_sparse(sl[i-1:i]))
+		elseif tl[i] == "sparse_patchy"
+			push!(network.layers,layer_sparse_patchy(sl[i-1:i]))
 		elseif tl[i] == "pool"
 			push!(network.layers,layer_pool(sl[i-1:i]))
 		end

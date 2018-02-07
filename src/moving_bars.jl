@@ -90,22 +90,27 @@ end
 ws = zeros(12*4,12*6)
 for i in 1:4
   for j in 1:6
-    ws[(i-1)*12+1:i*12,(j-1)*12+1:j*12] = reshape(network.layers[2].w[(i-1)*4+j,:],12,12)
+    ws[(i-1)*12+1:i*12,(j-1)*12+1:j*12] = reshape(network.layers[2].w[(i-1)*6+j,:],12,12)
   end
 end
 figure()
-title("SC rec. fields (feedforward weights)")
+title("SC receptive fields") # = feedforward weights
 imshow(ws)
+axis("off")
+savefig("/Users/Bernd/Documents/PhD/Presentations/LabMeeting_February18/bars_SC_rec_fields.pdf")
 
 figure()
 title("lateral inhibtion weights")
 imshow(network.layers[2].v)
+axis("off")
+savefig("/Users/Bernd/Documents/PhD/Presentations/LabMeeting_February18/bars_SC_lateralinhibitionweights.pdf")
 
 figure()
-title("hidden activations of the 24 pooling patterns")
+title("Hidden activations of the 24 pooling patterns")
 ylabel("# neuron")
 xlabel("# pattern")
 imshow(network.layers[2].hidden_reps)
+savefig("/Users/Bernd/Documents/PhD/Presentations/LabMeeting_February18/bars_hidden_activations.pdf")
 
 figure()
 title("hist of hidden reps activations")
@@ -119,12 +124,15 @@ PyPlot.plt[:hist](network.layers[2].v[:],bins = 10, histtype = "step", color = "
 figure()
 title("thresholds")
 plot(network.layers[2].t[:])
+xlabel("hidden neuron")
 
 figure()
-title("weights of pooling layer")
+title("Weights of pooling layer")
 for i in 1:hidden_pool
   plot(network_2.layers[2].w[i,:])
 end
+xlabel("presynaptic neuron")
+savefig("/Users/Bernd/Documents/PhD/Presentations/LabMeeting_February18/bars_rec_fields_pooling.pdf")
 
 figure()
 title("hidden activations of pooling layer")
@@ -133,17 +141,32 @@ print(network_2.layers[2].hidden_reps)
 for i in 1:hidden_pool
   plot(network_2.layers[2].hidden_reps[i,:])
 end
+xlabel("pattern number")
+savefig("/Users/Bernd/Documents/PhD/Presentations/LabMeeting_February18/bars_SC_pooling_response.pdf")
 
 figure()
 for i in 1:hidden_pool
   plot(recfields[i,:])
 end
 
-# a = find(x -> (x > 0),network_2.layers[2].w[1,:])
-# for i in 1:length(a)
-#   figure()
-#   imshow(reshape(network.layers[2].w[a[i],:],12,12))
-# end
+a = find(x -> (x > 0),network_2.layers[2].w[1,:])
+b = find(x -> (x < 0),network_2.layers[2].w[1,:])
+wa = zeros(12*2,12*6)
+wb = zeros(12*2,12*6)
+for i in 1:2
+  for j in 1:6
+    wa[(i-1)*12+1:i*12,(j-1)*12+1:j*12] = reshape(network.layers[2].w[a[(i-1)*6+j],:],12,12)
+    wb[(i-1)*12+1:i*12,(j-1)*12+1:j*12] = reshape(network.layers[2].w[b[(i-1)*6+j],:],12,12)
+  end
+end
+figure()
+imshow(wa)
+axis("off")
+savefig("/Users/Bernd/Documents/PhD/Presentations/LabMeeting_February18/bars_pooling_SC_rec_fields_1.pdf")
+figure()
+imshow(wb)
+axis("off")
+savefig("/Users/Bernd/Documents/PhD/Presentations/LabMeeting_February18/bars_pooling_SC_rec_fields_2.pdf")
 
 # Testing spike trigered response equals feed-forward weights:
 # str = network.layers[2].hidden_reps*smallimgs'

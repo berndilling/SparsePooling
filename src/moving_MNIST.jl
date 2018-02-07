@@ -6,14 +6,14 @@ include("./sparsepooling/sparsepooling_import.jl")
 
 iterations = 10^6
 
-sparse_part = false#true
+sparse_part = true
 pool_part = true
-generate_hr = false
+generate_hr = true
 
 #dataset to be used
-dataset_sparse = "Olshausen_white"
-dataset_pool = "Olshausen_white"
-labelled = false
+dataset_sparse = "MNIST144"
+dataset_pool = "MNIST144"
+labelled = true#false
 
 number_of_hidden_reps = 10^4
 nr_presentations_per_patch = 20
@@ -22,11 +22,11 @@ iterations_pool = 10^6
 
 number_of_hidden_reps_pool = 1000 #just for testing pooling
 
-hidden_size = 400#1000
-hidden_pool = 8
+hidden_size = 200
+hidden_pool = 5
 
-smallimgs_sparse, n_samples = import_unlabelled_data(dataset_sparse)
-smallimgs_pool, n_samples = import_unlabelled_data(dataset_pool)
+smallimgs_sparse, n_samples = import_data(dataset_sparse)
+smallimgs_pool, n_samples = import_data(dataset_pool)
 #scale data between [-1,1]
 #rescaledata!(smallimgs)
 
@@ -65,9 +65,7 @@ if sparse_part
 end
 
 if pool_part
-  #network = load(string(getsavepath(),"SparsePooling/analysis/SFA/sparse_nh",hidden_size,"_",dataset_sparse,".jld"),"network")
-  network = load(string(getsavepath(),"SparsePooling/analysis/SFA/sparse_boost_nh",hidden_size,"_",dataset_sparse,".jld"),"network")
-  network.layers[2].parameters.activationfunction = "relu"
+  network = load(string(getsavepath(),"SparsePooling/analysis/SFA/sparse_nh",hidden_size,"_",dataset_sparse,".jld"),"network")
   #get moved patches and corresponding SC hidden reps (=smallimgs) as input for pooling:
   #movedpatches, smallimgs = generatemovingpatches(smallimgs_sparse, network.layers[1], network.layers[2],
   #nr_presentations_per_patch = 30, number_of_patches = number_of_hidden_reps)
@@ -79,24 +77,22 @@ if pool_part
     save(string(getsavepath(),"SparsePooling/analysis/SFA/SC_hidden_rep_jittered_nh",hidden_size,"_",dataset_pool,".jld"),
       "jitteredpatches", jitteredpatches, "hidden_reps", smallimgs)
   else
-    jitteredpatches = load(string(getsavepath(),"SparsePooling/analysis/SFA/SC_boost_hidden_rep_jittered_nh",hidden_size,"_",dataset_sparse,".jld"),"jitteredpatches")
-    smallimgs = load(string(getsavepath(),"SparsePooling/analysis/SFA/SC_boost_hidden_rep_jittered_nh",hidden_size,"_",dataset_sparse,".jld"),"hidden_reps")
+    jitteredpatches = load(string(getsavepath(),"SparsePooling/analysis/SFA/SC_hidden_rep_jittered_nh",hidden_size,"_",dataset_sparse,".jld"),"jitteredpatches")
+    smallimgs = load(string(getsavepath(),"SparsePooling/analysis/SFA/SC_hidden_rep_jittered_nh",hidden_size,"_",dataset_sparse,".jld"),"hidden_reps")
   end
   network_2 = net([size(smallimgs)[1],hidden_pool],["input","pool"])
-  network_2.layers[2].parameters.one_over_tau_a = 5e-2#2e-1
-  network_2.layers[2].parameters.learningrate = 1e-3#1e-4
+  network_2.layers[2].parameters.one_over_tau_a = 2e-1#1e-1
+  network_2.layers[2].parameters.learningrate = 1e-4#1e-3
   network_2.layers[2].parameters.activationfunction = "relu"#"linear"
     network_2.layers[2].parameters.updatetype = "SFA_subtracttrace" #subtract input trace (might not be necessary)
-    network_2.layers[1].parameters.one_over_tau_a = 1e-4#1e-6 # subract long-term mean of input
+    network_2.layers[1].parameters.one_over_tau_a = 1e-6#1e-6 # subract long-term mean of input
   network_2.layers[2].parameters.updaterule = "Sanger"
   errors = learn_layer_pool!(network_2.layers[1], network_2.layers[2], getsmallimg, iterations_pool)#Int(size(smallimgs)[2]))
-
-  #cutweights!(network_2, number = 12)
   generatehiddenreps(network_2.layers[1], network_2.layers[2], number_of_reps = number_of_hidden_reps_pool)
   poolingrecfields = generateratetriggeredrecfields(network_2.layers[1], network_2.layers[2], number_of_reps = Int(size(smallimgs)[2]))
   complexrecfields = generatecomplexrecfields(network_2.layers[1],network_2.layers[2],jitteredpatches)
 
-  save(string(getsavepath(),"SparsePooling/analysis/SFA/pool_boost_nh",hidden_size,"_",dataset_pool,".jld"),
+  save(string(getsavepath(),"SparsePooling/analysis/SFA/pool_nh",hidden_size,"_",dataset_pool,".jld"),
       "network", network_2, "squared_errors", errors, "poolingrecfields", poolingrecfields, "complexrecfields", complexrecfields)
 end
 

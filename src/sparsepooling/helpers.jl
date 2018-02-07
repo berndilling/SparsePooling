@@ -227,3 +227,14 @@ function set_init_bars!(layer::layer_pool)
 	layer.parameters.learningrate = 1e-2
 	layer.parameters.one_over_tau_a = 1e-1
 end
+
+function cutweights!(network; number = 10)
+	for i in 1:size(network.layers[2].w)[1]
+		#indices = gethighestvalues(abs.(network.layers[2].w[i,:]); number = number)
+		indices = gethighestvalues(network.layers[2].w[i,:]; number = number)
+		#indices = find(x -> (x > 0),network.layers[2].w[i,:])
+		for j in 1:size(network.layers[2].w)[2]
+			network.layers[2].w[i,j] *= Int(j in indices)
+		end
+	end
+end
