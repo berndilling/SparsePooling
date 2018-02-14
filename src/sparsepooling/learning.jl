@@ -2,6 +2,19 @@
 
 using ProgressMeter
 
+function assigninput!(layer,inputfunction,i,order)
+	if order == "random"
+		input = inputfunction()
+	elseif order == "ordered"
+		input = inputfunction(i)
+	end
+		if norm(input) == 0
+			assigninput!(layer,inputfunction,i,order)
+		else
+			layer.a = input
+		end
+end
+
 #learning sparse layer (post)
 function learn_layer_sparse!(layer_pre,
 				layer_post::layer_sparse,
@@ -32,11 +45,7 @@ function learn_layer_SC!(layer_pre,
 	#feedforward_differences = zeros(length(layer_post.u),iterations) # difference between pure feedworward and recurrent feedforward
 	@showprogress for i in 1:iterations
 		#CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten! added 6.11.17
-		if order == "random"
-			layer_pre.a = inputfunction()
-		elseif order == "ordered"
-			layer_pre.a = inputfunction(i)
-		end
+		assigninput!(layer_pre,inputfunction,i,order)
 		layer_post.u = zeros(length(layer_post.u)) # reset membrane potential
 		layer_post.a = zeros(length(layer_post.a)) # reset activities
 		forwardprop_lc!(layer_pre, layer_post)
@@ -50,6 +59,25 @@ function learn_layer_SC!(layer_pre,
 		return squared_errors, feedforward_differences
 	else
 		return squared_errors
+	end
+end
+
+function learn_layer_sparse_patchy!(layer_pre,
+			layer_post::layer_sparse_patchy,
+			iterations::Int64)
+
+	@showprogress for k in 1:iterations
+		pattern = get_connected_pattern()
+		patches = cut_pattern(pattern)
+		for i in 1:layer_post.parameters.n_of_sparse_layer_patches
+			if norm(patches[:,:,i]) != 0
+				layer_pre.a = patches[:,:,i][:]
+				layer_post.sparse_layer_patches[i].u = zeros(length(layer_post.sparse_layer_patches[i].u)) # reset membrane potential
+				layer_post.sparse_layer_patches[i].a = zeros(length(layer_post.sparse_layer_patches[i].a)) # reset activities
+				forwardprop_lc!(layer_pre, layer_post.sparse_layer_patches[i])
+				update_layer_parameters_lc!(layer_pre, layer_post.sparse_layer_patches[i])
+			end
+		end
 	end
 end
 

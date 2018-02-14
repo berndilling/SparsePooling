@@ -50,15 +50,15 @@ type parameters_sparse_patchy
 	patch_size::Int64 #number of each in-fan: patch_size*patch_size
 	overlap::Int64 #overlap of patches in pixels
 end
-function parameters_sparse_patchy(; n_of_sparse_layer_patches = 64,
-	patch_size = 8, overlap = 4)
-	parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap)
-end
+# function parameters_sparse_patchy(; n_of_sparse_layer_patches = 49,
+# 	patch_size = 8, overlap = 4)
+# 	parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap)
+# end
 type layer_sparse_patchy
 	parameters::parameters_sparse_patchy
 	sparse_layer_patches::Array{layer_sparse, 1}
-	common_sparse_activation::Array{Float64, 1} #combined sparse activity of all sparse layer patches
-	common_sparse_trace::Array{Float64, 1} #same for activity trace
+	common_a::Array{Float64, 1} #combined sparse activity of all sparse layer patches
+	common_a_tr::Array{Float64, 1} #same for activity trace
 end
 
 type parameters_pool
@@ -133,7 +133,7 @@ function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous an
 			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
 end
 
-function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 64,
+function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 49,
 	patch_size = 8, overlap = 4) #ns: size of in-fan and hidden layer per sparse layer patch
 	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap),
 	[layer_sparse(ns) for i in 1:n_of_sparse_layer_patches],

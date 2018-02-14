@@ -1,4 +1,4 @@
-
+#using StatsBase, PyPlot
 
 type PatternParameter
   edge_length::Int64 # linear dimension of complete field of view
@@ -16,7 +16,7 @@ function PatternParameter(;
   pattern_duration = 20,
   number_of_bars = [1,2,3,4,5],
   weights_n_of_bars = [1,1,1,1,1]/5,
-  bar_lengths = [5,7,9],
+  bar_lengths = [5,7,9], #should not be smaller than 5!
   bar_widths = [1],
   bar_orientations = [[1,0],[0,1]],
   connections = [[2*j-1 for j in 1:Int(ceil(i/2))] for i in [5,7,9]],
@@ -30,7 +30,7 @@ end
 
 #function _setbar()
 
-function get_pattern!(parameter = PatternParameter())
+function get_pattern(parameter = PatternParameter())
     pattern = zeros(parameter.edge_length,parameter.edge_length)
   n_of_bars = sample(parameter.number_of_bars,Weights(parameter.weights_n_of_bars))
   index = rand(1:length(parameter.bar_lengths))
@@ -46,7 +46,7 @@ function get_pattern!(parameter = PatternParameter())
 end
 
 #argument "pattern" must be matrix of ZEROS with edge_length = parameter.edge_length
-function get_connected_pattern!(parameter = PatternParameter())
+function get_connected_pattern(parameter = PatternParameter())
   pattern = zeros(parameter.edge_length,parameter.edge_length)
   n_of_bars = sample(parameter.number_of_bars,Weights(parameter.weights_n_of_bars))
   index = rand(1:length(parameter.bar_lengths))
@@ -68,8 +68,8 @@ function get_connected_pattern!(parameter = PatternParameter())
   return pattern
 end
 
-function get_background!()
-  return get_pattern!(parameter = PatternParameter(number_of_bars = [12], weights_n_of_bars = [1.]))
+function get_background()
+  return get_pattern(parameter = PatternParameter(number_of_bars = [12], weights_n_of_bars = [1.]))
 end
 
 function get_moving_pattern(pattern::Array{Float64, 2}, parameter; background = [])
@@ -81,11 +81,26 @@ function get_moving_pattern(pattern::Array{Float64, 2}, parameter; background = 
    !isempty(background) && [pattern_sequence[:,:,i] = clamp.(pattern_sequence[:,:,i]+background,0,1) for i in 1:parameter.pattern_duration]
    return pattern_sequence
 end
+#return image patches for training patchy sparse layer
+function cut_pattern(pattern;
+  full_edge_length = 32,
+  patch_edge_length = 8,
+  overlap = 4)
+  number_of_patches = Int(32/(patch_edge_length-overlap)-1)
+  patches = zeros(patch_edge_length,patch_edge_length,number_of_patches^2)
+  for i in 1:number_of_patches
+    for j in 1:number_of_patches
+      patches[:,:,(i-1)*number_of_patches+j] =
+      pattern[(i-1)*(patch_edge_length-overlap)+1:i*(patch_edge_length)-(i-1)*overlap,
+              (j-1)*(patch_edge_length-overlap)+1:j*(patch_edge_length)-(j-1)*overlap]
+    end
+  end
+  return patches
+end
 
-
-# pattern = get_connected_pattern!()
-# pattern = get_pattern!()
-# imshow(pattern)
+#pattern = get_connected_pattern()
+#pattern = get_pattern()
+#imshow(pattern)
 
 # figure()
 # background = zeros(32,32)

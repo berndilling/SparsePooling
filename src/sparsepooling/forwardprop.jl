@@ -99,3 +99,18 @@ function forwardprop_lc!(layer_pre, layer_post)
 		_activation_function!(layer_post) # apply activation function
 	end
 end
+
+function forwardprop!(layer_pre, layer_post::layer_sparse_patchy, patches::Array{Float64, 3})
+	layer_post.common_a, layer_post.common_a_tr = [], []
+	for i in 1:layer_post.parameters.n_of_sparse_layer_patches
+		if norm(patches[:,:,i]) != 0
+			layer_pre.a = patches[:,:,i][:]
+			forwardprop_lc!(layer_pre, layer_post.sparse_layer_patches[i])
+			append!(layer_post.common_a,layer_post.sparse_layer_patches[i].a)
+			append!(layer_post.common_a_tr,layer_post.sparse_layer_patches[i].a_tr)
+		else
+			append!(layer_post.common_a,zeros(length(layer_post.sparse_layer_patches[i].a)))
+			append!(layer_post.common_a_tr,zeros(length(layer_post.sparse_layer_patches[i].a_tr)))
+		end
+	end
+end

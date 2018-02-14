@@ -3,21 +3,28 @@ using StatsBase, ProgressMeter, JLD, PyPlot
 close("all")
 include("./sparsepooling/sparsepooling_import.jl")
 
-iterations = 10^6
+iterations = 10^4#6
 in_size = 64
-hidden_size = 48
+hidden_size = 16#32
 
 network = net([in_size,hidden_size],["input","sparse"])
-network.layers[2].parameters.p = 2.5/48
 set_init_bars!(network.layers[2],hidden_size)
+network.layers[2].parameters.p = 1/(16)#1/50 #2.5/48
 #network.layers[2].parameters.activationfunction = "relu"
 
 smallimgs = zeros(64,iterations)
 for i in 1:iterations
- smallimgs[:,i] = get_connected_pattern!()[12:19,12:19][:]
+ smallimgs[:,i] = get_connected_pattern()[12:19,12:19][:]
+ #smallimgs[:,i] = get_connected_pattern()[25:32,25:32][:]
 end
+
 errors, ffd = learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, iterations)
-#generatehiddenreps(network.layers[1], network.layers[2]; number_of_reps = size(smallimgs)[2])
+generatehiddenreps(network.layers[1], network.layers[2], smallimgs; number_of_reps = 10^4)
+
+print("\n")
+print(getsparsity(network.layers[2].hidden_reps[:]))
+print("\n")
+print(mean(network.layers[2].hidden_reps[:]))
 
 # ws = zeros(8*8,8*6)
 # for i in 1:8
