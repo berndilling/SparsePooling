@@ -18,7 +18,7 @@ end
 function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse)
 	 update_layer_parameters_lc!(layer_pre, layer_post)
 end
-function update_layer_parameters_lc!(layer_pre, layer_post::layer_sparse)
+@inline function update_layer_parameters_lc!(layer_pre, layer_post::layer_sparse)
 	#Update lateral inhibition matrix
 	#layer_post.v += lr_v*(layer_post.a*layer_post.a'-layer_post.parameters.p^2)
 	BLAS.ger!(layer_post.parameters.learningrate_v,layer_post.a,layer_post.a,layer_post.v)
@@ -68,7 +68,7 @@ end
 ## Pooling layer
 ############################################################################
 
-function lateral_competition!(w, a, lr)
+@inline function lateral_competition!(w, a, lr)
     n, m = size(w)
     dw = similar(w)
     tmp = zeros(m)
@@ -87,7 +87,7 @@ end
 function update_layer_parameters_pool!(layer_pre, layer_post::layer_pool)
 	update_layer_parameters_GH!(layer_pre, layer_post)
 end
-function update_layer_parameters_GH!(layer_pre, layer_post)
+@inline function update_layer_parameters_GH!(layer_pre, layer_post)
 	if layer_post.parameters.updatetype == "PCA"
 		if layer_post.parameters.updaterule == "Oja"
 			#Oja's rule (should give 1. principal component for all hidden units)

@@ -57,8 +57,8 @@ end
 type layer_sparse_patchy
 	parameters::parameters_sparse_patchy
 	sparse_layer_patches::Array{layer_sparse, 1}
-	common_a::Array{Float64, 1} #combined sparse activity of all sparse layer patches
-	common_a_tr::Array{Float64, 1} #same for activity trace
+	a::Array{Float64, 1} #combined sparse activity of all sparse layer patches
+	a_tr::Array{Float64, 1} #same for activity trace
 end
 
 type parameters_pool
@@ -91,6 +91,16 @@ type layer_pool
 	t::Array{Float64, 1} #thresholds
 	b::Array{Float64, 1} #biases
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer
+end
+
+type parameters_pool_patchy
+	n_of_pool_layer_patches::Int64 #number of independent sparse layer patches
+end
+type layer_pool_patchy # pool patches correspond to sparse patches
+	parameters::parameters_pool_patchy
+	pool_layer_patches::Array{layer_pool, 1}
+	a::Array{Float64, 1} #combined pool activity of all pool layer patches
+	a_tr::Array{Float64, 1} #same for activity trace
 end
 
 # Supervised classifier on the activations of a "net" (could access multiple levels of hierarchy!)
@@ -140,7 +150,6 @@ function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 49
 	zeros(ns[2]*n_of_sparse_layer_patches),
 	zeros(ns[2]*n_of_sparse_layer_patches)
 	)
-
 end
 
 function layer_pool(ns::Array{Int64, 1})
@@ -155,6 +164,15 @@ function layer_pool(ns::Array{Int64, 1})
 			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
 end
 
+# pool patches correspond to sparse patches
+function layer_pool_patchy(ns::Array{Int64, 1}; n_of_pool_layer_patches = 49) #ns: size of in-fan and hidden layer per sparse layer patch
+	layer_pool_patchy(parameters_pool_patchy(n_of_pool_layer_patches),
+	[layer_pool(ns) for i in 1:n_of_pool_layer_patches],
+	zeros(ns[2]*n_of_pool_layer_patches),
+	zeros(ns[2]*n_of_pool_layer_patches)
+	)
+end
+
 function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 	nl = length(ns)
 	classifier(nl - 1,
@@ -165,7 +183,8 @@ function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 			[rand(ns[i])/10 for i in 2:nl])
 end
 
-function net(sl::Array{Int64, 1}, tl::Array{String, 1}) #sl: Sizes of layers, tl: types of layers
+function net(sl::Array{Int64, 1}, tl::Array{String, 1};
+	n_of_sparse_layer_patches = 49) #sl: Sizes of layers, tl: types of layers
 	nl = length(sl)
 	network = net(nl,sl,tl,[layer_input(sl[1])])
 	for i in 2:nl
@@ -174,7 +193,18 @@ function net(sl::Array{Int64, 1}, tl::Array{String, 1}) #sl: Sizes of layers, tl
 		elseif tl[i] == "sparse_patchy"
 			push!(network.layers,layer_sparse_patchy(sl[i-1:i]))
 		elseif tl[i] == "pool"
-			push!(network.layers,layer_pool(sl[i-1:i]))
+			if tl[i-1] == "sparse_patchy"
+				warning("Create a all-to-all pooling layer after sparse_patchy layer! Are you sure?")
+				push!(network.layers,layer_pool([sl[i-1]*n_of_sparse_layer_patches,sl[i]]))
+			else
+				push!(network.layers,layer_pool(sl[i-1:i]))
+			end
+		elseif tl[i] == "pool_patchy" # pool patches correspond to sparse patches
+			if tl[i-1] == "sparse_patchy"
+				push!(network.layers,layer_pool_patchy(sl[i-1:i]))
+			else
+				error("Cannot create pool_patchy layer if layer before is not sparse_patchy!")
+			end
 		end
 	end
 	return network

@@ -12,12 +12,12 @@ function forwardprop!(net; nonlinearity = Array{Function, 1})
 end
 
 # update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
-function calculatetrace!(layer)
+@inline function calculatetrace!(layer)
 	layer.a_tr = (1-layer.parameters.one_over_tau_a)*layer.a_tr + layer.parameters.one_over_tau_a*layer.a
 end
 
 # Activation functions
-function _activation_function!(layer)
+@inline function _activation_function!(layer)
 	if layer.parameters.activationfunction == "linear"
 		for i in 1:length(layer.u)
 			layer.a[i] = deepcopy(layer.u[i])
@@ -68,15 +68,18 @@ function forwardprop!(layer_pre, layer_post::layer_pool)
 	forwardprop_wlc!(layer_pre, layer_post)
 end
 function forwardprop_wlc!(layer_pre, layer_post)
-	if layer_post.parameters.calculate_trace
-		calculatetrace!(layer_post)
-		calculatetrace!(layer_pre)
+	if typeof(layer_pre) == layer_sparse_patchy
+		calculatetrace!(layer_post) #pre trace is already calculated
+	else
+		if layer_post.parameters.calculate_trace
+			calculatetrace!(layer_post)
+			calculatetrace!(layer_pre)
+		end
 	end
 	BLAS.gemv!('N', 1., layer_post.w, layer_pre.a, 0., layer_post.u) # membrane potential = weighted sum over inputs
 	BLAS.axpy!(1., layer_post.b, layer_post.u) # add bias term
 	_activation_function!(layer_post) # apply activation function
 end
-
 # Forwardprop WITH lateral competition (lc)
 # Rate implementation of SC algorithm by Zylberberg et al PLoS Comp Bio 2011
 # Similar to Brito's sparse coding algorithm
@@ -101,16 +104,16 @@ function forwardprop_lc!(layer_pre, layer_post)
 end
 
 function forwardprop!(layer_pre, layer_post::layer_sparse_patchy, patches::Array{Float64, 3})
-	layer_post.common_a, layer_post.common_a_tr = [], []
+	layer_post.a, layer_post.a_tr = [], []
 	for i in 1:layer_post.parameters.n_of_sparse_layer_patches
 		if norm(patches[:,:,i]) != 0
 			layer_pre.a = patches[:,:,i][:]
 			forwardprop_lc!(layer_pre, layer_post.sparse_layer_patches[i])
-			append!(layer_post.common_a,layer_post.sparse_layer_patches[i].a)
-			append!(layer_post.common_a_tr,layer_post.sparse_layer_patches[i].a_tr)
+			append!(layer_post.a,layer_post.sparse_layer_patches[i].a)
+			append!(layer_post.a_tr,layer_post.sparse_layer_patches[i].a_tr)
 		else
-			append!(layer_post.common_a,zeros(length(layer_post.sparse_layer_patches[i].a)))
-			append!(layer_post.common_a_tr,zeros(length(layer_post.sparse_layer_patches[i].a_tr)))
+			append!(layer_post.a,zeros(length(layer_post.sparse_layer_patches[i].a)))
+			append!(layer_post.a_tr,zeros(length(layer_post.sparse_layer_patches[i].a_tr)))
 		end
 	end
 end

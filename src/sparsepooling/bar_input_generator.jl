@@ -72,7 +72,7 @@ function get_background()
   return get_pattern(parameter = PatternParameter(number_of_bars = [12], weights_n_of_bars = [1.]))
 end
 
-function get_moving_pattern(pattern::Array{Float64, 2}, parameter; background = [])
+function get_moving_pattern(pattern::Array{Float64, 2}; parameter = PatternParameter(), background = [])
    pattern_sequence = zeros(size(pattern)[1],size(pattern)[2],parameter.pattern_duration)
    direction = rand(parameter.directions)
    for i in 1:parameter.pattern_duration

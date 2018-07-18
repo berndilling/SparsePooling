@@ -14,8 +14,8 @@ network.layers[2].parameters.p = 1/(16)#1/50 #2.5/48
 
 smallimgs = zeros(64,iterations)
 for i in 1:iterations
- smallimgs[:,i] = get_connected_pattern()[12:19,12:19][:]
- #smallimgs[:,i] = get_connected_pattern()[25:32,25:32][:]
+ #smallimgs[:,i] = get_connected_pattern()[12:19,12:19][:]
+ smallimgs[:,i] = get_connected_pattern()[25:32,25:32][:]
 end
 
 errors, ffd = learn_layer_sparse!(network.layers[1], network.layers[2], getsmallimg, iterations)
