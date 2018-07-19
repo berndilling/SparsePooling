@@ -1,6 +1,5 @@
 
-using Distributions
-using ProgressMeter
+using Distributions, ProgressMeter, JLD, HDF5
 
 #####################################################
 #Helpers
@@ -230,9 +229,8 @@ function set_init_bars!(layer::layer_sparse,hidden_size)
 end
 
 function set_init_bars!(layer::layer_pool)
-	layer.parameters.activationfunction = "linear"#"relu" #pwl & relu works nice but no idea why!
-	layer.parameters.updatetype = "SFA"#"SFA_subtracttrace"
-	layer.parameters.updaterule = "Sanger"
+	layer.parameters.activationfunction = lin!#"relu" #pwl & relu works nice but no idea why!
+	layer.parameters.updaterule = GH_SFA_Sanger!
 	layer.parameters.learningrate = 1e-2
 	layer.parameters.one_over_tau_a = 1e-1
 end
@@ -246,4 +244,48 @@ function cutweights!(network; number = 10)
 			network.layers[2].w[i,j] *= Int(j in indices)
 		end
 	end
+end
+
+# to save layer, take care that parameters are the same in the new net and the saved one!
+function savelayer(path,layer::layer_sparse_patchy)
+  layerfields = []
+  for sparse_layer_patch in layer.sparse_layer_patches
+    push!(layerfields, [sparse_layer_patch.u,sparse_layer_patch.a,
+      sparse_layer_patch.a_tr,sparse_layer_patch.w,sparse_layer_patch.v,
+      sparse_layer_patch.t,sparse_layer_patch.hidden_reps])
+  end
+  save(path,"sparse_layer_patches_fields",layerfields,
+		"parameters_sparse_patchy",layer.parameters,
+		"parameters_sparse_layer_patch",string(layer.sparse_layer_patches[1].parameters))
+end
+function savelayer(path,layer::layer_pool)
+  layerfields = [layer.u,layer.a,
+      layer.a_tr,layer.w,layer.v,
+      layer.t,layer.b,layer.hidden_reps]
+  save(path,"layer_fields",layerfields,
+		"parameters_pool_layer",string(layer.parameters))
+end
+function loadlayer!(path,layer::layer_sparse_patchy)
+	layerfields = load(path,"sparse_layer_patches_fields")
+	n_of_sparse_patches = load(path,"parameters_sparse_patchy").n_of_sparse_layer_patches
+	for i in 1:n_of_sparse_patches
+		layer.sparse_layer_patches[i].u = layerfields[i][1]
+		layer.sparse_layer_patches[i].a = layerfields[i][2]
+		layer.sparse_layer_patches[i].a_tr = layerfields[i][3]
+		layer.sparse_layer_patches[i].w = layerfields[i][4]
+		layer.sparse_layer_patches[i].v = layerfields[i][5]
+		layer.sparse_layer_patches[i].t = layerfields[i][6]
+		layer.sparse_layer_patches[i].hidden_reps = layerfields[i][7]
+	end
+end
+function loadlayer!(patch,layer::layer_pool)
+	layerfields = load(path,"layer_fields")
+	layer.u = layerfields[1]
+	layer.a = layerfields[2]
+	layer.a_tr = layerfields[3]
+	layer.w = layerfields[4]
+	layer.v = layerfields[5]
+	layer.t = layerfields[6]
+	layer.b = layerfields[7]
+	layer.hidden_reps = layerfields[8]
 end

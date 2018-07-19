@@ -3,17 +3,16 @@ using StatsBase, ProgressMeter, JLD, PyPlot
 close("all")
 include("./sparsepooling/sparsepooling_import.jl")
 
-sparse_part = false
-pool_part = true
+sparse_part = true
+pool_part = false
 
-iterations = 10^4#5
+iterations = 10^5#5
 in_size = 64
 hidden_size = 16 # per SC patch
 pool_size = 4 # per SC/pool patch
 
-n_of_moving_patterns = 10^4
+n_of_moving_patterns = 10^3
 
-network = net([in_size,hidden_size,pool_size],["input","sparse_patchy","pool_patchy"])
 
 if sparse_part
   network = net([in_size,hidden_size,pool_size],["input","sparse_patchy","pool"])
@@ -26,25 +25,26 @@ if sparse_part
   learn_layer_sparse_patchy!(network.layers[1], network.layers[2], iterations)
   #generatehiddenreps(network.layers[1], network.layers[2], smallimgs; number_of_reps = 10^4)
 
-  #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test.jld","network",network)
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_SC_patchy.jld",network.layers[2])
+  #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test_1.jld","network",network)
 
-#else
-#  network = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test.jld","network")
+else
+  network = net([in_size,hidden_size,pool_size],["input","sparse_patchy","pool"])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_SC_patchy.jld",network.layers[2])
 end
 if pool_part
   #network = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test.jld","network")
-  network.layers[3] = layer_pool_patchy([length(network.layers[2].sparse_layer_patches[1].a),pool_size])
+  network.layers[3] = layer_pool([length(network.layers[2].a),pool_size])
 
   print("train pooling part")
-  for i in 1:network.layers[3].parameters.n_of_pool_layer_patches
-    set_init_bars!(network.layers[3].pool_layer_patches[i])
-    network.layers[3].pool_layer_patches[i].parameters.one_over_tau_a = 1/5 # shorter pooling time constant to not pool everything
-    network.layers[3].pool_layer_patches[i].parameters.activationfunction = "lin"#"relu"
-    network.layers[3].pool_layer_patches[i].parameters.updatetype = "SFA"#"SFA_subtracttrace"
-    network.layers[3].pool_layer_patches[i].parameters.updatetype = "Sanger"
-  end
-  learn_layer_pool_patchy!(network, n_of_moving_patterns)
+  set_init_bars!(network.layers[3])
+  network.layers[3].parameters.one_over_tau_a = 1/5 # shorter pooling time constant to not pool everything
+  network.layers[3].parameters.activationfunction = lin! #relu!
+  network.layers[3].parameters.updaterule = GH_SFA_Sanger! #GH_SFA_subtractrace_Sanger!
 
+  learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
+
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool.jld",network.layers[3])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_pool_test.jld","network",network)
 end
 

@@ -62,12 +62,13 @@ function learn_layer_SC!(layer_pre,
 	end
 end
 
-function learn_layer_sparse_patchy!(layer_pre,
+function learn_layer_sparse_patchy!(layer_pre::layer_input,
 			layer_post::layer_sparse_patchy,
-			iterations::Int64)
+			iterations::Int64;
+			inputfunction = get_connected_pattern)
 
 	@showprogress for k in 1:iterations
-		pattern = get_connected_pattern()
+		pattern = inputfunction()
 		patches = cut_pattern(pattern)
 		for i in 1:layer_post.parameters.n_of_sparse_layer_patches
 			if norm(patches[:,:,i]) != 0
@@ -81,30 +82,22 @@ function learn_layer_sparse_patchy!(layer_pre,
 	end
 end
 
-function learn_layer_pool_patchy!(layer_pre,
-			layer_post::layer_pool_patchy,
+function learn_layer_pool!(layer_pre,
+			layer_post::layer_pool,
 			n_of_moving_patterns::Int64)
-
 
 	@showprogress for k in 1:n_of_moving_patterns
 		pattern = get_connected_pattern()
 		moving_pattern = get_moving_pattern(pattern)
-		for j in 1:layer_post.parameters.n_of_sparse_layer_patches
-			for i in 1:size(moving_pattern)[3]
-				patches = cut_pattern(moving_pattern[:,:,i])
-
-# TODO Here the forwardprop!(net) function is needed!
-
-				forwardprop_lc!(network.layers[1], network.layers[2].sparse_layer_patches[j], patches)
-				#subtractmean!(network.layers[2].a)
-				forwardprop!(network.layers[2].sparse_layer_patches[j], network.layers[3].pool_layer_patches[j])
-				update_layer_parameters_pool!(network.layers[2].sparse_layer_patches[j], network.layers[3].pool_layer_patches[j])
-			end
+		for i in 1:size(moving_pattern)[3]
+			patches = cut_pattern(moving_pattern[:,:,i])
+			forwardprop!(network.layers[1], network.layers[2], patches)
+			forwardprop!(network.layers[2], network.layers[3])
+			update_layer_parameters_pool!(network.layers[2], network.layers[3])
 		end
 	end
 end
 
-#learning pool layer (post)
 function learn_layer_pool!(layer_pre,
 				layer_post::layer_pool,
 				inputfunction::Function,
@@ -124,20 +117,4 @@ function learn_layer_pool!(layer_pre,
 		end
 	end
 	return squared_errors
-end
-
-function learn_layer_pool_patchy!(network,
-				n_of_moving_patterns::Int64)
-
-	@showprogress for k in 1:n_of_moving_patterns
-		pattern = get_connected_pattern()
-		moving_pattern = get_moving_pattern(pattern)
-		for i in 1:size(moving_pattern)[3]
-			patches = cut_pattern(moving_pattern[:,:,i])
-			forwardprop!(network.layers[1], network.layers[2], patches)
-			#subtractmean!(network.layers[2].a)
-			forwardprop!(network.layers[2], network.layers[3])
-			update_layer_parameters_pool!(network.layers[2], network.layers[3])
-		end
-	end
 end

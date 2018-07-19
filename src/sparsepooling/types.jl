@@ -1,14 +1,14 @@
 
-#############################################################
-#Basic types and constructors
+############################################################################
+# Basic types and constructors
+############################################################################
 
-## LAYERS
+############################################################################
+# LAYERS
 type parameters_input
 	one_over_tau_a::Float64
 end
-function parameters_input(; one_over_tau_a = 1e-3)
-	parameters_input(one_over_tau_a)
-end
+
 type layer_input
 	parameters::parameters_input
 	a::Array{Float64, 1} #activation
@@ -21,19 +21,13 @@ type parameters_sparse
 	learningrate_thr::Float64 # learning rate for thresholds
 	dt::Float64 #time step for integration
 	epsilon::Float64 #convergence criterium for recurrence
-	activationfunction::String #"relu"/"resqroot"/"heavyside"/"pwl"/"sigm"/"LIF"
+	activationfunction::Function #"relu"/"resqroot"/"heavyside"/"pwl"/"sigm"/"LIF"
 	OneOverMaxFiringRate::Float64 #used for LIF nonlin. determines refractory period/saturation
 	calculate_trace::Bool
 	one_over_tau_a::Float64 # time constant for low pass filtered activity "trace"
 	p::Float64 #average activation/"firing rate"
 end
-function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 1e-3, learningrate_thr = 1e-2,
-		dt = 1e-1, epsilon = 1e-4, activationfunction = "pwl", OneOverMaxFiringRate = 1/50,
-		calculate_trace = true, one_over_tau_a = 1e-1, p = 1/12) #p: average activation set to 5% (as in Zylberberg)
-	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
-			dt, epsilon, activationfunction, OneOverMaxFiringRate,
-			calculate_trace, one_over_tau_a, p)
-end
+
 type layer_sparse
 	parameters::parameters_sparse
 	u::Array{Float64, 1} #membrane potential
@@ -68,19 +62,13 @@ type parameters_pool
 	learningrate_thr::Float64 # learning rate for thresholds
 	dt::Float64 #time step for integration
 	epsilon::Float64 #convergence criterium for recurrence
-	updatetype::String
-	updaterule::String #"Sanger"/"Oja"
-	activationfunction::String
+	updaterule::Function #"Sanger"/"Oja"
+	activationfunction::Function
 	calculate_trace::Bool
 	one_over_tau_a ::Float64
 	p::Float64
 end
-function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 1e-3, learningrate_thr = 1e-2,
-		dt = 1e-1, epsilon = 1e-4, updatetype = "SFA", updaterule = "Sanger",
-	activationfunction = "linear", calculate_trace = true, one_over_tau_a = 1e-1, p = 1.)
-	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
-			dt, epsilon, updatetype, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
-end
+
 type layer_pool
 	parameters::parameters_pool
 	u::Array{Float64, 1} #membrane potential
@@ -93,16 +81,6 @@ type layer_pool
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer
 end
 
-type parameters_pool_patchy
-	n_of_pool_layer_patches::Int64 #number of independent sparse layer patches
-end
-type layer_pool_patchy # pool patches correspond to sparse patches
-	parameters::parameters_pool_patchy
-	pool_layer_patches::Array{layer_pool, 1}
-	a::Array{Float64, 1} #combined pool activity of all pool layer patches
-	a_tr::Array{Float64, 1} #same for activity trace
-end
-
 # Supervised classifier on the activations of a "net" (could access multiple levels of hierarchy!)
 type classifier
 	nl::Int64 #number of layers in classifier (without input layer which is part of the net)
@@ -111,8 +89,10 @@ type classifier
 	e::Array{Array{Float64, 1}, 1} #error with respect to target
 	w::Array{Array{Float64, 2}, 1} #synaptic weight matrix
 	b::Array{Array{Float64, 1}, 1} #biases
+	activationfunctions::Array{Function, 1} #nonlinearities for every layer
 end
 
+############################################################################
 ## NETWORKS
 
 #Network containing sparse and pooling layers
@@ -125,13 +105,24 @@ end
 
 ############################################################################
 ## CONSTRUCTORS
+############################################################################
 
+function parameters_input(; one_over_tau_a = 1e-3)
+	parameters_input(one_over_tau_a)
+end
 function layer_input(ns::Int64) #ns: number of neurons in input layer
 	layer_input(parameters_input(), # default parameter init
 	zeros(ns),
 	zeros(ns))
 end
 
+function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 1e-3, learningrate_thr = 1e-2,
+		dt = 1e-1, epsilon = 1e-4, activationfunction = pwl!, OneOverMaxFiringRate = 1/50,
+		calculate_trace = true, one_over_tau_a = 1e-1, p = 1/12) #p: average activation set to 5% (as in Zylberberg)
+	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
+			dt, epsilon, activationfunction, OneOverMaxFiringRate,
+			calculate_trace, one_over_tau_a, p)
+end
 function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous and present layer
 	layer_sparse(parameters_sparse(), # default parameter init
 			zeros(ns[2]), #membrane potential initialized with zeros
@@ -140,9 +131,8 @@ function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous an
 			randn(ns[2], ns[1])/(10*sqrt(ns[1])), #feed-forward weights initialized gaussian distr.
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
-			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
+			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
-
 function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 49,
 	patch_size = 8, overlap = 4) #ns: size of in-fan and hidden layer per sparse layer patch
 	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap),
@@ -152,6 +142,12 @@ function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 49
 	)
 end
 
+function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 1e-3, learningrate_thr = 1e-2,
+		dt = 1e-1, epsilon = 1e-4, updaterule = GH_SFA_Sanger!,
+	activationfunction = lin!, calculate_trace = true, one_over_tau_a = 1e-1, p = 1.)
+	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
+			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
+end
 function layer_pool(ns::Array{Int64, 1})
 	layer_pool(parameters_pool(), # default parameter init
 			zeros(ns[2]), #membrane potential initialized with zeros
@@ -161,16 +157,7 @@ function layer_pool(ns::Array{Int64, 1})
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			zeros(ns[2]), #thresholds initialized with zeros (not used up to now!)
 			zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
-			zeros(ns[2],10)) #reps initialized with zeros (only 10 reps here, but can be changed later)
-end
-
-# pool patches correspond to sparse patches
-function layer_pool_patchy(ns::Array{Int64, 1}; n_of_pool_layer_patches = 49) #ns: size of in-fan and hidden layer per sparse layer patch
-	layer_pool_patchy(parameters_pool_patchy(n_of_pool_layer_patches),
-	[layer_pool(ns) for i in 1:n_of_pool_layer_patches],
-	zeros(ns[2]*n_of_pool_layer_patches),
-	zeros(ns[2]*n_of_pool_layer_patches)
-	)
+			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
 
 function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
@@ -180,7 +167,8 @@ function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 			[zeros(ns[i]) for i in 2:nl],
 			[zeros(ns[i]) for i in 2:nl],
 			[randn(ns[i+1], ns[i])/(10*sqrt(ns[i])) for i in 1:nl - 1],
-			[rand(ns[i])/10 for i in 2:nl])
+			[rand(ns[i])/10 for i in 2:nl],
+			[relu! for i in 2:nl])
 end
 
 function net(sl::Array{Int64, 1}, tl::Array{String, 1};
@@ -194,16 +182,9 @@ function net(sl::Array{Int64, 1}, tl::Array{String, 1};
 			push!(network.layers,layer_sparse_patchy(sl[i-1:i]))
 		elseif tl[i] == "pool"
 			if tl[i-1] == "sparse_patchy"
-				warning("Create a all-to-all pooling layer after sparse_patchy layer! Are you sure?")
 				push!(network.layers,layer_pool([sl[i-1]*n_of_sparse_layer_patches,sl[i]]))
 			else
 				push!(network.layers,layer_pool(sl[i-1:i]))
-			end
-		elseif tl[i] == "pool_patchy" # pool patches correspond to sparse patches
-			if tl[i-1] == "sparse_patchy"
-				push!(network.layers,layer_pool_patchy(sl[i-1:i]))
-			else
-				error("Cannot create pool_patchy layer if layer before is not sparse_patchy!")
 			end
 		end
 	end
