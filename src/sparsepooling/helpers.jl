@@ -27,25 +27,6 @@ function getlabel(x)
     [labels[patternindex] == i for i in 0:9]
 end
 
-#get bars moving in one direction 1 pixel per timestep/iteration
-#smallimgs should be array of bars with (used) length "length"
-#repetitions: same bar will be presented for ("repetitions") subsequent frames
-function get_moving_bar(iteration; repetitions = 1)
-		smallimgs[:,Int(ceil((iteration/repetitions-1) % 24)) + 1]
-end
-function get_moving_vbar(iteration; repetitions = 1)
-		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 1]
-end
-function get_moving_hbar(iteration; repetitions = 1)
-		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 12]
-end
-function get_jittered_bar(iteration; repetitions_per_orientation = 30)
-		if Int(ceil(iteration/repetitions_per_orientation)-1) % 2 == 0
-			smallimgs[:,rand(1:12)]
-		else#if iteration % repetitions_per_orientation >= 0
-			smallimgs[:,rand(13:24)]
-		end
-end
 
 function getsavepath()
 	if is_apple()
@@ -118,6 +99,9 @@ function generatecomplexrecfields(layer_pre,layer_post,jitteredpatches; mode = "
 	complexrecfields./size(jitteredpatches)[2]
 end
 
+##################################################################################
+# Input helpers
+
 function generatemovingpatches(patches, layer_pre, layer_post;
 	nr_presentations_per_patch = 30, number_of_patches = Int(5e4))
 		dim = Int(ceil(sqrt(size(patches)[1])))
@@ -153,6 +137,29 @@ function generatejitteredpatches(patches, layer_pre, layer_post; max_amplitude =
 		end
 		return jitteredpatches, hiddenreps
 end
+
+#return image patches for training patchy sparse layer
+function cut_image_to_patches(image, layer::layer_sparse_patchy)
+	full_edge_length = size(image)[1]
+	patch_edge_length = layer.parameters.patch_size
+	overlap = parameters.overlap
+  number_of_patches_along_edge = Int(32/(patch_edge_length-overlap)-1)
+	number_of_patches_along_edge^2 != layer.parameters.n_of_sparse_layer_patches ?
+		error("patches/image size not compatible with layer_sparse_patches (patchsize/overlap)") : Void
+  patches = zeros(patch_edge_length,patch_edge_length,number_of_patches_along_edge^2)
+  for i in 1:number_of_patches_along_edge
+    for j in 1:number_of_patches_along_edge
+      patches[:,:,(i-1)*number_of_patches_along_edge+j] =
+      image[(i-1)*(patch_edge_length - overlap)+1:i*(patch_edge_length) - (i-1)*overlap,
+              (j-1)*(patch_edge_length - overlap)+1:j*(patch_edge_length) - (j-1)*overlap]
+    end
+  end
+  return patches
+end
+
+##################################################################################
+# Loss calculators
+
 
 function _evaluate_errors(layer_pre, layer_post, i)
 	generatehiddenreps(layer_pre, layer_post)
@@ -208,17 +215,6 @@ function microsaccade(imagevector; max_amplitude = 3)
 	dim = Int(sqrt(length(imagevector)))
 	amps = rand(-max_amplitude:max_amplitude,2) #draw random translation
 	circshift(reshape(imagevector,dim,dim),amps)[:]
-end
-
-# generate superimposed bars
-# data: array with vertical and horizontal bars (144*24-array)
-function create_superimposed_bars(bars; prob = 1/12, nr_examples = 50000)
-	data = zeros(144,nr_examples)
-	for i in 1:nr_examples
-		select = rand(Bernoulli(prob),24)
-		data[:,i] = clamp(sum(bars*Diagonal(select),2),0,1)
-	end
-	return data
 end
 
 function set_init_bars!(layer::layer_sparse,hidden_size)

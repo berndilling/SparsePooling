@@ -31,6 +31,37 @@ end
 
 #function _setbar()
 
+#get bars moving in one direction 1 pixel per timestep/iteration
+#smallimgs should be array of bars with (used) length "length"
+#repetitions: same bar will be presented for ("repetitions") subsequent frames
+function get_moving_bar(iteration; repetitions = 1)
+		smallimgs[:,Int(ceil((iteration/repetitions-1) % 24)) + 1]
+end
+function get_moving_vbar(iteration; repetitions = 1)
+		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 1]
+end
+function get_moving_hbar(iteration; repetitions = 1)
+		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 12]
+end
+function get_jittered_bar(iteration; repetitions_per_orientation = 30)
+		if Int(ceil(iteration/repetitions_per_orientation)-1) % 2 == 0
+			smallimgs[:,rand(1:12)]
+		else#if iteration % repetitions_per_orientation >= 0
+			smallimgs[:,rand(13:24)]
+		end
+end
+# generate superimposed bars
+# data: array with vertical and horizontal bars (144*24-array)
+function create_superimposed_bars(bars; prob = 1/12, nr_examples = 50000)
+	data = zeros(144,nr_examples)
+	for i in 1:nr_examples
+		select = rand(Bernoulli(prob),24)
+		data[:,i] = clamp(sum(bars*Diagonal(select),2),0,1)
+	end
+	return data
+end
+
+
 function get_pattern(parameter = PatternParameter())
     pattern = zeros(parameter.edge_length,parameter.edge_length)
   n_of_bars = sample(parameter.number_of_bars,Weights(parameter.weights_n_of_bars))
@@ -83,6 +114,7 @@ function get_moving_pattern(pattern::Array{Float64, 2}; parameter = PatternParam
     clamp.(pattern_sequence[:,:,i]+background,0,1) for i in 1:parameter.pattern_duration]
    return pattern_sequence
 end
+staticpattern(pattern::Array{Float64, 2}) = reshape(pattern,size(pattern)[1],size(pattern)[1],1)
 #return image patches for training patchy sparse layer
 function cut_pattern(pattern;
   full_edge_length = 32,

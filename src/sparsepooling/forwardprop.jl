@@ -21,6 +21,10 @@ end
 function forwardprop!(layer_pre, layer_post::layer_pool, patches::Array{Float64, 3})
 	forwardprop_wlc!(layer_pre, layer_post)
 end
+function forwardprop!(layer_pre::layer_input, layer_post::layer_pool, image::Array{Float64, 2})
+	layer_pre.a = image[:]
+	forwardprop_wlc!(layer_pre, layer_post)
+end
 function forwardprop_wlc!(layer_pre, layer_post)
 	if typeof(layer_pre) == layer_sparse_patchy
 		calculatetrace!(layer_post) #pre trace is already calculated
@@ -40,7 +44,14 @@ end
 # Similar to Brito's sparse coding algorithm
 # time constant tau of DEQ equals: tau = 1
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
-function forwardprop!(layer_pre, layer_post::layer_sparse, patches::Array{Float64, 3})
+function forwardprop!(layer_pre::layer_pool, layer_post::layer_sparse, patches::Array{Float64, 3})
+	forwardprop_lc!(layer_pre, layer_post)
+end
+function forwardprop!(layer_pre::layer_input, layer_post::layer_sparse)
+	forwardprop_lc!(layer_pre, layer_post)
+end
+function forwardprop!(layer_pre::layer_input, layer_post::layer_sparse, image::Array{Float64, 2})
+	layer_pre.a = image[:]
 	forwardprop_lc!(layer_pre, layer_post)
 end
 function forwardprop_lc!(layer_pre, layer_post)
@@ -64,7 +75,9 @@ function forwardprop!(layer_pre::layer_input, layer_post::layer_sparse_patchy, p
 	for sparse_layer_patch in layer_post.sparse_layer_patches
 		if norm(patches[:,:,i]) != 0
 			layer_pre.a = patches[:,:,i][:]
-			forwardprop!(layer_pre, sparse_layer_patch,patches)
+			sparse_layer_patch.u = zeros(length(sparse_layer_patch.u))
+			sparse_layer_patch.a = zeros(length(sparse_layer_patch.a))
+			forwardprop!(layer_pre, sparse_layer_patch)
 			append!(layer_post.a, sparse_layer_patch.a)
 			append!(layer_post.a_tr, sparse_layer_patch.a_tr)
 		else
