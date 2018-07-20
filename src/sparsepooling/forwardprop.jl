@@ -18,7 +18,7 @@ end
 
 #Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
 #ATTENTION: FOR PCA nonlinearity should be linear!
-function forwardprop!(layer_pre, layer_post::layer_pool)
+function forwardprop!(layer_pre, layer_post::layer_pool, patches::Array{Float64, 3})
 	forwardprop_wlc!(layer_pre, layer_post)
 end
 function forwardprop_wlc!(layer_pre, layer_post)
@@ -40,7 +40,7 @@ end
 # Similar to Brito's sparse coding algorithm
 # time constant tau of DEQ equals: tau = 1
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
-function forwardprop!(layer_pre, layer_post::layer_sparse)
+function forwardprop!(layer_pre, layer_post::layer_sparse, patches::Array{Float64, 3})
 	forwardprop_lc!(layer_pre, layer_post)
 end
 function forwardprop_lc!(layer_pre, layer_post)
@@ -64,7 +64,7 @@ function forwardprop!(layer_pre::layer_input, layer_post::layer_sparse_patchy, p
 	for sparse_layer_patch in layer_post.sparse_layer_patches
 		if norm(patches[:,:,i]) != 0
 			layer_pre.a = patches[:,:,i][:]
-			forwardprop_lc!(layer_pre, sparse_layer_patch)
+			forwardprop!(layer_pre, sparse_layer_patch,patches)
 			append!(layer_post.a, sparse_layer_patch.a)
 			append!(layer_post.a_tr, sparse_layer_patch.a_tr)
 		else
@@ -78,8 +78,8 @@ end
 ###############################################################################
 # For whole net until specified layer
 
-function forwardprop!(net::net; FPUntilLayer = net.nr_layers - 1)
+function forwardprop!(net::net, patches; FPUntilLayer = net.nr_layers - 1)
 	for i in 1:FPUntilLayer-1
-		forwardprop!(net.layers[i],net.layers[i+1])
+		forwardprop!(net.layers[i],net.layers[i+1], patches)
 	end
 end

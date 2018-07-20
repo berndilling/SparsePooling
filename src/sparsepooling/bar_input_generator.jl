@@ -22,7 +22,8 @@ function PatternParameter(;
   connections = [[2*j-1 for j in 1:Int(ceil(i/2))] for i in [5,7,9]],
   directions = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]] #[[1,0],[0,1],[-1,0],[0,-1]]
   )
-  PatternParameter(edge_length, pattern_duration, number_of_bars, weights_n_of_bars, bar_lengths, bar_widths,
+  PatternParameter(edge_length, pattern_duration, number_of_bars,
+                    weights_n_of_bars, bar_lengths, bar_widths,
                     bar_orientations, connections, directions)
 end
 
@@ -78,7 +79,8 @@ function get_moving_pattern(pattern::Array{Float64, 2}; parameter = PatternParam
    for i in 1:parameter.pattern_duration
       pattern_sequence[:,:,i] = circshift(pattern,i*direction)
    end
-   !isempty(background) && [pattern_sequence[:,:,i] = clamp.(pattern_sequence[:,:,i]+background,0,1) for i in 1:parameter.pattern_duration]
+   !isempty(background) && [pattern_sequence[:,:,i] =
+    clamp.(pattern_sequence[:,:,i]+background,0,1) for i in 1:parameter.pattern_duration]
    return pattern_sequence
 end
 #return image patches for training patchy sparse layer
@@ -97,6 +99,9 @@ function cut_pattern(pattern;
   end
   return patches
 end
+
+################################################################################
+# test plots
 
 #pattern = get_connected_pattern()
 #pattern = get_pattern()

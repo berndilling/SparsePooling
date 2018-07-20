@@ -98,23 +98,29 @@ function learn_layer_pool!(layer_pre,
 	end
 end
 
-function learn_layer_pool!(layer_pre,
-				layer_post::layer_pool,
-				inputfunction::Function,
-				iterations::Int64;
-				evaluate_loss_boolian = false,
-				nr_evaluations = 20)
+################################################################################
+# Network level learning (layer-wise)
 
-	print("learning pooling layer...\n")
-	squared_errors = zeros(2,nr_evaluations+1) # values of squared reconstruction error
-	@showprogress for i in 1:iterations
-		#CAUTION: This could result in problems when multiple layers are learnt: activities are overwritten!
-		layer_pre.a = inputfunction(i) #CAUTION: IMAGES PRESENTED IN FIXED ORDER!
-		forwardprop!(layer_pre, layer_post) #linear (without non-lin nor biases for PCA)
-		update_layer_parameters_pool!(layer_pre, layer_post)
-		if evaluate_loss_boolian
-			evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)
+
+function learn_net_layerwise!(net::net,intermediatestates,
+	n_of_moving_patterns::Int64;
+	inputfunction = get_connected_pattern,
+	dynamicfunction = get_moving_pattern,
+	LearningFromLayer = 2,
+	LearningUntilLayer = net.nr_layers)
+
+	print(string("\n Learn network layers ",LearningFromLayer, " to ",LearningUntilLayer,"\n"))
+	for k in LearningFromLayer:LearningUntilLayer
+		print(string("\n Learning Layer Nr. ",k," (",typeof(net.layers[k]),")\n"))
+		@showprogress for i in 1:n_of_moving_patterns
+			pattern = inputfunction()
+			moving_pattern = dynamicfunction(pattern)
+			for j in 1:size(moving_pattern)[3]
+				patches = cut_pattern(moving_pattern[:,:,j])
+				forwardprop!(net, patches; FPUntilLayer = k)
+				update_layer_parameters!(net.layers[k - 1], net.layers[k])
+			end
 		end
+	push!(intermediatestates,deepcopy(net))
 	end
-	return squared_errors
 end

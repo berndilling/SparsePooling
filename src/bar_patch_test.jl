@@ -4,33 +4,40 @@ close("all")
 include("./sparsepooling/sparsepooling_import.jl")
 
 sparse_part = true
-pool_part = false
+pool_part = true
 
-iterations = 10^5#5
+#iterations = 2*10^4 #7
 in_size = 64
 hidden_size = 16 # per SC patch
-pool_size = 4 # per SC/pool patch
+pool_size = 200
 
-n_of_moving_patterns = 10^3
+n_of_moving_patterns = 10^4 #5
 
+network = net([in_size,hidden_size,pool_size],["input","sparse_patchy","pool"])
+intermediatestates = []
 
 if sparse_part
-  network = net([in_size,hidden_size,pool_size],["input","sparse_patchy","pool"])
   for i in 1:network.layers[2].parameters.n_of_sparse_layer_patches
     set_init_bars!(network.layers[2].sparse_layer_patches[i],hidden_size)
     network.layers[2].sparse_layer_patches[i].parameters.p = 1/(16)
   end
   #network.layers[2].parameters.activationfunction = "relu"
 
-  learn_layer_sparse_patchy!(network.layers[1], network.layers[2], iterations)
+  #learn_layer_sparse_patchy!(network.layers[1], network.layers[2], iterations)
+  learn_net_layerwise!(network,intermediatestates,n_of_moving_patterns;
+  	inputfunction = get_connected_pattern,
+  	dynamicfunction = get_moving_pattern,
+  	LearningFromLayer = 2,
+  	LearningUntilLayer = 2)
+
+
   #generatehiddenreps(network.layers[1], network.layers[2], smallimgs; number_of_reps = 10^4)
 
-  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_SC_patchy.jld",network.layers[2])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearing.jld",network.layers[2])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test_1.jld","network",network)
 
 else
-  network = net([in_size,hidden_size,pool_size],["input","sparse_patchy","pool"])
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_SC_patchy.jld",network.layers[2])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy.jld",network.layers[2])
 end
 if pool_part
   #network = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test.jld","network")
@@ -42,10 +49,17 @@ if pool_part
   network.layers[3].parameters.activationfunction = lin! #relu!
   network.layers[3].parameters.updaterule = GH_SFA_Sanger! #GH_SFA_subtractrace_Sanger!
 
-  learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
+  #learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
+  learn_net_layerwise!(network,intermediatestates,n_of_moving_patterns;
+  	inputfunction = get_connected_pattern,
+  	dynamicfunction = get_moving_pattern,
+  	LearningFromLayer = 3,
+  	LearningUntilLayer = 3)
 
-  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool.jld",network.layers[3])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning.jld",network.layers[3])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_pool_test.jld","network",network)
+else
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool.jld",network.layers[3])
 end
 
 recfields = []
@@ -71,3 +85,9 @@ end
 figure()
 imshow(WS)
 title("all rec. fields of all 49 patch-SC layers")
+
+figure()
+plt[:hist](network.layers[3].w[:], bins = 100, normed = true)
+
+figure()
+plot(network.layers[3].w')

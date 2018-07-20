@@ -278,7 +278,7 @@ function loadlayer!(path,layer::layer_sparse_patchy)
 		layer.sparse_layer_patches[i].hidden_reps = layerfields[i][7]
 	end
 end
-function loadlayer!(patch,layer::layer_pool)
+function loadlayer!(path,layer::layer_pool)
 	layerfields = load(path,"layer_fields")
 	layer.u = layerfields[1]
 	layer.a = layerfields[2]

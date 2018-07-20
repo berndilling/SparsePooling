@@ -15,7 +15,7 @@ end
 # Update rule for sparse coding algorithm: meant for both, sparse and pooling layers
 #Algorithm for parameter update in sparse coding as proposed by Zylberberg et al PLoS Comp Bio 2011
 # Parameters in this paper (lr_v,lr_w,lr_thr)=(0.1,0.001,0.01) (started with higher rates and then decreased)
-@inline function update_layer_parameters_sparse!(layer_pre, layer_post::layer_sparse)
+@inline function update_layer_parameters!(layer_pre, layer_post::layer_sparse)
 	 update_layer_parameters_lc!(layer_pre, layer_post)
 end
 @inline function update_layer_parameters_lc!(layer_pre, layer_post::layer_sparse)
@@ -62,6 +62,12 @@ end
 	#clamp!(layer_post.t,0.,Inf64)
 end
 
+@inline function update_layer_parameters!(layer_pre, layer_post::layer_sparse_patchy)
+	for sparse_layer_patch in layer_post.sparse_layer_patches
+	 	update_layer_parameters_lc!(layer_pre, sparse_layer_patch)
+	end
+end
+
 # TODO BRITOS algorithm?
 
 ############################################################################
@@ -81,11 +87,8 @@ end
     BLAS.axpy!(-lr, dw, w)
 end
 
-# Generalized Hebbian update rules (GH): meant for pooling
-# Algorithm for parameter update for pooling layers with PCA (Oja's rule) OR SANGERS RULE!
 # PAY ATTENTION: NONLINEARITY SHOULD BE LINEAR IN THIS CASE!!!
-@inline function update_layer_parameters_pool!(layer_pre, layer_post::layer_pool)
-	#update_layer_parameters_GH!(layer_pre, layer_post)
+@inline function update_layer_parameters!(layer_pre, layer_post::layer_pool)
 	layer_post.parameters.updaterule(layer_pre, layer_post)
 end
 @inline function GH_PCA_Oja!(layer_pre, layer_post::layer_pool)
