@@ -3,14 +3,17 @@ using StatsBase, ProgressMeter, JLD, PyPlot
 close("all")
 include("./sparsepooling/sparsepooling_import.jl")
 
-sparse_part = true
-pool_part = true
+sparse_part = false#true
+pool_part = false#true
+sparse_part_2 = true
 
 iterations_sparse = 10^4 #7
 iterations_pool = 10^4
+iterations_sparse_2 = 10^3
 in_size = 64
 hidden_size_sparse = 16 # per SC patch
 hidden_size_pool = 200
+hidden_size_sparse_2 = 5
 
 network = net([in_size,hidden_size_sparse,hidden_size_pool],["input","sparse_patchy","pool"])
 intermediatestates = []
@@ -35,7 +38,7 @@ if sparse_part
   savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearing.jld",network.layers[2])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test_1.jld","network",network)
 else
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearing.jld",network.layers[2])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning.jld",network.layers[2])
 end
 
 recfields = []
@@ -87,4 +90,26 @@ figure()
 plt[:hist](network.layers[3].w[:], bins = 100, normed = true)
 
 figure()
-plot(network.layers[3].w')
+plot(network.layers[3].w[1:10,:]')
+
+if sparse_part_2
+  network = net([in_size,hidden_size_sparse,hidden_size_pool,hidden_size_sparse_2],
+                  ["input","sparse_patchy","pool","sparse"])
+  intermediatestates = []
+
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning.jld",network.layers[2])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning.jld",network.layers[3])
+
+  set_init_bars!(network.layers[4],hidden_size_sparse_2)
+  network.layers[4].parameters.p = 1/hidden_size_sparse_2
+
+  learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool,iterations_sparse_2],
+  	[get_connected_pattern for i in 1:network.nr_layers-1],
+  	[get_moving_pattern for i in 1:network.nr_layers-1];
+  	LearningFromLayer = 4,
+  	LearningUntilLayer = 4)
+
+  figure()
+  plot(network.layers[4].w')
+  figure(imshow(network.layers[4].v))
+end

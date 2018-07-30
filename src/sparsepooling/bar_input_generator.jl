@@ -11,7 +11,7 @@ type PatternParameter
   connections::Array{Array{Int64, 1}, 1} # all uneven number up to bar length
   directions::Array{Array{Int64, 1}, 1}
 end
-function PatternParameter(;
+@inline function PatternParameter(;
   edge_length = 32,
   pattern_duration = 20,
   number_of_bars = [1,2,3,4,5],
@@ -34,16 +34,16 @@ end
 #get bars moving in one direction 1 pixel per timestep/iteration
 #smallimgs should be array of bars with (used) length "length"
 #repetitions: same bar will be presented for ("repetitions") subsequent frames
-function get_moving_bar(iteration; repetitions = 1)
+@inline function get_moving_bar(iteration; repetitions = 1)
 		smallimgs[:,Int(ceil((iteration/repetitions-1) % 24)) + 1]
 end
-function get_moving_vbar(iteration; repetitions = 1)
+@inline function get_moving_vbar(iteration; repetitions = 1)
 		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 1]
 end
-function get_moving_hbar(iteration; repetitions = 1)
+@inline function get_moving_hbar(iteration; repetitions = 1)
 		smallimgs[:,Int(ceil((iteration/repetitions-1) % 12)) + 12]
 end
-function get_jittered_bar(iteration; repetitions_per_orientation = 30)
+@inline function get_jittered_bar(iteration; repetitions_per_orientation = 30)
 		if Int(ceil(iteration/repetitions_per_orientation)-1) % 2 == 0
 			smallimgs[:,rand(1:12)]
 		else#if iteration % repetitions_per_orientation >= 0
@@ -52,7 +52,7 @@ function get_jittered_bar(iteration; repetitions_per_orientation = 30)
 end
 # generate superimposed bars
 # data: array with vertical and horizontal bars (144*24-array)
-function create_superimposed_bars(bars; prob = 1/12, nr_examples = 50000)
+@inline function create_superimposed_bars(bars; prob = 1/12, nr_examples = 50000)
 	data = zeros(144,nr_examples)
 	for i in 1:nr_examples
 		select = rand(Bernoulli(prob),24)
@@ -62,7 +62,7 @@ function create_superimposed_bars(bars; prob = 1/12, nr_examples = 50000)
 end
 
 
-function get_pattern(parameter = PatternParameter())
+@inline function get_pattern(;parameter = PatternParameter())
     pattern = zeros(parameter.edge_length,parameter.edge_length)
   n_of_bars = sample(parameter.number_of_bars,Weights(parameter.weights_n_of_bars))
   index = rand(1:length(parameter.bar_lengths))
@@ -78,7 +78,7 @@ function get_pattern(parameter = PatternParameter())
 end
 
 #argument "pattern" must be matrix of ZEROS with edge_length = parameter.edge_length
-function get_connected_pattern(parameter = PatternParameter())
+@inline function get_connected_pattern(parameter = PatternParameter())
   pattern = zeros(parameter.edge_length,parameter.edge_length)
   n_of_bars = sample(parameter.number_of_bars,Weights(parameter.weights_n_of_bars))
   index = rand(1:length(parameter.bar_lengths))
@@ -100,11 +100,11 @@ function get_connected_pattern(parameter = PatternParameter())
   return pattern
 end
 
-function get_background()
+@inline function get_background()
   return get_pattern(parameter = PatternParameter(number_of_bars = [12], weights_n_of_bars = [1.]))
 end
 
-function get_moving_pattern(pattern::Array{Float64, 2}; parameter = PatternParameter(), background = [])
+@inline function get_moving_pattern(pattern::Array{Float64, 2}; parameter = PatternParameter(), background = [])
    pattern_sequence = zeros(size(pattern)[1],size(pattern)[2],parameter.pattern_duration)
    direction = rand(parameter.directions)
    for i in 1:parameter.pattern_duration
@@ -114,13 +114,13 @@ function get_moving_pattern(pattern::Array{Float64, 2}; parameter = PatternParam
     clamp.(pattern_sequence[:,:,i]+background,0,1) for i in 1:parameter.pattern_duration]
    return pattern_sequence
 end
-staticpattern(pattern::Array{Float64, 2}) = reshape(pattern,size(pattern)[1],size(pattern)[1],1)
+@inline staticpattern(pattern::Array{Float64, 2}) = reshape(pattern,size(pattern)[1],size(pattern)[1],1)
 #return image patches for training patchy sparse layer
-function cut_pattern(pattern;
+@inline function cut_pattern(pattern;
   full_edge_length = 32,
   patch_edge_length = 8,
   overlap = 4)
-  number_of_patches = Int(32/(patch_edge_length-overlap)-1)
+  number_of_patches = Int(full_edge_length/(patch_edge_length-overlap)-1)
   patches = zeros(patch_edge_length,patch_edge_length,number_of_patches^2)
   for i in 1:number_of_patches
     for j in 1:number_of_patches

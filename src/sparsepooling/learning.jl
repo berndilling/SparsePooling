@@ -76,6 +76,7 @@ function learn_layer_sparse_patchy!(layer_pre::layer_input,
 		for j in 1:size(dynamicpattern)[3]
 			patches = cut_pattern(dynamicpattern[:,:,j])
 			i = 1
+			# TODO parallelize this! see Eventbasedlifintergator! Common layer_pre is a problem!
 			for sparse_layer_patch in layer_post.sparse_layer_patches
 				if norm(patches[:,:,i]) != 0
 					layer_pre.a = patches[:,:,i][:]

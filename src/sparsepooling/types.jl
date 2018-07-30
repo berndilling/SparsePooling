@@ -30,6 +30,8 @@ end
 
 type layer_sparse
 	parameters::parameters_sparse
+	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
+	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
 	u::Array{Float64, 1} #membrane potential
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
 	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
@@ -43,6 +45,7 @@ type parameters_sparse_patchy
 	n_of_sparse_layer_patches::Int64 #number of independent sparse layer patches
 	patch_size::Int64 #number of each in-fan: patch_size*patch_size
 	overlap::Int64 #overlap of patches in pixels
+	image_size::Int64 #size of total image: image_size*image_size
 end
 # function parameters_sparse_patchy(; n_of_sparse_layer_patches = 49,
 # 	patch_size = 8, overlap = 4)
@@ -71,6 +74,8 @@ end
 
 type layer_pool
 	parameters::parameters_pool
+	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
+	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
 	u::Array{Float64, 1} #membrane potential
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
 	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
@@ -79,6 +84,17 @@ type layer_pool
 	t::Array{Float64, 1} #thresholds
 	b::Array{Float64, 1} #biases
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer
+end
+
+type parameters_pool_patchy
+	n_of_pool_layer_patches::Int64 #number of independent pool layer patches
+	in_fan::Int64 # number of pre-synaptic input units per patch
+end
+type layer_pool_patchy
+	parameters::parameters_pool_patchy
+	pool_layer_patches::Array{layer_pool, 1}
+	a::Array{Float64, 1} #combined activity of all sparse layer patches
+	a_tr::Array{Float64, 1} #same for activity trace
 end
 
 # Supervised classifier on the activations of a "net" (could access multiple levels of hierarchy!)
@@ -125,6 +141,8 @@ function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 1e-3, learn
 end
 function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous and present layer
 	layer_sparse(parameters_sparse(), # default parameter init
+			zeros(ns[1]), #pre-activation initialized with zeros
+			zeros(ns[1]), #pre-low-pass filtered activity initialized with zeros
 			zeros(ns[2]), #membrane potential initialized with zeros
 			zeros(ns[2]), #activation initialized with zeros
 			zeros(ns[2]), #low-pass filtered activity initialized with zeros
@@ -134,8 +152,8 @@ function layer_sparse(ns::Array{Int64, 1}) #ns: number of neurons in previous an
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
 function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 49,
-	patch_size = 8, overlap = 4) #ns: size of in-fan and hidden layer per sparse layer patch
-	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap),
+	patch_size = 8, overlap = 4, image_size = 32) #ns: size of in-fan and hidden layer per sparse layer patch
+	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap, image_size),
 	[layer_sparse(ns) for i in 1:n_of_sparse_layer_patches],
 	zeros(ns[2]*n_of_sparse_layer_patches),
 	zeros(ns[2]*n_of_sparse_layer_patches)
@@ -150,6 +168,8 @@ function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningr
 end
 function layer_pool(ns::Array{Int64, 1})
 	layer_pool(parameters_pool(), # default parameter init
+			zeros(ns[1]), #pre-activation initialized with zeros
+			zeros(ns[1]), #pre-low-pass filtered activity initialized with zeros
 			zeros(ns[2]), #membrane potential initialized with zeros
 			zeros(ns[2]), #low-pass filtered activity initialized with zeros
 			zeros(ns[2]), #activation initialized with zeros
