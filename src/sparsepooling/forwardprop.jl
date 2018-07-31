@@ -52,28 +52,36 @@ end
 	end
 end
 
+
 @inline function forwardprop!(layer::layer_sparse_patchy)
-	layer.a, layer.a_tr = [], [] # combined act. of all patches
-	i = 1
-	#TODO parrallelize this
-	for sparse_layer_patch in layer.sparse_layer_patches
-		if norm(sparse_layer_patch.a_pre) != 0.
-			sparse_layer_patch.u .= 0.
-			sparse_layer_patch.a .= 0.
-			forwardprop!(sparse_layer_patch)
-			append!(layer.a, sparse_layer_patch.a)
-			append!(layer.a_tr, sparse_layer_patch.a_tr)
-		else
-			append!(layer.a,zeros(length(sparse_layer_patch.a)))
-			append!(layer.a_tr,zeros(length(sparse_layer_patch.a_tr)))
+		layer.a, layer.a_tr = [], [] # combined act. of all patches
+		# nthreads = Threads.nthreads()
+		# N = div(layer.parameters.n_of_sparse_layer_patches, nthreads)
+		# Threads.@threads for i in 1:nthreads
+		# 	if i == nthreads
+		# 			range = (i-1)*N + 1:layer.parameters.n_of_sparse_layer_patches
+		# 	else
+		# 			range = (i-1)*N + 1:i * N
+		# 	end
+		#	  for sparse_layer_patch in layer.sparse_layer_patches[range]
+		#@sync Threads.@threads
+		for sparse_layer_patch in layer.sparse_layer_patches
+			if norm(sparse_layer_patch.a_pre) != 0.
+				sparse_layer_patch.u .= 0.
+				sparse_layer_patch.a .= 0.
+				forwardprop!(sparse_layer_patch)
+				append!(layer.a, sparse_layer_patch.a)
+				append!(layer.a_tr, sparse_layer_patch.a_tr)
+			else
+				append!(layer.a,zeros(length(sparse_layer_patch.a)))
+				append!(layer.a_tr,zeros(length(sparse_layer_patch.a_tr)))
+			end
 		end
-		i += 1
-	end
+	#end
 end
 @inline function forwardprop!(layer::layer_pool_patchy)
 	layer.a, layer.a_tr = [], [] # combined act. of all patches
-	i = 1
-	#TODO parrallelize this
+	#@sync Threads.@threads 
 	for pool_layer_patch in layer.pool_layer_patches
 		if norm(pool_layer_patch.a_pre) != 0.
 			pool_layer_patch.u .= 0.
@@ -85,7 +93,6 @@ end
 			append!(layer.a,zeros(length(pool_layer_patch.a)))
 			append!(layer.a_tr,zeros(length(pool_layer_patch.a_tr)))
 		end
-		i += 1
 	end
 end
 ###############################################################################
@@ -131,7 +138,23 @@ end
 	end
 end
 @inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy)
-	#TODO!!! This should be dependent on the number of the layer (i.e. how "deep" it is in the network)
+	#special case of subsamplingfactor = 2!
+	n_patch_pre = Int(sqrt(layer_pre.parameters.n_of_pool_layer_patches))
+	n_patch_post = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
+	for i in 1:n_patch_post
+		for j in 1:n_patch_post
+			pre_a = []
+			pre_a_tr = []
+			for i1 in 2*i-1:2*i+1
+				for j1 in 2*j-1:2*j+1
+					append!(pre_a, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a)
+					append!(pre_a_tr, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a_tr)
+				end
+			end
+			layer_post.sparse_layer_patches[(i-1)*n_patch_post+j].a_pre = pre_a
+			layer_post.sparse_layer_patches[(i-1)*n_patch_post+j].a_tr_pre = pre_a_tr
+		end
+	end
 end
 @inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse)
 	layer_post.a_pre = deepcopy(layer_pre.a)

@@ -4,31 +4,40 @@ using Distributions, ProgressMeter, JLD, HDF5
 #####################################################
 #Helpers
 
-function getsparsity(input::Array{Float64, 1})
+
+@inline function parallelrange(i, N, nthreads, number_of_jobs)
+	if i == nthreads
+			range = (i-1)*N + 1:number_of_jobs
+	else
+			range = (i-1)*N + 1:i * N
+	end
+end
+
+@inline function getsparsity(input::Array{Float64, 1})
 	length(find(x -> (x == 0),input))/length(input)
 end
 
-function getsmallimg()
+@inline function getsmallimg()
     patternindex = rand(1:size(smallimgs)[2])
     smallimgs[:, patternindex]
 end
 
-function getsmallimg(iteration) #select images in fixed order
+@inline function getsmallimg(iteration) #select images in fixed order
 		if iteration > size(smallimgs)[2] iteration = (iteration % size(smallimgs)[2])+1 end
     smallimgs[:, iteration]
 end
 
-function getsample()
+@inline function getsample()
     patternindex = rand(1:n_samples)
     smallimgs[:, patternindex]
 end
 
-function getlabel(x)
+@inline function getlabel(x)
     [labels[patternindex] == i for i in 0:9]
 end
 
 
-function getsavepath()
+@inline function getsavepath()
 	if is_apple()
 		path = "/Users/Bernd/Documents/PhD/Projects/"
 	elseif is_linux()
@@ -36,7 +45,7 @@ function getsavepath()
 	end
 end
 
-function assigninput!(layer,images,i)
+@inline function assigninput!(layer,images,i)
 	input = images[:,i]
 	if norm(input) == 0
 		assigninput!(layer,images,i+1)
@@ -44,7 +53,7 @@ function assigninput!(layer,images,i)
 		layer.a = input
 	end
 end
-function generatehiddenreps(layer_pre, layer_post, images; number_of_reps = Int(5e4), mode = "no_lc")
+@inline function generatehiddenreps(layer_pre, layer_post, images; number_of_reps = Int(5e4), mode = "no_lc")
 	print("\n")
 	print(string("Generate ",number_of_reps," hidden representations for layer type: ",typeof(layer_post)))
 	print("\n")
@@ -61,7 +70,7 @@ function generatehiddenreps(layer_pre, layer_post, images; number_of_reps = Int(
 	end
 end
 
-function generateratetriggeredrecfields(layer_pre, layer_post; number_of_reps = Int(5e4), mode = "no_lc")
+@inline function generateratetriggeredrecfields(layer_pre, layer_post; number_of_reps = Int(5e4), mode = "no_lc")
 	#smallimgs in main have to be (sparse coding) hidden reps of jitteredpatches
 	print("\n")
 	print(string("Generate rate triggered receptive fields for layer type: ",typeof(layer_post)))
@@ -79,7 +88,7 @@ function generateratetriggeredrecfields(layer_pre, layer_post; number_of_reps = 
 	ratetriggeredrecfields./number_of_reps
 end
 
-function generatecomplexrecfields(layer_pre,layer_post,jitteredpatches; mode = "no_lc")
+@inline function generatecomplexrecfields(layer_pre,layer_post,jitteredpatches; mode = "no_lc")
 	#smallimgs in main have to be (sparse coding) hidden reps of jitteredpatches
 	print("\n")
 	print(string("Generate complex rec. fields for layer type: ",typeof(layer_post)))
@@ -102,7 +111,7 @@ end
 ##################################################################################
 # Input helpers
 
-function generatemovingpatches(patches, layer_pre, layer_post;
+@inline function generatemovingpatches(patches, layer_pre, layer_post;
 	nr_presentations_per_patch = 30, number_of_patches = Int(5e4))
 		dim = Int(ceil(sqrt(size(patches)[1])))
 		movingpatches = zeros(Int(size(patches)[1]),Int(nr_presentations_per_patch*number_of_patches))
@@ -120,7 +129,7 @@ function generatemovingpatches(patches, layer_pre, layer_post;
 		return movingpatches, hiddenreps
 end
 
-function generatejitteredpatches(patches, layer_pre, layer_post; max_amplitude = 3,
+@inline function generatejitteredpatches(patches, layer_pre, layer_post; max_amplitude = 3,
 	nr_presentations_per_patch = 30, number_of_patches = Int(5e4))
 		dim = Int(ceil(sqrt(size(patches)[1])))
 		jitteredpatches = zeros(Int(size(patches)[1]),Int(nr_presentations_per_patch*number_of_patches))
@@ -139,7 +148,7 @@ function generatejitteredpatches(patches, layer_pre, layer_post; max_amplitude =
 end
 
 #return image patches for training patchy sparse layer
-function cut_image_to_patches(image, layer::layer_sparse_patchy)
+@inline function cut_image_to_patches(image, layer::layer_sparse_patchy)
 	full_edge_length = size(image)[1]
 	patch_edge_length = layer.parameters.patch_size
 	overlap = parameters.overlap
@@ -161,7 +170,7 @@ end
 # Loss calculators
 
 
-function _evaluate_errors(layer_pre, layer_post, i)
+@inline function _evaluate_errors(layer_pre, layer_post, i)
 	generatehiddenreps(layer_pre, layer_post)
 	return [i,mean((smallimgs[:,1:Int(5e4)] - BLAS.gemm('T', 'N', layer_post.w, layer_post.hidden_reps)).^2)]
 end
@@ -169,7 +178,7 @@ end
 #up to now: only squared reconstruction error!
 #for SC: full loss function:
 #losses[i] = squared_errors[i] + sum(layer_post.a)-length(layer_post.a)*p + sum(layer_post.a*layer_post.a')-length(layer_post.a)*p^2
-function evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)
+@inline function evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squared_errors)
 	if i == 1
 		squared_errors[:,1] = _evaluate_errors(layer_pre,layer_post,i)
 	elseif i % Int(iterations/nr_evaluations) == 0
@@ -178,11 +187,11 @@ function evaluate_loss(layer_pre, layer_post, i, iterations, nr_evaluations, squ
 end
 
 # to evaluate difference between pure feedforward and recurrent sparse coding feed-forward
-function evaluate_ff_difference(layer_pre, layer_post::layer_sparse)
+@inline function evaluate_ff_difference(layer_pre, layer_post::layer_sparse)
 	layer_post.u-BLAS.gemv('N',layer_post.w,layer_pre.a)
 end
 
-function gethighestvalues(array; number = 0.1*length(array))
+@inline function gethighestvalues(array; number = 0.1*length(array))
 	array1 = deepcopy(array)
   indices = []
 	for i in 1:number
@@ -192,7 +201,7 @@ function gethighestvalues(array; number = 0.1*length(array))
 	end
 	return indices
 end
-function getsomepeaks(array; factor = 1.0)
+@inline function getsomepeaks(array; factor = 1.0)
 	mean_value = mean(array)
 	std_value = std(array)
 	indices = []
@@ -201,7 +210,7 @@ function getsomepeaks(array; factor = 1.0)
 	end
 	return indices
 end
-function getsomenegativepeaks(array; factor = 0.5)
+@inline function getsomenegativepeaks(array; factor = 0.5)
 	mean_value = mean(array)
 	std_value = std(array)
 	indices = []
@@ -211,27 +220,27 @@ function getsomenegativepeaks(array; factor = 0.5)
 	return indices
 end
 
-function microsaccade(imagevector; max_amplitude = 3)
+@inline function microsaccade(imagevector; max_amplitude = 3)
 	dim = Int(sqrt(length(imagevector)))
 	amps = rand(-max_amplitude:max_amplitude,2) #draw random translation
 	circshift(reshape(imagevector,dim,dim),amps)[:]
 end
 
-function set_init_bars!(layer::layer_sparse,hidden_size)
+@inline function set_init_bars!(layer::layer_sparse,hidden_size)
 	layer.w = rand(size(layer.w)[1],size(layer.w)[2])/hidden_size
 	layer.parameters.learningrate_v = 1e-1
   layer.parameters.learningrate_w = 2e-2
   layer.parameters.learningrate_thr = 2e-2
 end
 
-function set_init_bars!(layer::layer_pool)
+@inline function set_init_bars!(layer::layer_pool)
 	layer.parameters.activationfunction = lin!#"relu" #pwl & relu works nice but no idea why!
 	layer.parameters.updaterule = GH_SFA_Sanger!
 	layer.parameters.learningrate = 1e-2
 	layer.parameters.one_over_tau_a = 1e-1
 end
 
-function cutweights!(network; number = 10)
+@inline function cutweights!(network; number = 10)
 	for i in 1:size(network.layers[2].w)[1]
 		#indices = gethighestvalues(abs.(network.layers[2].w[i,:]); number = number)
 		indices = gethighestvalues(network.layers[2].w[i,:]; number = number)

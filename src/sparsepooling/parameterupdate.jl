@@ -63,13 +63,23 @@ end
 end
 
 @inline function update_layer_parameters!(layer::layer_sparse_patchy)
-	#TODO parallelize
-	for sparse_layer_patch in layer.sparse_layer_patches
-	 	update_layer_parameters!(sparse_layer_patch)
-	end
+#	nthreads = Threads.nthreads()
+#	N = div(layer.parameters.n_of_sparse_layer_patches, nthreads)
+	# Threads.@threads for i in 1:nthreads
+	# 	if i == nthreads
+	# 			range = (i-1)*N + 1:layer.parameters.n_of_sparse_layer_patches
+	# 	else
+	# 			range = (i-1)*N + 1:i * N
+	# 	end
+	#		for sparse_layer_patch in layer.sparse_layer_patches[range]
+		#@sync Threads.@threads
+		for sparse_layer_patch in layer.sparse_layer_patches#[range]
+		 	update_layer_parameters!(sparse_layer_patch)
+		end
+	#end
 end
 @inline function update_layer_parameters!(layer::layer_pool_patchy)
-	#TODO parallelize
+	#@sync Threads.@threads
 	for pool_layer_patch in layer.pool_layer_patches
 	 	update_layer_parameters!(pool_layer_patch)
 	end

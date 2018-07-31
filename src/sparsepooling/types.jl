@@ -139,22 +139,22 @@ function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 1e-3, learn
 			dt, epsilon, activationfunction, OneOverMaxFiringRate,
 			calculate_trace, one_over_tau_a, p)
 end
-function layer_sparse(ns::Array{Int64, 1}; input_patchsize = ns[1]) #ns: number of neurons in previous and present layer
+function layer_sparse(ns::Array{Int64, 1}; in_fan = ns[1]) #ns: number of neurons in previous and present layer
 	layer_sparse(parameters_sparse(), # default parameter init
-			zeros(input_patchsize), #pre activation initialized with zeros
-			zeros(input_patchsize), #pre low-pass filtered activity initialized with zeros
+			zeros(in_fan), #pre activation initialized with zeros
+			zeros(in_fan), #pre low-pass filtered activity initialized with zeros
 			zeros(ns[2]), #membrane potential initialized with zeros
 			zeros(ns[2]), #activation initialized with zeros
 			zeros(ns[2]), #low-pass filtered activity initialized with zeros
-			randn(ns[2], input_patchsize)/(10*sqrt(input_patchsize)), #feed-forward weights initialized gaussian distr.
+			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr.
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
 function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 49,
-	patch_size = 8, overlap = 4, image_size = 32) #ns: size of in-fan and hidden layer per sparse layer patch
+	patch_size = 8, in_fan = patch_size^2, overlap = 4, image_size = 32) #ns: size of in-fan and hidden layer per sparse layer patch
 	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap, image_size),
-	[layer_sparse(ns; input_patchsize = patch_size^2) for i in 1:n_of_sparse_layer_patches],
+	[layer_sparse(ns; in_fan = in_fan) for i in 1:n_of_sparse_layer_patches],
 	zeros(ns[2]*n_of_sparse_layer_patches),
 	zeros(ns[2]*n_of_sparse_layer_patches)
 	)
