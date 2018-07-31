@@ -3,25 +3,29 @@ using StatsBase, ProgressMeter, JLD, PyPlot
 close("all")
 include("./sparsepooling/sparsepooling_import.jl")
 
-sparse_part = false#true
-pool_part = false#true
-sparse_part_2 = true
+BLAS.set_num_threads(2)
+
+sparse_part = true#true
+pool_part = true#true
+sparse_part_2 = false
 
 iterations_sparse = 10^4 #7
 iterations_pool = 10^4
-iterations_sparse_2 = 10^3
-in_size = 64
+iterations_sparse_2 = 10^2#3
+patch_size = 8
+image_size = 32
+in_size = image_size^2
 hidden_size_sparse = 16 # per SC patch
-hidden_size_pool = 200
-hidden_size_sparse_2 = 5
+hidden_size_pool = 4
+hidden_size_sparse_2 = 20
 
-network = net([in_size,hidden_size_sparse,hidden_size_pool],["input","sparse_patchy","pool"])
+network = net([in_size,hidden_size_sparse,hidden_size_pool],["input","sparse_patchy","pool_patchy"],[1,49,49])
 intermediatestates = []
 
 if sparse_part
-  for i in 1:network.layers[2].parameters.n_of_sparse_layer_patches
-    set_init_bars!(network.layers[2].sparse_layer_patches[i],hidden_size_sparse)
-    network.layers[2].sparse_layer_patches[i].parameters.p = 1/(16)
+  for sparse_layer_patch in network.layers[2].sparse_layer_patches
+    set_init_bars!(sparse_layer_patch,hidden_size_sparse)
+    sparse_layer_patch.parameters.p = 1/(16)
   end
   #network.layers[2].parameters.activationfunction = "relu"
 
@@ -35,10 +39,10 @@ if sparse_part
 
   #generatehiddenreps(network.layers[1], network.layers[2], smallimgs; number_of_reps = 10^4)
 
-  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearing.jld",network.layers[2])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_new.jld",network.layers[2])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test_1.jld","network",network)
 else
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning.jld",network.layers[2])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_new.jld",network.layers[2])
 end
 
 recfields = []
@@ -67,10 +71,14 @@ title("all rec. fields of all 49 patch-SC layers")
 
 if pool_part
   print("train pooling part")
-  set_init_bars!(network.layers[3])
-  network.layers[3].parameters.one_over_tau_a = 1/5 # shorter pooling time constant to not pool everything
-  network.layers[3].parameters.activationfunction = lin! #relu!
-  network.layers[3].parameters.updaterule = GH_SFA_Sanger! #GH_SFA_subtractrace_Sanger!
+
+  for pool_layer_patch in network.layers[3].pool_layer_patches
+    set_init_bars!(pool_layer_patch)
+    pool_layer_patch.parameters.one_over_tau_a = 1/5 # shorter pooling time constant to not pool everything
+    pool_layer_patch.parameters.activationfunction = lin! #relu!
+    pool_layer_patch.parameters.updaterule = GH_SFA_Sanger! #GH_SFA_subtractrace_Sanger!
+  end
+
 
   #learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
@@ -79,26 +87,26 @@ if pool_part
     LearningFromLayer = 3,
     LearningUntilLayer = 3)
 
-  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning.jld",network.layers[3])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning_new.jld",network.layers[3])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_pool_test.jld","network",network)
 else
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning.jld",network.layers[3])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning_new.jld",network.layers[3])
 end
 
 
 figure()
-plt[:hist](network.layers[3].w[:], bins = 100, normed = true)
+plt[:hist](network.layers[3].pool_layer_patches[1].w[:], bins = 10, normed = true)
 
 figure()
-plot(network.layers[3].w[1:10,:]')
+plot(network.layers[3].pool_layer_patches[1].w[:])
 
 if sparse_part_2
   network = net([in_size,hidden_size_sparse,hidden_size_pool,hidden_size_sparse_2],
-                  ["input","sparse_patchy","pool","sparse"])
+                  ["input","sparse_patchy","pool_patchy","sparse_patchy"],[1,49,49,9])
   intermediatestates = []
 
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning.jld",network.layers[2])
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning.jld",network.layers[3])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_new.jld",network.layers[2])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning_new.jld",network.layers[3])
 
   set_init_bars!(network.layers[4],hidden_size_sparse_2)
   network.layers[4].parameters.p = 1/hidden_size_sparse_2

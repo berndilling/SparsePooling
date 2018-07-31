@@ -63,49 +63,49 @@ using ProgressMeter
 # end
 
 ###################################################################################
-
-function learn_layer_sparse_patchy!(layer_pre::layer_input,
-			layer_post::layer_sparse_patchy,
-			iterations::Int64;
-			inputfunction = get_connected_pattern,
-			dynamicfunction = staticpattern)
-
-	@showprogress for k in 1:iterations
-		pattern = inputfunction()
-		dynamicpattern = dynamicfunction(pattern)
-		for j in 1:size(dynamicpattern)[3]
-			patches = cut_pattern(dynamicpattern[:,:,j])
-			i = 1
-			# TODO parallelize this! see Eventbasedlifintergator! Common layer_pre is a problem!
-			for sparse_layer_patch in layer_post.sparse_layer_patches
-				if norm(patches[:,:,i]) != 0
-					layer_pre.a = patches[:,:,i][:]
-					sparse_layer_patch.u = zeros(length(sparse_layer_patch.u)) # reset membrane potential
-					sparse_layer_patch.a = zeros(length(sparse_layer_patch.a)) # reset activities
-					forwardprop!(layer_pre, sparse_layer_patch)
-					update_layer_parameters!(layer_pre, sparse_layer_patch)
-				end
-				i += 1
-			end
-		end
-	end
-end
-
-function learn_layer_pool!(layer_pre,
-			layer_post::layer_pool,
-			n_of_moving_patterns::Int64)
-
-	@showprogress for k in 1:n_of_moving_patterns
-		pattern = get_connected_pattern()
-		moving_pattern = get_moving_pattern(pattern)
-		for i in 1:size(moving_pattern)[3]
-			patches = cut_pattern(moving_pattern[:,:,i])
-			forwardprop!(network.layers[1], network.layers[2], patches)
-			forwardprop!(network.layers[2], network.layers[3])
-			update_layer_parameters_pool!(network.layers[2], network.layers[3])
-		end
-	end
-end
+#
+# function learn_layer_sparse_patchy!(layer_pre::layer_input,
+# 			layer_post::layer_sparse_patchy,
+# 			iterations::Int64;
+# 			inputfunction = get_connected_pattern,
+# 			dynamicfunction = staticpattern)
+#
+# 	@showprogress for k in 1:iterations
+# 		pattern = inputfunction()
+# 		dynamicpattern = dynamicfunction(pattern)
+# 		for j in 1:size(dynamicpattern)[3]
+# 			patches = cut_pattern(dynamicpattern[:,:,j])
+# 			i = 1
+# 			# TODO parallelize this! see Eventbasedlifintergator! Common layer_pre is a problem!
+# 			for sparse_layer_patch in layer_post.sparse_layer_patches
+# 				if norm(patches[:,:,i]) != 0
+# 					layer_pre.a = patches[:,:,i][:]
+# 					sparse_layer_patch.u = zeros(length(sparse_layer_patch.u)) # reset membrane potential
+# 					sparse_layer_patch.a = zeros(length(sparse_layer_patch.a)) # reset activities
+# 					forwardprop!(layer_pre, sparse_layer_patch)
+# 					update_layer_parameters!(layer_pre, sparse_layer_patch)
+# 				end
+# 				i += 1
+# 			end
+# 		end
+# 	end
+# end
+#
+# function learn_layer_pool!(layer_pre,
+# 			layer_post::layer_pool,
+# 			n_of_moving_patterns::Int64)
+#
+# 	@showprogress for k in 1:n_of_moving_patterns
+# 		pattern = get_connected_pattern()
+# 		moving_pattern = get_moving_pattern(pattern)
+# 		for i in 1:size(moving_pattern)[3]
+# 			patches = cut_pattern(moving_pattern[:,:,i])
+# 			forwardprop!(network.layers[1], network.layers[2], patches)
+# 			forwardprop!(network.layers[2], network.layers[3])
+# 			update_layer_parameters_pool!(network.layers[2], network.layers[3])
+# 		end
+# 	end
+# end
 
 ################################################################################
 # Network level learning (layer-wise)
@@ -119,26 +119,15 @@ function learn_net_layerwise!(net::net,intermediatestates,
 	print(string("\n Learn network layers ",LearningFromLayer, " to ",LearningUntilLayer,"\n"))
 	for k in LearningFromLayer:LearningUntilLayer
 		print(string("\n Learning Layer Nr. ",k," (",typeof(net.layers[k]),")\n"))
-		if typeof(net.layers[k]) == layer_sparse_patchy
-			 if k == 2
-				 learn_layer_sparse_patchy!(net.layers[k - 1],net.layers[k],
-			 			iterations[k - 1];
-			 			inputfunction = inputfunctions[k - 1],
-			 			dynamicfunction = dynamicfunctions[k - 1])
-			else
-				error("Framework not ready for patchy_SC in non-input layer!!!")
+		@showprogress for i in 1:iterations[k - 1]
+			pattern = inputfunctions[k-1]()
+			dynamicpattern = dynamicfunctions[k-1](pattern)
+			for j in 1:size(dynamicpattern)[3]
+				net.layers[1].a = dynamicpattern[:,:,j][:]
+				forwardprop!(net; FPUntilLayer = k)
+				update_layer_parameters!(net.layers[k])
 			end
-		else
-			@showprogress for i in 1:iterations[k - 1]
-				pattern = inputfunctions[k-1]()
-				dynamicpattern = dynamicfunctions[k-1](pattern)
-				for j in 1:size(dynamicpattern)[3]
-					patches = cut_pattern(dynamicpattern[:,:,j])
-					forwardprop!(net, patches; FPUntilLayer = k)
-					update_layer_parameters!(net.layers[k - 1], net.layers[k])
-				end
-			end
-			push!(intermediatestates,deepcopy(net))
 		end
+		push!(intermediatestates,deepcopy(net))
 	end
 end

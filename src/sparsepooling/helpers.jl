@@ -254,6 +254,17 @@ function savelayer(path,layer::layer_sparse_patchy)
 		"parameters_sparse_patchy",layer.parameters,
 		"parameters_sparse_layer_patch",string(layer.sparse_layer_patches[1].parameters))
 end
+function savelayer(path,layer::layer_pool_patchy)
+  layerfields = []
+  for pool_layer_patch in layer.pool_layer_patches
+    push!(layerfields, [pool_layer_patch.u,pool_layer_patch.a,
+      pool_layer_patch.a_tr,pool_layer_patch.w,pool_layer_patch.v,
+      pool_layer_patch.t,pool_layer_patch.b,pool_layer_patch.hidden_reps])
+  end
+  save(path,"pool_layer_patches_fields",layerfields,
+		"parameters_pool_patchy",layer.parameters,
+		"parameters_pool_layer_patch",string(layer.pool_layer_patches[1].parameters))
+end
 function savelayer(path,layer::layer_pool)
   layerfields = [layer.u,layer.a,
       layer.a_tr,layer.w,layer.v,
@@ -272,6 +283,20 @@ function loadlayer!(path,layer::layer_sparse_patchy)
 		layer.sparse_layer_patches[i].v = layerfields[i][5]
 		layer.sparse_layer_patches[i].t = layerfields[i][6]
 		layer.sparse_layer_patches[i].hidden_reps = layerfields[i][7]
+	end
+end
+function loadlayer!(path,layer::layer_pool_patchy)
+	layerfields = load(path,"pool_layer_patches_fields")
+	n_of_pool_patches = load(path,"parameters_pool_patchy").n_of_pool_layer_patches
+	for i in 1:n_of_pool_patches
+		layer.pool_layer_patches[i].u = layerfields[i][1]
+		layer.pool_layer_patches[i].a = layerfields[i][2]
+		layer.pool_layer_patches[i].a_tr = layerfields[i][3]
+		layer.pool_layer_patches[i].w = layerfields[i][4]
+		layer.pool_layer_patches[i].v = layerfields[i][5]
+		layer.pool_layer_patches[i].t = layerfields[i][6]
+		layer.pool_layer_patches[i].b = layerfields[i][7]
+		layer.pool_layer_patches[i].hidden_reps = layerfields[i][8]
 	end
 end
 function loadlayer!(path,layer::layer_pool)
