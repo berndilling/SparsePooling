@@ -23,9 +23,12 @@ end
 end
 @inline function forwardprop_wlc!(layer)
 	layer.parameters.calculate_trace &&	calculatetrace!(layer)
+	#THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
+	#if norm(layer.a_pre) != 0.
 	BLAS.gemv!('N', 1., layer.w, layer.a_pre, 0., layer.u) # membrane potential = weighted sum over inputs
 	BLAS.axpy!(1., layer.b, layer.u) # add bias term
 	layer.parameters.activationfunction(layer) # apply activation function
+	#end
 end
 
 # Forwardprop WITH lateral competition (lc)
@@ -42,13 +45,17 @@ end
 # end
 @inline function forwardprop_lc!(layer)
 	layer.parameters.calculate_trace &&	calculatetrace!(layer)
-	scaling_factor = layer.parameters.epsilon/layer.parameters.dt
-	voltage_incr = scaling_factor*norm(layer.u)+1 #+1 to make sure loop is entered
-	input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
-	while norm(voltage_incr) > scaling_factor*norm(layer.u)
-		voltage_incr = input_without_recurrence - BLAS.gemv('N',layer.v,layer.a) - layer.u
-		BLAS.axpy!(layer.parameters.dt, voltage_incr, layer.u) # update membrane potential
-		layer.parameters.activationfunction(layer) # apply activation function
+	layer.u .= 0.
+	layer.a .= 0.
+	if norm(layer.a_pre) != 0.
+		scaling_factor = layer.parameters.epsilon/layer.parameters.dt
+		voltage_incr = scaling_factor*norm(layer.u)+1 #+1 to make sure loop is entered
+		input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
+		while norm(voltage_incr) > scaling_factor*norm(layer.u)
+			voltage_incr = input_without_recurrence - BLAS.gemv('N',layer.v,layer.a) - layer.u
+			BLAS.axpy!(layer.parameters.dt, voltage_incr, layer.u) # update membrane potential
+			layer.parameters.activationfunction(layer) # apply activation function
+		end
 	end
 end
 
@@ -66,16 +73,9 @@ end
 		#	  for sparse_layer_patch in layer.sparse_layer_patches[range]
 		#@sync Threads.@threads
 		for sparse_layer_patch in layer.sparse_layer_patches
-			if norm(sparse_layer_patch.a_pre) != 0.
-				sparse_layer_patch.u .= 0.
-				sparse_layer_patch.a .= 0.
-				forwardprop!(sparse_layer_patch)
-				append!(layer.a, sparse_layer_patch.a)
-				append!(layer.a_tr, sparse_layer_patch.a_tr)
-			else
-				append!(layer.a,zeros(length(sparse_layer_patch.a)))
-				append!(layer.a_tr,zeros(length(sparse_layer_patch.a_tr)))
-			end
+			forwardprop!(sparse_layer_patch)
+			append!(layer.a, sparse_layer_patch.a)
+			append!(layer.a_tr, sparse_layer_patch.a_tr)
 		end
 	#end
 end
@@ -83,16 +83,9 @@ end
 	layer.a, layer.a_tr = [], [] # combined act. of all patches
 	#@sync Threads.@threads
 	for pool_layer_patch in layer.pool_layer_patches
-		if norm(pool_layer_patch.a_pre) != 0.
-			pool_layer_patch.u .= 0.
-			pool_layer_patch.a .= 0.
-			forwardprop!(pool_layer_patch)
-			append!(layer.a, pool_layer_patch.a)
-			append!(layer.a_tr, pool_layer_patch.a_tr)
-		else
-			append!(layer.a,zeros(length(pool_layer_patch.a)))
-			append!(layer.a_tr,zeros(length(pool_layer_patch.a_tr)))
-		end
+		forwardprop!(pool_layer_patch)
+		append!(layer.a, pool_layer_patch.a)
+		append!(layer.a_tr, pool_layer_patch.a_tr)
 	end
 end
 ###############################################################################

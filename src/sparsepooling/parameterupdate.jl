@@ -19,31 +19,33 @@ end
 	 update_layer_parameters_lc!(layer)
 end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
-	#Update lateral inhibition matrix
-	#layer.v += lr_v*(layer.a*layer.a'-layer.parameters.p^2)
-	BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
-	layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
-	for j in 1:size(layer.v)[1]
-		layer.v[j,j] = 0. #no self-inhibition
+	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
+		#Update lateral inhibition matrix
+		#layer.v += lr_v*(layer.a*layer.a'-layer.parameters.p^2)
+		BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
+		layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
+		for j in 1:size(layer.v)[1]
+			layer.v[j,j] = 0. #no self-inhibition
+		end
+		clamp!(layer.v,0.,Inf64) #Dale's law
+
+		#Update input weight matrix
+		#Learning rule:
+		#layer.w += lr_w*layer.a*(layer.a_pre-layer.a*W) # with weight decay... or explicit weight normalization/homeostasis
+		#Optimized:
+		# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
+		scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
+		# Second: First term (data-driven) of weight update
+		BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
+
+		#_normalize_inputweights!(layer.w) # explicit weight normalization/homeostasis
+
+		#Update thresholds
+		#layer.t += lr_thr*(layer.a-layer.parameters.p)
+		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
+		#avoid negative thesholds:
+		#clamp!(layer.t,0.,Inf64)
 	end
-	clamp!(layer.v,0.,Inf64) #Dale's law
-
-	#Update input weight matrix
-	#Learning rule:
-	#layer.w += lr_w*layer.a*(layer.a_pre-layer.a*W) # with weight decay... or explicit weight normalization/homeostasis
-	#Optimized:
-	# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
-	scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
-	# Second: First term (data-driven) of weight update
-	BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
-
-	#_normalize_inputweights!(layer.w) # explicit weight normalization/homeostasis
-
-	#Update thresholds
-	#layer.t += lr_thr*(layer.a-layer.parameters.p)
-	BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
-	#avoid negative thesholds:
-	#clamp!(layer.t,0.,Inf64)
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
 	BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
@@ -74,18 +76,17 @@ end
 	#		for sparse_layer_patch in layer.sparse_layer_patches[range]
 		#@sync Threads.@threads
 		for sparse_layer_patch in layer.sparse_layer_patches#[range]
-			if norm(sparse_layer_patch.a_pre) != 0.
-		 		update_layer_parameters!(sparse_layer_patch)
-			end
+		 	update_layer_parameters!(sparse_layer_patch)
 		end
 	#end
 end
 @inline function update_layer_parameters!(layer::layer_pool_patchy)
 	#@sync Threads.@threads
 	for pool_layer_patch in layer.pool_layer_patches
-		if norm(pool_layer_patch.a_pre) != 0.
-	 		update_layer_parameters!(pool_layer_patch)
-		end
+		#THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
+		#if norm(pool_layer_patch.a_pre) != 0.
+	 	update_layer_parameters!(pool_layer_patch)
+		#end
 	end
 end
 
