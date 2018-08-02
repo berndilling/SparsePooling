@@ -32,7 +32,7 @@ if sparse_part
   #learn_layer_sparse_patchy!(network.layers[1], network.layers[2], iterations, dynamicfunction = get_moving_pattern)
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
   	[get_connected_pattern for i in 1:network.nr_layers-1],
-  	[staticpattern,get_moving_pattern];#[get_moving_pattern for i in 1:network.nr_layers-1];
+  	[get_moving_pattern,get_moving_pattern];#[get_moving_pattern for i in 1:network.nr_layers-1];
   	LearningFromLayer = 2,
   	LearningUntilLayer = 2)
 
@@ -42,7 +42,7 @@ if sparse_part
   #savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_new.jld",network.layers[2])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test_1.jld","network",network)
 else
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_new.jld",network.layers[2])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_staticmovingstatic.jld",network.layers[2])
 end
 
 recfields = []
@@ -90,7 +90,7 @@ if pool_part
   savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning_new.jld",network.layers[3])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_pool_test.jld","network",network)
 else
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning_new.jld",network.layers[3])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_patchy_netlearning_staticmovingstatic.jld",network.layers[3])
 end
 
 

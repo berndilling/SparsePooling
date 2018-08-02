@@ -81,7 +81,7 @@ end
 end
 @inline function forwardprop!(layer::layer_pool_patchy)
 	layer.a, layer.a_tr = [], [] # combined act. of all patches
-	#@sync Threads.@threads 
+	#@sync Threads.@threads
 	for pool_layer_patch in layer.pool_layer_patches
 		if norm(pool_layer_patch.a_pre) != 0.
 			pool_layer_patch.u .= 0.

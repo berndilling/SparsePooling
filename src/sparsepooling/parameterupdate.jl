@@ -74,14 +74,18 @@ end
 	#		for sparse_layer_patch in layer.sparse_layer_patches[range]
 		#@sync Threads.@threads
 		for sparse_layer_patch in layer.sparse_layer_patches#[range]
-		 	update_layer_parameters!(sparse_layer_patch)
+			if norm(sparse_layer_patch.a_pre) != 0.
+		 		update_layer_parameters!(sparse_layer_patch)
+			end
 		end
 	#end
 end
 @inline function update_layer_parameters!(layer::layer_pool_patchy)
 	#@sync Threads.@threads
 	for pool_layer_patch in layer.pool_layer_patches
-	 	update_layer_parameters!(pool_layer_patch)
+		if norm(pool_layer_patch.a_pre) != 0.
+	 		update_layer_parameters!(pool_layer_patch)
+		end
 	end
 end
 
