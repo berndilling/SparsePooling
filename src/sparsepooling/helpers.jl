@@ -323,7 +323,7 @@ function loadlayer!(path,layer::layer_sparse)
 	layer.w = layerfields[4]
 	layer.v = layerfields[5]
 	layer.t = layerfields[6]
-	layer.hidden_reps = layerfields[8]
+	layer.hidden_reps = layerfields[7]
 end
 function loadlayer!(path,layer::layer_pool)
 	layerfields = load(path,"layer_fields")
