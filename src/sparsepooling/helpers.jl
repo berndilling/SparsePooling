@@ -274,6 +274,13 @@ function savelayer(path,layer::layer_pool_patchy)
 		"parameters_pool_patchy",layer.parameters,
 		"parameters_pool_layer_patch",string(layer.pool_layer_patches[1].parameters))
 end
+function savelayer(path,layer::layer_sparse)
+  layerfields = [layer.u,layer.a,
+      layer.a_tr,layer.w,layer.v,
+      layer.t,layer.hidden_reps]
+  save(path,"layer_fields",layerfields,
+		"parameters_sparse_layer",string(layer.parameters))
+end
 function savelayer(path,layer::layer_pool)
   layerfields = [layer.u,layer.a,
       layer.a_tr,layer.w,layer.v,
@@ -307,6 +314,16 @@ function loadlayer!(path,layer::layer_pool_patchy)
 		layer.pool_layer_patches[i].b = layerfields[i][7]
 		layer.pool_layer_patches[i].hidden_reps = layerfields[i][8]
 	end
+end
+function loadlayer!(path,layer::layer_sparse)
+	layerfields = load(path,"layer_fields")
+	layer.u = layerfields[1]
+	layer.a = layerfields[2]
+	layer.a_tr = layerfields[3]
+	layer.w = layerfields[4]
+	layer.v = layerfields[5]
+	layer.t = layerfields[6]
+	layer.hidden_reps = layerfields[8]
 end
 function loadlayer!(path,layer::layer_pool)
 	layerfields = load(path,"layer_fields")

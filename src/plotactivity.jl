@@ -1,0 +1,59 @@
+using PyPlot
+close("all")
+include("./sparsepooling/sparsepooling_import.jl")
+
+n_images = 5
+
+path = "/User/Documents/PhD/Projects/SparsePooling/analysis/patchy/"
+
+patch_size = 8
+image_size = 32
+in_size = image_size^2
+hidden_size_sparse = 16 # per SC patch
+hidden_size_pool = 4
+hidden_size_sparse_2 = 18
+hidden_size_pool_2 = 9
+hidden_size_sparse_3 = 90
+hidden_size_pool_3 = 10
+
+inputfunction = getobject
+dynamicfunction = getmovingobject
+
+network = net([in_size,hidden_size_sparse,hidden_size_pool],["input","sparse_patchy","pool_patchy"],[1,49,49])
+
+# push!(network.layers, layer_sparse_patchy([hidden_size_pool*network.layers[2].parameters.n_of_sparse_layer_patches,hidden_size_sparse_2];
+#   n_of_sparse_layer_patches = 9, patch_size = 0, in_fan = hidden_size_pool*9, overlap = 0, image_size = 32))
+# push!(network.layers, layer_pool_patchy([hidden_size_sparse_2,hidden_size_pool_2];
+#   n_of_pool_layer_patches = 9))
+
+loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy.jld",network.layers[2])
+loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy.jld",network.layers[3])
+# loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy_2.jld",network.layers[4])
+# loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy_2.jld",network.layers[4])
+
+plotarray = []
+for i in 1:n_images
+  image = inputfunction()
+  dynamicimage = dynamicfunction(image)
+  for j in 1:size(dynamicimage)[3]
+    network.layers[1].a = dynamicimage[:,:,j][:]
+    forwardprop!(network; FPUntilLayer = network.nr_layers)
+
+    plot_temp = []
+    for layer in network.layers
+      append!(plot_temp,layer.a)
+    end
+    if i == 1 && j == 1
+      plotarray = plot_temp
+    else
+      plotarray = hcat(plotarray,plot_temp)
+    end
+  end
+end
+
+figure([10,4])
+xlabel("time")
+ylabel("neuron index")
+plot([0,n_images*20],[32*32,32*32],"black")
+plot([0,n_images*20],[16*49,16*49] .+ [32*32,32*32],"black")
+imshow(plotarray)

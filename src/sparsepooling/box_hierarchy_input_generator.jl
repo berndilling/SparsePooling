@@ -86,8 +86,13 @@ end
   rand_pos && (image.image = circshift(image.image,rand(0:size(image.image)[1],2)))
 end
 
-######### Moving
+######### Moving: Generatorfunctions for SparsePooling learning function
 
+@inline function getobject(; image_size = 32, n_of_components = rand(1:4))
+  image = Image(zeros(image_size,image_size))
+  renderobject!(generatecompositeobject(n_of_components), image)
+  return image
+end
 @inline function getmovingobject(image::Image; duration = 20, background = [], speed = 1)
    sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
    direction = rand([[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]])
@@ -98,7 +103,8 @@ end
     clamp.(sequence[:,:,i] + background,0,1) for i in 1:duration]
    return sequence
 end
-
+@inline getstaticobject(image::Image) = reshape(image.image, size(image.image)[1],
+                                                  size(image.image)[1],1)
 
 ############################################################
 # Testing
@@ -120,5 +126,14 @@ end
 # figure()
 # for i in 1:size(sequence)[3]
 #   imshow(sequence[:,:,i])
+#   sleep(0.1)
+# end
+
+# image = getobject()
+# dynamicimage = getmovingobject(image)
+# print(size(dynamicimage))
+# figure()
+# for i in 1:size(dynamicimage)[3]
+#   imshow(dynamicimage[:,:,i])
 #   sleep(0.1)
 # end
