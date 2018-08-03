@@ -48,20 +48,22 @@ end
 	end
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
-	BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
-	#BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
-	layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
-	for j in 1:size(layer.v)[1]
-		layer.v[j,j] = 0. #no self-inhibition
+	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
+		BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
+		#BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
+		layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
+		for j in 1:size(layer.v)[1]
+			layer.v[j,j] = 0. #no self-inhibition
+		end
+		clamp!(layer.v,0.,Inf64) #Dale's law
+		scale!((1-layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
+		#scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
+		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
+		#BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
+		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
+		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
+		#clamp!(layer.t,0.,Inf64)
 	end
-	clamp!(layer.v,0.,Inf64) #Dale's law
-	scale!((1-layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
-	#scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
-	BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
-	#BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
-	BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
-	#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
-	#clamp!(layer.t,0.,Inf64)
 end
 
 @inline function update_layer_parameters!(layer::layer_sparse_patchy)

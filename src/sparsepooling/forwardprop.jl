@@ -39,10 +39,9 @@ end
 @inline function forwardprop!(layer::layer_sparse)
 	forwardprop_lc!(layer)
 end
-# @inline function forwardprop!(layer_pre::layer_input, layer_post::layer_sparse, image::Array{Float64, 2})
-# 	layer_pre.a = image[:]
-# 	forwardprop_lc!(layer_pre, layer_post)
-# end
+#TODO lc for linear pooling units -> solve recurrence with matrix inversion! (probably faster)
+# layer.u = inv(eye(size(layer.v)[1]) .+ layer.v) * layer.w * layer.a_pre
+# layer.parameters.activationfunction(layer) # MUST BE LINEAR!
 @inline function forwardprop_lc!(layer)
 	layer.parameters.calculate_trace &&	calculatetrace!(layer)
 	layer.u .= 0.
