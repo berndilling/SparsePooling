@@ -44,9 +44,9 @@ end
 	end
 end
 
-@inline function sigm!(layer)
+@inline function sigm!(layer; lambda = 10.)
 	for i in 1:length(layer.u)
-		layer.a[i] = 1./(1.+exp(-(layer.u[i]-layer.t[i])))
+		layer.a[i] = 1./(1.+exp(-lambda * (layer.u[i]-layer.t[i])))
 	end
 end
 

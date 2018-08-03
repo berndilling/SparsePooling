@@ -1,13 +1,13 @@
 
 using StatsBase, ProgressMeter, JLD, PyPlot
-close("all")
+#close("all")
 include("./sparsepooling/sparsepooling_import.jl")
 
 BLAS.set_num_threads(1)
-
-sparse_part = true#true
+#addprocs(Sys.CPU_CORES)
+sparse_part = false#true#false
 pool_part = false#true
-sparse_part_2 = false#true
+sparse_part_2 = false
 
 iterations_sparse = 10^4 #7
 iterations_pool = 10^4
@@ -42,7 +42,7 @@ if sparse_part
   #savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_new.jld",network.layers[2])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_test_1.jld","network",network)
 else
-  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_staticmovingstatic.jld",network.layers[2])
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_sparse_patchy_netlearning_allmoving.jld",network.layers[2])
 end
 
 recfields = []

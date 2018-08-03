@@ -226,20 +226,38 @@ end
 	circshift(reshape(imagevector,dim,dim),amps)[:]
 end
 
-@inline function set_init_bars!(layer::layer_sparse,hidden_size)
+@inline function set_init_bars!(layer::layer_sparse,hidden_size;
+		p = 1/hidden_size, one_over_tau_a = 1/1000) #inspired by Földiak 1991 init
 	layer.w = rand(size(layer.w)[1],size(layer.w)[2])/hidden_size
 	layer.parameters.learningrate_v = 1e-1
-  layer.parameters.learningrate_w = 2e-2
-  layer.parameters.learningrate_thr = 2e-2
+  layer.parameters.learningrate_w = 1e-2#2e-2
+  layer.parameters.learningrate_thr = 5e-2 #speeds up convergence
+	layer.parameters.p = p
+	layer.parameters.one_over_tau_a = one_over_tau_a
+end
+@inline function set_init_bars!(layer::layer_sparse_patchy, hidden_size;
+		p = 1/hidden_size, one_over_tau_a = 1/1000)
+	for sparse_layer_patch in layer.sparse_layer_patches
+		set_init_bars!(sparse_layer_patch,hidden_size_sparse;
+			p = p, one_over_tau_a = one_over_tau_a)
+	end
 end
 
-@inline function set_init_bars!(layer::layer_pool)
-	layer.parameters.activationfunction = lin!#"relu" #pwl & relu works nice but no idea why!
-	layer.parameters.updaterule = GH_SFA_Sanger!
+@inline function set_init_bars!(layer::layer_pool;
+		one_over_tau_a = 1/4, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
+	layer.parameters.activationfunction = activationfunction #"relu" #pwl & relu works nice but no idea why!
+	layer.parameters.updaterule = updaterule
 	layer.parameters.learningrate = 1e-2
-	layer.parameters.one_over_tau_a = 1e-1
+	layer.parameters.one_over_tau_a = one_over_tau_a # shorter pooling time constant to not pool everything
 end
-
+@inline function set_init_bars!(layer::layer_pool_patchy;
+		one_over_tau_a = 1/4, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
+	for pool_layer_patch in layer.pool_layer_patches
+		set_init_bars!(pool_layer_patch;
+			one_over_tau_a = one_over_tau_a, updaterule = updaterule,
+			activationfunction = activationfunction)
+	end
+end
 @inline function cutweights!(network; number = 10)
 	for i in 1:size(network.layers[2].w)[1]
 		#indices = gethighestvalues(abs.(network.layers[2].w[i,:]); number = number)
@@ -249,6 +267,15 @@ end
 			network.layers[2].w[i,j] *= Int(j in indices)
 		end
 	end
+end
+
+#######################################################################################
+
+function addlayer!(net::net,layersize::Int64,layertype::String,layer)
+	push!(net.layers,layer)
+	push!(net.layer_sizes,layersize)
+	push!(net.layer_types,layertype)
+	net.nr_layers = length(net.layers)
 end
 
 # to save layer, take care that parameters are the same in the new net and the saved one!

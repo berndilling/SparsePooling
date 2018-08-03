@@ -72,6 +72,7 @@ end
 		# 	end
 		#	  for sparse_layer_patch in layer.sparse_layer_patches[range]
 		#@sync Threads.@threads
+		#@sync @parallel
 		for sparse_layer_patch in layer.sparse_layer_patches
 			forwardprop!(sparse_layer_patch)
 			append!(layer.a, sparse_layer_patch.a)

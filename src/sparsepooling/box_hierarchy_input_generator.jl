@@ -39,7 +39,7 @@ end
 end
 @inline function generatecompositeobject(nr_comp::Int64; pos = [16,16])
   CompositeObject(pos, nr_comp,
-    [generatesquare(pos + rand(-6:6,2); edgelength = 7, edgewidth = 1) for i in 1:nr_comp])
+    [generatesquare(pos + rand(-6:6,2); edgelength = 9, edgewidth = 1) for i in 1:nr_comp])
 end
 @inline function generatepyramid(; pos = [16,16])
   CompositeObject(pos, 3,
