@@ -48,22 +48,22 @@ end
 	end
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
-	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
+	#if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
 		BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
 		#BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
-		layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
+		#TODO Weight decay needed here?
+		#layer.v .+= -layer.parameters.learningrate_v .* layer.v
 		for j in 1:size(layer.v)[1]
 			layer.v[j,j] = 0. #no self-inhibition
 		end
+		#TODO clamping needed here?
 		clamp!(layer.v,0.,Inf64) #Dale's law
 		scale!((1-layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
-		#scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
 		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
-		#BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
-		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
-		#clamp!(layer.t,0.,Inf64)
-	end
+		#TODO threshold adaptation here?
+		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
+		#TODO Pre/Post-trace subtraction here?
+	#end
 end
 
 @inline function update_layer_parameters!(layer::layer_sparse_patchy)
@@ -113,8 +113,8 @@ end
 end
 
 # PAY ATTENTION: NONLINEARITY SHOULD BE LINEAR IN THIS CASE!!!
-@inline function update_layer_parameters!(layer::layer_pool)
-	layer.parameters.updaterule(layer)
+@inline function update_layer_parameters!(layer::layer_pool; lc_forward = true)
+	lc_forward ? update_layer_parameters_lc!(layer) : layer.parameters.updaterule(layer)
 end
 @inline function GH_PCA_Oja!(layer::layer_pool)
 	# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS

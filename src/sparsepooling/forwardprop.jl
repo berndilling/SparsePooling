@@ -17,9 +17,9 @@ end
 end
 
 #Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
-#ATTENTION: FOR PCA nonlinearity should be linear!
-@inline function forwardprop!(layer::layer_pool)
-	forwardprop_wlc!(layer)
+#ATTENTION: FOR PCA/SFA nonlinearity should be linear!
+@inline function forwardprop!(layer::layer_pool; lc_forward = true)
+	lc_forward ? forwardprop_lc!(layer) : forwardprop_wlc!(layer)
 end
 @inline function forwardprop_wlc!(layer)
 	layer.parameters.calculate_trace &&	calculatetrace!(layer)
@@ -47,13 +47,18 @@ end
 	layer.u .= 0.
 	layer.a .= 0.
 	if norm(layer.a_pre) != 0.
-		scaling_factor = layer.parameters.epsilon/layer.parameters.dt
-		voltage_incr = scaling_factor*norm(layer.u)+1 #+1 to make sure loop is entered
-		input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
-		while norm(voltage_incr) > scaling_factor*norm(layer.u)
-			voltage_incr = input_without_recurrence - BLAS.gemv('N',layer.v,layer.a) - layer.u
-			BLAS.axpy!(layer.parameters.dt, voltage_incr, layer.u) # update membrane potential
-			layer.parameters.activationfunction(layer) # apply activation function
+		if layer.parameters.activationfunction == lin!
+			layer.u = inv(eye(size(layer.v)[1]) .+ layer.v) * layer.w * layer.a_pre
+			layer.parameters.activationfunction(layer) #linear, just to assign values from u to a
+		else
+			scaling_factor = layer.parameters.epsilon/layer.parameters.dt
+			voltage_incr = scaling_factor*norm(layer.u)+1 #+1 to make sure loop is entered
+			input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
+			while norm(voltage_incr) > scaling_factor*norm(layer.u)
+				voltage_incr = input_without_recurrence - BLAS.gemv('N',layer.v,layer.a) - layer.u
+				BLAS.axpy!(layer.parameters.dt, voltage_incr, layer.u) # update membrane potential
+				layer.parameters.activationfunction(layer) # apply activation function
+			end
 		end
 	end
 end

@@ -160,7 +160,7 @@ function layer_sparse_patchy(ns::Array{Int64, 1}; n_of_sparse_layer_patches = 49
 	)
 end
 
-function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 1e-3, learningrate_thr = 1e-2,
+function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 1e-2, learningrate_thr = 5e-2,
 		dt = 1e-1, epsilon = 1e-4, updaterule = GH_SFA_Sanger!,
 	activationfunction = lin!, calculate_trace = true, one_over_tau_a = 1e-1, p = 1.)
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
