@@ -48,18 +48,21 @@ end
 	end
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
-	#if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
+	#if norm(layer.a_pre) != 0. #don't do anything if no input is provided
+		#TODO Weight decay needed here?
+		#scale!((1-layer.parameters.learningrate_w),layer.w)
 		BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
 		#BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
-		#TODO Weight decay needed here?
-		#layer.v .+= -layer.parameters.learningrate_v .* layer.v
 		for j in 1:size(layer.v)[1]
 			layer.v[j,j] = 0. #no self-inhibition
 		end
 		#TODO clamping needed here?
-		clamp!(layer.v,0.,Inf64) #Dale's law
+		#clamp!(layer.v,0.,Inf64) #Dale's law
 		scale!((1-layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
-		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
+		#scale!((1-layer.parameters.learningrate_w),layer.w)
+		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
+		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
+
 		#TODO threshold adaptation here?
 		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
 		#TODO Pre/Post-trace subtraction here?
