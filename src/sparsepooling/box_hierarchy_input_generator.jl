@@ -1,4 +1,6 @@
 
+using StatsBase
+
 abstract type Object end
 
 struct Bar <: Object
@@ -20,10 +22,27 @@ struct CompositeObject <: Object
   position::Array{Int64, 1}
   nr_components::Int64
   components::Array{Square, 1}
+  anchor::Array{Int64, 1}
+  object_dims::Array{Int64, 1}
+end
+@inline function CompositeObject(position, nr_components, components)
+  anchor = [minimum([comp.position[1] for comp in components]),minimum([comp.position[2] for comp in components])]
+  CompositeObject(position, nr_components, components, anchor,
+  [maximum([comp.position[1] for comp in components]) + components[1].edges[1].length - 1 - anchor[1],
+  maximum([comp.position[2] for comp in components]) + components[1].edges[1].length - 1- anchor[2]])
 end
 
 mutable struct Image
   image::Array{Float64, 2}
+end
+mutable struct AnchoredImage
+  image::Array{Float64, 2}
+  anchor::Array{Int64, 1}
+  object_dims::Array{Int64, 1}
+  anchorboundaries::Array{Int64, 1}
+end
+@inline function AnchoredImage(image::Array{Float64, 2})
+  AnchoredImage(image, [0,0], [0,0], [0,0])
 end
 
 ##############################################################
@@ -65,21 +84,62 @@ end
     ])
 end
 
+####### Tetris objects
+@inline function tetris1(pos)
+  CompositeObject(pos, 3,
+    [generatesquare(pos - [4,4]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [4,12]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos + [-4,4]; edgelength = 9, edgewidth = 1)])
+end
+@inline function tetris2(pos)
+  CompositeObject(pos, 3,
+    [generatesquare(pos - [4,3]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [12,3]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [-4,3]; edgelength = 9, edgewidth = 1)])
+end
+@inline function tetris3(pos)
+CompositeObject(pos, 3,
+  [generatesquare(pos - [8,8]; edgelength = 9, edgewidth = 1),
+  generatesquare(pos - [8,0]; edgelength = 9, edgewidth = 1),
+  generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1)])
+end
+@inline function tetris4(pos)
+  CompositeObject(pos, 2,
+    [generatesquare(pos - [8,8]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [8,0]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
+end
+@inline function tetris5(pos)
+  CompositeObject(pos, 2,
+    [generatesquare(pos - [8,8]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
+end
+@inline function tetris6(pos)
+  CompositeObject(pos, 2,
+    [generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [8,0]; edgelength = 9, edgewidth = 1),
+    generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
+end
+@inline function generatetetris(; pos = [16,16])
+  rand([tetris1(pos),tetris2(pos),tetris3(pos),tetris4(pos),tetris5(pos),tetris6(pos)])
+end
+
 ####### Rendering
 
-@inline function renderobject!(object::Bar, image::Image)
+@inline function renderobject!(object::Bar, image)
   object.orientation_horizontal ?
   image.image[object.position[1]:object.position[1]+object.width-1,
     object.position[2]:object.position[2]+object.length-1] = 1 :
   image.image[object.position[1]:object.position[1]+object.length-1,
     object.position[2]:object.position[2]+object.width-1] = 1
 end
-@inline function renderobject!(object::Square, image::Image)
+@inline function renderobject!(object::Square, image)
   for edge in object.edges
     renderobject!(edge, image)
   end
 end
-@inline function renderobject!(object::CompositeObject, image::Image; rand_pos = true)
+@inline function renderobject!(object::CompositeObject, image; rand_pos = true)
   for comp in object.components
     renderobject!(comp, image)
   end
@@ -93,6 +153,16 @@ end
   renderobject!(generatecompositeobject(n_of_components), image)
   return image
 end
+# TAKE CARE: anchors/boundaries only work if all atoms have same edge length!!!
+@inline function getanchoredobject(; image_size = 32)
+  image = AnchoredImage(zeros(image_size,image_size))
+  object = sample([generatecompositeobject(3),generatetetris()],Weights([0.5,0.5]))
+  image.anchor = deepcopy(object.anchor)
+  image.object_dims = deepcopy(object.object_dims)
+  image.anchorboundaries = [image_size - image.object_dims[1],image_size - image.object_dims[2]]
+  renderobject!(object, image; rand_pos = false)
+  return image
+end
 @inline function getmovingobject(image::Image; duration = 20, background = [], speed = 1)
    sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
    direction = rand([[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]])
@@ -103,24 +173,50 @@ end
     clamp.(sequence[:,:,i] + background,0,1) for i in 1:duration]
    return sequence
 end
+@inline function getbouncingobject(image::AnchoredImage; duration = 20, background = [], speed = 1)
+  sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
+  directions = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]]
+  dir = rand(directions)
+  for i in 1:duration
+    anchortest = image.anchor .+ speed .* dir
+    if anchortest[1] >= image.anchorboundaries[1] || anchortest[2] >= image.anchorboundaries[2] ||
+        anchortest[1] <= 1 || anchortest[2] <= 1
+      dir[anchortest .> image.anchorboundaries] *= -1
+      dir[anchortest .< 1] *= -1
+    end
+      image.image = circshift(image.image,speed*dir)
+      sequence[:,:,i] = deepcopy(image.image)
+      image.anchor = image.anchor .+ speed .* dir
+  end
+  !isempty(background) && [sequence[:,:,i] =
+   clamp.(sequence[:,:,i] + background,0,1) for i in 1:duration]
+  return sequence
+end
 @inline getstaticobject(image::Image) = reshape(image.image, size(image.image)[1],
                                                   size(image.image)[1],1)
 
 ############################################################
 # Testing
 
-# using PyPlot
-#  close("all")
+#using PyPlot
+#close("all")
 # object = generatecompositeobject(3)
 # image = Image(zeros(32,32))
 # renderobject!(object, image)
 # imshow(image.image)
 
-# image2 = Image(zeros(32,32))
+# image2 = getanchoredobject()
 # figure()
-# renderobject!(generateline(),image2)#generatepyramid()
-# imshow(image2.image)
-#
+# imshow(image2.image, origin = "lower")
+
+# dynamicimage = getbouncingobject(image2)
+# print(size(dynamicimage))
+# figure()
+# for i in 1:size(dynamicimage)[3]
+#  imshow(dynamicimage[:,:,i])
+#  sleep(0.2)
+# end
+
 # sequence = getmovingobject(image; duration = 20, speed = 2, background = image2.image)#get_background())
 # print(size(sequence))
 # figure()

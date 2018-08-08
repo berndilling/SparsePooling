@@ -6,11 +6,11 @@ include("./sparsepooling/sparsepooling_import.jl")
 BLAS.set_num_threads(1)
 #addprocs(Sys.CPU_CORES)
 sparse_part = false#true#false
-pool_part = false#true
+pool_part = true#true
 sparse_part_2 = false
 
 iterations_sparse = 10^4 #7
-iterations_pool = 10^4
+iterations_pool = 10^3
 iterations_sparse_2 = 10^3#3
 patch_size = 8
 image_size = 32
@@ -87,7 +87,7 @@ if pool_part
     LearningFromLayer = 3,
     LearningUntilLayer = 3)
 
-  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning_new.jld",network.layers[3])
+  #savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_netlearning_new.jld",network.layers[3])
   #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_patchy_pool_test.jld","network",network)
 else
   loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/bar_layer_pool_patchy_netlearning_staticmovingstatic.jld",network.layers[3])

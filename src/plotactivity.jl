@@ -34,12 +34,21 @@ addlayer!(network, hidden_size_pool_3, "pool",
   layer_pool([hidden_size_sparse_3,hidden_size_pool_3]))
 
 loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy.jld",network.layers[2])
-loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy.jld",network.layers[3])
+#loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy.jld",network.layers[3])
 #loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy_subtracttrace.jld",network.layers[3])
+loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy_lc.jld",network.layers[3])
 loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy_2.jld",network.layers[4])
 loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy_2.jld",network.layers[5])
 loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_3.jld",network.layers[6])
 loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_3.jld",network.layers[7])
+
+# loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy_10to6.jld",network.layers[2])
+# loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy_10to6.jld",network.layers[3])
+# loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy_2_10to6.jld",network.layers[4])
+# loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy_2_10to6.jld",network.layers[5])
+# loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_3_10to6.jld",network.layers[6])
+# loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_3_10to6.jld",network.layers[7])
+
 
 plotarray = []
 for i in 1:n_images

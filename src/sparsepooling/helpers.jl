@@ -226,38 +226,45 @@ end
 	circshift(reshape(imagevector,dim,dim),amps)[:]
 end
 
-@inline function set_init_bars!(layer::layer_sparse,hidden_size;
-		p = 1/hidden_size, one_over_tau_a = 1/1000) #inspired by Földiak 1991 init
-	layer.w = rand(size(layer.w)[1],size(layer.w)[2])/hidden_size
+@inline function set_init_bars!(layer::layer_sparse,hidden_size; reinit_weights = false,
+		p = 1/hidden_size, one_over_tau_a = 1/1000, activationfunction = pwl!) #inspired by Földiak 1991 init
 	layer.parameters.learningrate_v = 1e-1
   layer.parameters.learningrate_w = 1e-2#2e-2
   layer.parameters.learningrate_thr = 5e-2 #speeds up convergence
 	layer.parameters.p = p
 	layer.parameters.one_over_tau_a = one_over_tau_a
+	layer.parameters.activationfunction = activationfunction
+	reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/hidden_size : Void
 end
-@inline function set_init_bars!(layer::layer_sparse_patchy, hidden_size;
-		p = 1/hidden_size, one_over_tau_a = 1/1000)
+@inline function set_init_bars!(layer::layer_sparse_patchy, hidden_size; reinit_weights = false,
+		p = 1/hidden_size, one_over_tau_a = 1/1000, activationfunction = pwl!)
 	for sparse_layer_patch in layer.sparse_layer_patches
-		set_init_bars!(sparse_layer_patch,hidden_size_sparse;
-			p = p, one_over_tau_a = one_over_tau_a)
+		set_init_bars!(sparse_layer_patch,hidden_size_sparse; reinit_weights = reinit_weights,
+			p = p, one_over_tau_a = one_over_tau_a, activationfunction = activationfunction)
 	end
 end
 
-@inline function set_init_bars!(layer::layer_pool;
-		one_over_tau_a = 1/4, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
+@inline function set_init_bars!(layer::layer_pool; reinit_weights = false, p = 1/2,
+		one_over_tau_a = 1/8, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
 	layer.parameters.activationfunction = activationfunction #"relu" #pwl & relu works nice but no idea why!
 	layer.parameters.updaterule = updaterule
 	layer.parameters.learningrate = 1e-2
+	layer.parameters.learningrate_v = 1e-1
+  layer.parameters.learningrate_w = 1e-2#2e-2
+  layer.parameters.learningrate_thr = 5e-2 #speeds up convergence
 	layer.parameters.one_over_tau_a = one_over_tau_a # shorter pooling time constant to not pool everything
+	layer.parameters.p = p
+	reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/size(layer.w)[1] : Void
 end
-@inline function set_init_bars!(layer::layer_pool_patchy;
-		one_over_tau_a = 1/4, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
+@inline function set_init_bars!(layer::layer_pool_patchy;  reinit_weights = false,
+		p = 1/2, one_over_tau_a = 1/8, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
 	for pool_layer_patch in layer.pool_layer_patches
-		set_init_bars!(pool_layer_patch;
+		set_init_bars!(pool_layer_patch; reinit_weights = reinit_weights, p = p,
 			one_over_tau_a = one_over_tau_a, updaterule = updaterule,
 			activationfunction = activationfunction)
 	end
 end
+
 @inline function cutweights!(network; number = 10)
 	for i in 1:size(network.layers[2].w)[1]
 		#indices = gethighestvalues(abs.(network.layers[2].w[i,:]); number = number)

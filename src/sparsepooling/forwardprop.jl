@@ -136,7 +136,7 @@ end
 	end
 end
 @inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy)
-	#special case of subsamplingfactor = 2!
+	#TAKE CARE: special case of subsamplingfactor = 2 and overlap = half patchsize!!!
 	n_patch_pre = Int(sqrt(layer_pre.parameters.n_of_pool_layer_patches))
 	n_patch_post = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
 	for i in 1:n_patch_post
