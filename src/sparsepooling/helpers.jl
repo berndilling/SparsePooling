@@ -1,5 +1,5 @@
 
-using Distributions, ProgressMeter, JLD, HDF5
+using Distributions, ProgressMeter, JLD2, FileIO, HDF5
 
 #####################################################
 #Helpers
@@ -285,6 +285,7 @@ function addlayer!(net::net,layersize::Int64,layertype::String,layer)
 	net.nr_layers = length(net.layers)
 end
 
+######### Not Needed Any More with JLD2!!!
 # to save layer, take care that parameters are the same in the new net and the saved one!
 function savelayer(path,layer::layer_sparse_patchy)
   layerfields = []

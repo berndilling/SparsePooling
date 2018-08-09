@@ -163,7 +163,7 @@ end
   renderobject!(object, image; rand_pos = false)
   return image
 end
-@inline function getmovingobject(image::Image; duration = 20, background = [], speed = 1)
+@inline function getmovingobject(image; duration = 40, background = [], speed = 1)
    sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
    direction = rand([[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]])
    for i in 1:duration
@@ -172,6 +172,17 @@ end
    !isempty(background) && [sequence[:,:,i] =
     clamp.(sequence[:,:,i] + background,0,1) for i in 1:duration]
    return sequence
+end
+@inline function getjitteredobject(image; duration = 20, background = [])
+  sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
+  for i in 1:duration
+    direction = rand([[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]])
+    distance = rand(0:div(size(image.image)[1],4))
+    sequence[:,:,i] = circshift(image.image, distance .* direction)
+  end
+  !isempty(background) && [sequence[:,:,i] =
+   clamp.(sequence[:,:,i] + background,0,1) for i in 1:duration]
+  return sequence
 end
 @inline function getbouncingobject(image::AnchoredImage; duration = 20, background = [], speed = 1)
   sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
@@ -197,9 +208,9 @@ end
 
 ############################################################
 # Testing
-
-#using PyPlot
-#close("all")
+#
+# using PyPlot
+# close("all")
 # object = generatecompositeobject(3)
 # image = Image(zeros(32,32))
 # renderobject!(object, image)
@@ -208,8 +219,8 @@ end
 # image2 = getanchoredobject()
 # figure()
 # imshow(image2.image, origin = "lower")
-
-# dynamicimage = getbouncingobject(image2)
+#
+# dynamicimage = getmovingobject(image2)# getbouncingobject(image2)
 # print(size(dynamicimage))
 # figure()
 # for i in 1:size(dynamicimage)[3]
@@ -223,6 +234,14 @@ end
 # for i in 1:size(sequence)[3]
 #   imshow(sequence[:,:,i])
 #   sleep(0.1)
+# end
+#
+# sequence = getjitteredobject(image; duration = 20, background = [])#get_background())
+# print(size(sequence))
+# figure()
+# for i in 1:size(sequence)[3]
+#   imshow(sequence[:,:,i])
+#   sleep(0.2)
 # end
 
 # image = getobject()

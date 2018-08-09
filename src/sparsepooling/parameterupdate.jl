@@ -60,8 +60,8 @@ end
 		clamp!(layer.v,0.,Inf64) #Dale's law
 		scale!((1-layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
 		#scale!((1-layer.parameters.learningrate_w),layer.w)
-		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
-		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
+		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
+		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
 
 		#TODO threshold adaptation here? -> Yes if nonlinearity is nonlinear
 		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)

@@ -11,7 +11,7 @@ patch_size = 8
 image_size = 32
 in_size = image_size^2
 hidden_size_sparse = 16 # per SC patch
-hidden_size_pool = 6
+hidden_size_pool = 6#2
 hidden_size_sparse_2 = 18
 hidden_size_pool_2 = 9
 hidden_size_sparse_3 = 90
@@ -49,6 +49,13 @@ loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/ob
 # loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_3_10to6.jld",network.layers[6])
 # loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_3_10to6.jld",network.layers[7])
 
+# network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer2_sparse_patchy.jld2","layer")
+# network.layers[3] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer3_pool_patchy.jld2","layer")
+# network.layers[4] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer4_sparse_patchy.jld2","layer")
+# network.layers[5] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer5_pool_patchy.jld2","layer")
+# network.layers[6] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer6_sparse.jld2","layer")
+# network.layers[7] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer7_pool.jld2","layer")
+
 
 plotarray = []
 for i in 1:n_images
@@ -79,4 +86,4 @@ plot([0,n_images*20],[6*49,6*49] .+ [16*49,16*49] .+ [32*32,32*32],"black")
 plot([0,n_images*20],[9*18,9*18] .+ [6*49,6*49] .+ [16*49,16*49] .+ [32*32,32*32],"black")
 plot([0,n_images*20],[9*9,9*9] .+ [9*18,9*18] .+ [6*49,6*49] .+ [16*49,16*49] .+ [32*32,32*32],"black")
 plot([0,n_images*20],[90,90] .+ [9*9,9*9] .+ [9*18,9*18] .+ [6*49,6*49] .+ [16*49,16*49] .+ [32*32,32*32],"black")
-imshow(plotarray,aspect="auto")
+imshow(plotarray,aspect="auto",origin="lower")
