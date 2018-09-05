@@ -89,8 +89,7 @@ end
 @inline function update_layer_parameters!(layer::layer_pool_patchy)
 	#@sync Threads.@threads
 	for pool_layer_patch in layer.pool_layer_patches
-		#THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
-		#if norm(pool_layer_patch.a_pre) != 0.
+		#if norm(pool_layer_patch.a_pre) != 0. #THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
 	 	update_layer_parameters!(pool_layer_patch)
 		#end
 	end
@@ -98,7 +97,7 @@ end
 
 
 
-# PAY ATTENTION: NONLINEARITY SHOULD BE LINEAR IN THIS CASE!!!
+# PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
 @inline function update_layer_parameters!(layer::layer_pool; lc_forward = true) #false : reproduced Földiaks bars
 	lc_forward ? update_layer_parameters_lc!(layer) : layer.parameters.updaterule(layer)
 end

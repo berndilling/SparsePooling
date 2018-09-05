@@ -164,7 +164,7 @@ end
 # TAKE CARE: anchors/boundaries only work if all atoms have same edge length!!!
 @inline function getanchoredobject(; image_size = 32)
   image = AnchoredImage(zeros(image_size,image_size))
-  object = sample([generatecompositeobject(3),generatetetris()],Weights([0.5,0.5]))
+  object = sample([generatecompositeobject(3),generatetetris()],Weights([0,1.]))
   image.anchor = deepcopy(object.anchor)
   image.object_dims = deepcopy(object.object_dims)
   image.anchorboundaries = [image_size - image.object_dims[1],image_size - image.object_dims[2]]

@@ -18,6 +18,7 @@ end
 
 #Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
 #ATTENTION: FOR PCA/SFA nonlinearity should be linear!
+#PAY ATTENTION: lc_forward has to be consistent with the one in parameterupdate!
 @inline function forwardprop!(layer::layer_pool; lc_forward = true) #true
 	lc_forward ? forwardprop_lc!(layer) : forwardprop_wlc!(layer)
 end

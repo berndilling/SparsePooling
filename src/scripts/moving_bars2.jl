@@ -1,3 +1,10 @@
+
+# This script reproduces the moving bars script in the old framework
+# Works both with:
+# 1. Generalized Hebbian rule (GH_SFA_subtractrace_Sanger)
+# OR
+# 2. Variant of Földiak (SC) rule (change keyword lc_forward = true in forwardprop and parameterupdate)
+
 using StatsBase, ProgressMeter, JLD2, FileIO, PyPlot
 close("all")
 include("./../sparsepooling/sparsepooling_import.jl")
@@ -52,7 +59,7 @@ imshow(ws)
 ## pool part
 
 set_init_bars!(network.layers[3]; updaterule = GH_SFA_subtractrace_Sanger!,
-  reinit_weights = true, one_over_tau_a = 1/8, p = 1/16,#/hidden_size_pool,
+  reinit_weights = true, one_over_tau_a = 1/8, p = 1/20,#/hidden_size_pool,
   activationfunction = sigm!)
 
 learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
@@ -75,22 +82,12 @@ a = find(x -> (x > 0),network.layers[3].w[1,:])
 b = find(x -> (x > 0),network.layers[3].w[2,:])
 wa = zeros(image_size,image_size*length(a))
 wb = zeros(image_size,image_size*length(b))
-# c = find(x -> (x > 0),network.layers[3].w[3,:])
-# d = find(x -> (x > 0),network.layers[3].w[4,:])
-# wc = zeros(image_size,image_size*length(c))
-# wd = zeros(image_size,image_size*length(d))
 for i in 1:length(a)
   wa[1:image_size,(i-1)*image_size+1:i*image_size] = reshape(network.layers[2].w[a[i],:],image_size,image_size)
 end
 for i in 1:length(b)
   wb[1:image_size,(i-1)*image_size+1:i*image_size] = reshape(network.layers[2].w[b[i],:],image_size,image_size)
 end
-# for i in 1:length(c)
-#   wc[1:image_size,(i-1)*image_size+1:i*image_size] = reshape(network.layers[2].w[c[i],:],image_size,image_size)
-# end
-# for i in 1:length(d)
-#   wd[1:image_size,(i-1)*image_size+1:i*image_size] = reshape(network.layers[2].w[d[i],:],image_size,image_size)
-# end
 
 figure()
 imshow(wa)
@@ -98,12 +95,6 @@ axis("off")
 figure()
 imshow(wb)
 axis("off")
-# figure()
-# imshow(wc)
-# axis("off")
-# figure()
-# imshow(wd)
-# axis("off")
 
 figure()
 imshow(network.layers[3].v)
