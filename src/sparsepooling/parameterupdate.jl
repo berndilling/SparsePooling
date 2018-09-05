@@ -99,7 +99,7 @@ end
 
 
 # PAY ATTENTION: NONLINEARITY SHOULD BE LINEAR IN THIS CASE!!!
-@inline function update_layer_parameters!(layer::layer_pool; lc_forward = true)
+@inline function update_layer_parameters!(layer::layer_pool; lc_forward = true) #false : reproduced Földiaks bars
 	lc_forward ? update_layer_parameters_lc!(layer) : layer.parameters.updaterule(layer)
 end
 

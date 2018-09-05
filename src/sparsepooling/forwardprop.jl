@@ -18,7 +18,7 @@ end
 
 #Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
 #ATTENTION: FOR PCA/SFA nonlinearity should be linear!
-@inline function forwardprop!(layer::layer_pool; lc_forward = true)
+@inline function forwardprop!(layer::layer_pool; lc_forward = true) #true
 	lc_forward ? forwardprop_lc!(layer) : forwardprop_wlc!(layer)
 end
 @inline function forwardprop_wlc!(layer)
@@ -110,6 +110,11 @@ end
 # Mainly used for (potential parallelization)
 # Not needed for fully connected layers!
 
+@inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse)
+	layer_post.a_pre = deepcopy(layer_pre.a)
+	layer_post.a_tr_pre = deepcopy(layer_pre.a_tr)
+end
+
 @inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)
 	n_patch = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
 	p_size = layer_post.parameters.patch_size
@@ -163,4 +168,5 @@ end
 	layer_post.a_tr_pre = deepcopy(layer_pre.a_tr)
 end
 @inline function distributeinput!(layer_pre::layer_pool, layer_post::classifier)
+	# TODO!!!
 end

@@ -148,6 +148,14 @@ end
 
 ######### Moving: Generatorfunctions for SparsePooling learning function
 
+@inline function getbar(; image_size = 8, w = 1, or = rand([true,false]))
+  pos = rand(1:image_size,2)
+  l = image_size
+  or ? (pos[2] = 1) : (pos[1] = 1)
+  image = Image(zeros(image_size,image_size))
+  renderobject!(generatebar(pos, l, w, or), image)
+  return image
+end
 @inline function getobject(; image_size = 32, n_of_components = rand(1:4))
   image = Image(zeros(image_size,image_size))
   renderobject!(generatecompositeobject(n_of_components), image)

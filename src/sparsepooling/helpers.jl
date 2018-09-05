@@ -227,10 +227,10 @@ end
 end
 
 @inline function set_init_bars!(layer::layer_sparse,hidden_size; reinit_weights = false,
-		p = 1/hidden_size, one_over_tau_a = 1/1000, activationfunction = pwl!) #inspired by Földiak 1991 init
+		p = 1/hidden_size, one_over_tau_a = 1/1000, activationfunction = sigm!) #inspired by Földiak 1991 init
 	layer.parameters.learningrate_v = 1e-1
-  layer.parameters.learningrate_w = 1e-2#2e-2
-  layer.parameters.learningrate_thr = 5e-2 #speeds up convergence
+  layer.parameters.learningrate_w = 2e-2 #1e-2
+  layer.parameters.learningrate_thr = 2e-2 #5e-2 speeds up convergence
 	layer.parameters.p = p
 	layer.parameters.one_over_tau_a = one_over_tau_a
 	layer.parameters.activationfunction = activationfunction
@@ -250,8 +250,8 @@ end
 	layer.parameters.updaterule = updaterule
 	layer.parameters.learningrate = 1e-2
 	layer.parameters.learningrate_v = 1e-1
-  layer.parameters.learningrate_w = 1e-2#2e-2
-  layer.parameters.learningrate_thr = 5e-2 #speeds up convergence
+  layer.parameters.learningrate_w = 2e-2#2e-2
+  layer.parameters.learningrate_thr = 2e-2#5e-2 speeds up convergence
 	layer.parameters.one_over_tau_a = one_over_tau_a # shorter pooling time constant to not pool everything
 	layer.parameters.p = p
 	reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/size(layer.w)[1] : Void

@@ -6,7 +6,7 @@ include("./sparsepooling/sparsepooling_import.jl")
 BLAS.set_num_threads(1)
 
 sparse_part = false#true#true
-pool_part = true#true#true
+pool_part = false#true#true
 sparse_part_2 = false#true#true
 pool_part_2 = false#true
 sparse_part_3 = false#true
@@ -40,7 +40,7 @@ intermediatestates = []
 
 if sparse_part
   set_init_bars!(network.layers[2],hidden_size_sparse; reinit_weights = true,
-    activationfunction = pwl!, one_over_tau_a = sparse_trace_timeconstant)
+    activationfunction = sigm!, one_over_tau_a = sparse_trace_timeconstant)
 
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
   	[inputfunction for i in 1:network.nr_layers-1],
@@ -50,8 +50,8 @@ if sparse_part
 
   save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer2_sparse_patchy.jld2","layer",network.layers[2])
 else
-  #network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer2_sparse_patchy.jld2","layer")
-  network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer2_sparse_patchy.jld2","layer")
+  network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer2_sparse_patchy.jld2","layer")
+  #network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer2_sparse_patchy.jld2","layer")
 end
 
 recfields = []
@@ -91,7 +91,7 @@ if pool_part
 
   save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer3_pool_patchy.jld2","layer",network.layers[3])
 else
-  network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer3_pool_patchy.jld2","layer")
+  network.layers[3] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer3_pool_patchy.jld2","layer")
 end
 
 
