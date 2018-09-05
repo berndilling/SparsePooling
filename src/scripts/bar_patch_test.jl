@@ -1,7 +1,7 @@
 
 using StatsBase, ProgressMeter, JLD, PyPlot
 #close("all")
-include("./sparsepooling/sparsepooling_import.jl")
+include("./../sparsepooling/sparsepooling_import.jl")
 
 BLAS.set_num_threads(1)
 #addprocs(Sys.CPU_CORES)

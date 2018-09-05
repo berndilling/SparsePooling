@@ -1,7 +1,7 @@
 using PyPlot, JLD, HDF5
 
 close("all")
-include("./sparsepooling/sparsepooling_import.jl")
+include("./../sparsepooling/sparsepooling_import.jl")
 
 n_images = 10
 

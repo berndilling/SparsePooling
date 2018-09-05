@@ -254,7 +254,8 @@ end
   layer.parameters.learningrate_thr = 2e-2#5e-2 speeds up convergence
 	layer.parameters.one_over_tau_a = one_over_tau_a # shorter pooling time constant to not pool everything
 	layer.parameters.p = p
-	reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/size(layer.w)[1] : Void
+	#reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/size(layer.w)[1] : Void
+	reinit_weights ? layer.v = rand(size(layer.v)[1],size(layer.v)[1]) : Void
 end
 @inline function set_init_bars!(layer::layer_pool_patchy;  reinit_weights = false,
 		p = 1/2, one_over_tau_a = 1/8, updaterule = GH_SFA_Sanger!, activationfunction = lin!)

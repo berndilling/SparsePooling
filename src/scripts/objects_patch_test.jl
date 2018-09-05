@@ -1,7 +1,7 @@
 
-using StatsBase, ProgressMeter, JLD2, FileIO, PyPlot
+using StatsBase, ProgressMeter, JLD, PyPlot
 close("all")
-include("./sparsepooling/sparsepooling_import.jl")
+include("./../sparsepooling/sparsepooling_import.jl")
 
 BLAS.set_num_threads(1)
 
@@ -12,46 +12,44 @@ pool_part_2 = false#true
 sparse_part_3 = false#true
 pool_part_3 = false#true
 
-iterations_sparse = 10^1
-iterations_pool = 5*10^3
-iterations_sparse_2 = 10^1
-iterations_pool_2 = 10^1
-iterations_sparse_3 = 10^1
-iterations_pool_3 = 10^1
-
-sparse_trace_timeconstant = 1e-4
+iterations_sparse = 10^3
+iterations_pool = 10^3
+iterations_sparse_2 = 10^3
+iterations_pool_2 = 10^3
+iterations_sparse_3 = 10^3
+iterations_pool_3 = 10^3
 
 patch_size = 8
 image_size = 32
 in_size = image_size^2
 hidden_size_sparse = 16 # per SC patch
-hidden_size_pool = 2
+hidden_size_pool = 4
 hidden_size_sparse_2 = 18
 hidden_size_pool_2 = 9
-hidden_size_sparse_3 = 6*9
-hidden_size_pool_3 = 6
+hidden_size_sparse_3 = 90
+hidden_size_pool_3 = 10
 
-inputfunction = getanchoredobject
-dynamicfunction =  getmovingobject#getbouncingobject#getjitteredobject
+inputfunction = getobject
+dynamicfunction = getmovingobject
 network = net([in_size,hidden_size_sparse,hidden_size_pool],["input","sparse_patchy","pool_patchy"],[1,49,49])
 intermediatestates = []
 
 ################################################################################
 
 if sparse_part
-  set_init_bars!(network.layers[2],hidden_size_sparse; reinit_weights = true,
-    activationfunction = sigm!, one_over_tau_a = sparse_trace_timeconstant)
+  set_init_bars!(network.layers[2],hidden_size_sparse,one_over_tau_a = 1e-3, reinit_weights = true)
+  #network.layers[2].parameters.activationfunction = "relu"
 
+  #learn_layer_sparse_patchy!(network.layers[1], network.layers[2], iterations, dynamicfunction = get_moving_pattern)
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
   	[inputfunction for i in 1:network.nr_layers-1],
   	[dynamicfunction for i in 1:network.nr_layers-1];
   	LearningFromLayer = 2,
   	LearningUntilLayer = 2)
 
-  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer2_sparse_patchy.jld2","layer",network.layers[2])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy.jld",network.layers[2])
 else
-  network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer2_sparse_patchy.jld2","layer")
-  #network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer2_sparse_patchy.jld2","layer")
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy.jld",network.layers[2])
 end
 
 recfields = []
@@ -63,6 +61,9 @@ for k in 1:network.layers[2].parameters.n_of_sparse_layer_patches
     end
   end
   push!(recfields,ws)
+  #figure()
+  #title("SC receptive fields") # = feedforward weights
+  #imshow(ws)
 end
 WS = zeros(8*4*7,8*4*7)
 for i in 1:7
@@ -79,8 +80,7 @@ title("all rec. fields of all 49 patch-SC layers")
 if pool_part
   print("train pooling part")
 
-  set_init_bars!(network.layers[3]; updaterule = GH_SFA_subtractrace_Sanger!,
-    reinit_weights = false, one_over_tau_a = 1/6, p = 1/hidden_size_pool, activationfunction = relu!)
+  set_init_bars!(network.layers[3]; one_over_tau_a = 1/3, activationfunction = lin!)
 
   #learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
@@ -89,9 +89,9 @@ if pool_part
     LearningFromLayer = 3,
     LearningUntilLayer = 3)
 
-  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer3_pool_patchy.jld2","layer",network.layers[3])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy.jld",network.layers[3])
 else
-  network.layers[3] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer3_pool_patchy.jld2","layer")
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy.jld",network.layers[3])
 end
 
 
@@ -107,14 +107,10 @@ addlayer!(network, hidden_size_sparse_2, "sparse_patchy",
   layer_sparse_patchy([hidden_size_pool*network.layers[2].parameters.n_of_sparse_layer_patches,hidden_size_sparse_2];
   n_of_sparse_layer_patches = 9, patch_size = 0, in_fan = hidden_size_pool*9, overlap = 0, image_size = 32))
 if sparse_part_2
-
-  set_init_bars!(network.layers[4],hidden_size_sparse_2; reinit_weights = true, activationfunction = relu!, one_over_tau_a = sparse_trace_timeconstant)
-
-  figure()
-  plot(network.layers[4].sparse_layer_patches[1].w')
-  figure()
-  imshow(network.layers[4].sparse_layer_patches[1].v)
-
+  for sparse_layer_patch in network.layers[4].sparse_layer_patches
+    set_init_bars!(sparse_layer_patch,hidden_size_sparse_2)
+    sparse_layer_patch.parameters.p = 1/hidden_size_sparse_2
+  end
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool,iterations_sparse_2],
   	[inputfunction for i in 1:network.nr_layers-1],
   	[dynamicfunction for i in 1:network.nr_layers-1];
@@ -125,10 +121,9 @@ if sparse_part_2
   plot(network.layers[4].sparse_layer_patches[1].w')
   figure()
   imshow(network.layers[4].sparse_layer_patches[1].v)
-
-  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer4_sparse_patchy.jld2","layer",network.layers[4])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy_2.jld",network.layers[4])
 else
-  network.layers[4] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer4_sparse_patchy.jld2","layer")
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_patchy_2.jld",network.layers[4])
 end
 
 ################################################################################
@@ -139,16 +134,21 @@ addlayer!(network, hidden_size_pool_2, "pool_patchy",
 if pool_part_2
   print("train pooling part")
 
-  set_init_bars!(network.layers[5]; reinit_weights = true, one_over_tau_a = 1/16, p = 1/hidden_size_pool_2, activationfunction = relu!)
-
+  for pool_layer_patch in network.layers[5].pool_layer_patches
+    set_init_bars!(pool_layer_patch)
+    pool_layer_patch.parameters.one_over_tau_a = 1/5 # shorter pooling time constant to not pool everything
+    pool_layer_patch.parameters.activationfunction = lin! #relu!
+    pool_layer_patch.parameters.updaterule = GH_SFA_Sanger! #GH_SFA_subtractrace_Sanger!
+  end
+  #learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool,iterations_sparse_2,iterations_pool_2],
     [inputfunction for i in 1:network.nr_layers-1],
     [dynamicfunction for i in 1:network.nr_layers-1];
     LearningFromLayer = 5,
     LearningUntilLayer = 5)
-  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer5_pool_patchy.jld2","layer",network.layers[5])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy_2.jld",network.layers[5])
 else
-  network.layers[5] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer5_pool_patchy.jld2","layer")
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_patchy_2.jld",network.layers[5])
 end
 
 ################################################################################
@@ -166,9 +166,9 @@ if sparse_part_3
     [dynamicfunction for i in 1:network.nr_layers-1];
     LearningFromLayer = 6,
     LearningUntilLayer = 6)
-  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer6_sparse.jld2","layer",network.layers[6])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_3.jld",network.layers[6])
 else
-  network.layers[6] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer6_sparse.jld2","layer")
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_sparse_3.jld",network.layers[6])
 end
 
 ################################################################################
@@ -177,7 +177,10 @@ addlayer!(network, hidden_size_pool_3, "pool",
   layer_pool([hidden_size_sparse_3,hidden_size_pool_3]))
 if pool_part_3
   print("train pooling part")
-  set_init_bars!(network.layers[3]; one_over_tau_a = 1/32, p = 1/hidden_size_pool_3, activationfunction = relu!)
+  set_init_bars!(network.layers[7])
+  network.layers[7].parameters.one_over_tau_a = 1/7 # shorter pooling time constant to not pool everything
+  network.layers[7].parameters.activationfunction = lin! #relu!
+  network.layers[7].parameters.updaterule = GH_SFA_Sanger! #GH_SFA_subtractrace_Sanger!
 
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool,
       iterations_sparse_2,iterations_pool_2,iterations_sparse_3,iterations_pool_3],
@@ -185,7 +188,7 @@ if pool_part_3
     [dynamicfunction for i in 1:network.nr_layers-1];
     LearningFromLayer = 7,
     LearningUntilLayer = 7)
-  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer7_pool.jld2","layer",network.layers[7])
+  savelayer("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_3.jld",network.layers[7])
 else
-  network.layers[7] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_layer7_pool.jld2","layer")
+  loadlayer!("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/objects_layer_pool_3.jld",network.layers[7])
 end

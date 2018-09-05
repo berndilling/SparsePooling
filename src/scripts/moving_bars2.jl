@@ -1,6 +1,6 @@
 using StatsBase, ProgressMeter, JLD2, FileIO, PyPlot
 close("all")
-include("./sparsepooling/sparsepooling_import.jl")
+include("./../sparsepooling/sparsepooling_import.jl")
 
 sparse_part = false
 
@@ -52,10 +52,9 @@ imshow(ws)
 ## pool part
 
 set_init_bars!(network.layers[3]; updaterule = GH_SFA_subtractrace_Sanger!,
-  reinit_weights = false, one_over_tau_a = 1/8, p = 1/8,#/hidden_size_pool,
+  reinit_weights = true, one_over_tau_a = 1/8, p = 1/16,#/hidden_size_pool,
   activationfunction = sigm!)
 
-network.layers[3].v = rand(2,2)
 learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
   [inputfunction for i in 1:network.nr_layers-1],
   [dynamicfunctionsparse, dynamicfunctionpool];
