@@ -1,6 +1,9 @@
 
 using StatsBase
 
+##############################################################################
+## Types
+
 abstract type Object end
 
 struct Bar <: Object
@@ -45,8 +48,8 @@ end
   AnchoredImage(image, [0,0], [0,0], [0,0])
 end
 
-##############################################################
-# Constructors
+##############################################################################
+## Constructors
 
 @inline function generatebar(pos::Array{Int64, 1}, l::Int64, w::Int64, or::Bool)
   Bar(pos, l, w, or)
@@ -84,7 +87,9 @@ end
     ])
 end
 
-####### Tetris objects
+##############################################################################
+## Tetris objects
+
 @inline function tetris1(pos)
   CompositeObject(pos, 3,
     [generatesquare(pos - [4,4]; edgelength = 9, edgewidth = 1),
@@ -125,7 +130,8 @@ end
   rand([tetris1(pos),tetris2(pos),tetris3(pos),tetris4(pos),tetris5(pos),tetris6(pos)])
 end
 
-####### Rendering
+##############################################################################
+## Rendering
 
 @inline function renderobject!(object::Bar, image)
   object.orientation_horizontal ?
@@ -146,9 +152,10 @@ end
   rand_pos && (image.image = circshift(image.image,rand(0:size(image.image)[1],2)))
 end
 
-######### Moving: Generatorfunctions for SparsePooling learning function
+##############################################################################
+## Generatorfunctions for SparsePooling learning function
 
-@inline function getbar(; image_size = 8, w = 1, or = rand([true,false]))
+@inline function getbar(; image_size = 32, w = 1, or = rand([true,false]))
   pos = rand(1:image_size,2)
   l = image_size
   or ? (pos[2] = 1) : (pos[1] = 1)
@@ -164,14 +171,18 @@ end
 # TAKE CARE: anchors/boundaries only work if all atoms have same edge length!!!
 @inline function getanchoredobject(; image_size = 32)
   image = AnchoredImage(zeros(image_size,image_size))
-  object = sample([generatecompositeobject(3),generatetetris()],Weights([0,1.]))
+  object = sample([generatecompositeobject(3),generatetetris()],Weights([0.,1.]))
   image.anchor = deepcopy(object.anchor)
   image.object_dims = deepcopy(object.object_dims)
   image.anchorboundaries = [image_size - image.object_dims[1],image_size - image.object_dims[2]]
   renderobject!(object, image; rand_pos = false)
   return image
 end
-@inline function getmovingobject(image; duration = 40, background = [], speed = 1)
+
+##############################################################################
+## Dynamic functions
+
+@inline function getmovingobject(image; duration = 8, background = [], speed = 1)
    sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
    direction = rand([[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]])
    for i in 1:duration
@@ -181,7 +192,7 @@ end
     clamp.(sequence[:,:,i] + background,0,1) for i in 1:duration]
    return sequence
 end
-@inline function getjitteredobject(image; duration = 20, background = [])
+@inline function getjitteredobject(image; duration = 8, background = [])
   sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
   for i in 1:duration
     direction = rand([[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]])
@@ -192,7 +203,7 @@ end
    clamp.(sequence[:,:,i] + background,0,1) for i in 1:duration]
   return sequence
 end
-@inline function getbouncingobject(image::AnchoredImage; duration = 20, background = [], speed = 1)
+@inline function getbouncingobject(image::AnchoredImage; duration = 8, background = [], speed = 1)
   sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
   directions = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]]
   dir = rand(directions)
@@ -211,7 +222,7 @@ end
    clamp.(sequence[:,:,i] + background,0,1) for i in 1:duration]
   return sequence
 end
-@inline getstaticobject(image::Image) = reshape(image.image, size(image.image)[1],
+@inline getstaticobject(image) = reshape(image.image, size(image.image)[1],
                                                   size(image.image)[1],1)
 
 ############################################################
@@ -252,7 +263,9 @@ end
 #   sleep(0.2)
 # end
 
-# image = getobject()
+# figure()
+# image = getbar()
+# imshow(image.image)
 # dynamicimage = getmovingobject(image)
 # print(size(dynamicimage))
 # figure()

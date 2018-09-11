@@ -9,16 +9,16 @@ using StatsBase, ProgressMeter, JLD2, FileIO, PyPlot
 close("all")
 include("./../sparsepooling/sparsepooling_import.jl")
 
-sparse_part = false
+sparse_part = true
 
 ################################################################################
 ## Parametes
 
-image_size = 8
+image_size = 4
 hidden_size_sparse = 2*image_size
 hidden_size_pool = 2
-iterations_sparse = 5*10^4
-iterations_pool = 10^3
+iterations_sparse = 10^4#5
+iterations_pool = 5*10^2#3
 sparse_trace_timeconstant = 1e-2#1e-4
 
 inputfunction = getbar
@@ -40,15 +40,15 @@ if sparse_part
     [dynamicfunctionsparse, dynamicfunctionpool];
     LearningFromLayer = 2,
     LearningUntilLayer = 2)
-    save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer1_sparse.jld2","layer",network.layers[2])
+    #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse.jld2","layer",network.layers[2])
 else
-  network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer1_sparse.jld2","layer")
+  network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse.jld2","layer")
 end
 
-ws = zeros(8*4,8*4)
+ws = zeros(4*4,2*4)
 for i in 1:4
-  for j in 1:4
-    ws[(i-1)*8+1:i*8,(j-1)*8+1:j*8] = reshape(network.layers[2].w[(i-1)*4+j,:],8,8)
+  for j in 1:2
+    ws[(i-1)*4+1:i*4,(j-1)*4+1:j*4] = reshape(network.layers[2].w[(i-1)*2+j,:],4,4)
   end
 end
 figure()
@@ -59,7 +59,7 @@ imshow(ws)
 ## pool part
 
 set_init_bars!(network.layers[3]; updaterule = GH_SFA_subtractrace_Sanger!,
-  reinit_weights = true, one_over_tau_a = 1/8, p = 1/20,#/hidden_size_pool,
+  reinit_weights = true, one_over_tau_a = 1/2, p = 1/3,# one_over_tau_a = 1/4, p = 1/4
   activationfunction = sigm!)
 
 learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
@@ -68,6 +68,7 @@ learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_po
   LearningFromLayer = 3,
   LearningUntilLayer = 3)
 
+#save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer3_pool.jld2","layer",network.layers[3])
 ################################################################################
 ## Plotting
 

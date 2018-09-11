@@ -40,11 +40,10 @@ end
 @inline function forwardprop!(layer::layer_sparse)
 	forwardprop_lc!(layer)
 end
-#TODO lc for linear pooling units -> solve recurrence with matrix inversion! (probably faster)
-# layer.u = inv(eye(size(layer.v)[1]) .+ layer.v) * layer.w * layer.a_pre
-# layer.parameters.activationfunction(layer) # MUST BE LINEAR!
 @inline function forwardprop_lc!(layer)
-	layer.parameters.calculate_trace &&	calculatetrace!(layer)
+	if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
+		layer.parameters.calculate_trace &&	calculatetrace!(layer)
+	end
 	layer.u .= 0.
 	layer.a .= 0.
 	if norm(layer.a_pre) != 0.

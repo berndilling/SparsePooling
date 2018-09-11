@@ -372,3 +372,16 @@ function loadlayer!(path,layer::layer_pool)
 	layer.b = layerfields[7]
 	layer.hidden_reps = layerfields[8]
 end
+
+function loadsharedweights!(layer::layer_sparse_patchy,path)
+	singlepatchlayer = load(path,"layer")
+	for i in 1:layer.parameters.n_of_sparse_layer_patches
+		layer.sparse_layer_patches[i] = deepcopy(singlepatchlayer)
+	end
+end
+function loadsharedweights!(layer::layer_pool_patchy,path)
+	singlepatchlayer = load(path,"layer")
+	for i in 1:layer.parameters.n_of_pool_layer_patches
+		layer.pool_layer_patches[i] = deepcopy(singlepatchlayer)
+	end
+end
