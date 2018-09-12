@@ -49,7 +49,6 @@ end
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided
-
 		# BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
 		# layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
 		BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)

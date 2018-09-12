@@ -175,7 +175,7 @@ end
   image.anchor = deepcopy(object.anchor)
   image.object_dims = deepcopy(object.object_dims)
   image.anchorboundaries = [image_size - image.object_dims[1],image_size - image.object_dims[2]]
-  renderobject!(object, image; rand_pos = false)
+  renderobject!(object, image; rand_pos = true)
   return image
 end
 

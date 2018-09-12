@@ -41,7 +41,8 @@ end
 	forwardprop_lc!(layer)
 end
 @inline function forwardprop_lc!(layer)
-	if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
+	#if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
+	if norm(layer.a) != 0.
 		layer.parameters.calculate_trace &&	calculatetrace!(layer)
 	end
 	layer.u .= 0.
