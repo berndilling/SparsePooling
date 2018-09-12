@@ -9,7 +9,7 @@ using StatsBase, ProgressMeter, JLD2, FileIO, PyPlot
 close("all")
 include("./../sparsepooling/sparsepooling_import.jl")
 
-sparse_part = true
+sparse_part = false
 
 ################################################################################
 ## Parametes
@@ -59,7 +59,7 @@ imshow(ws)
 ## pool part
 
 set_init_bars!(network.layers[3]; updaterule = GH_SFA_subtractrace_Sanger!,
-  reinit_weights = true, one_over_tau_a = 1/2, p = 1/3,# one_over_tau_a = 1/4, p = 1/4
+  reinit_weights = true, one_over_tau_a = 1/4, p = 1/5,# one_over_tau_a = 1/4, p = 1/4
   activationfunction = sigm!)
 
 learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],

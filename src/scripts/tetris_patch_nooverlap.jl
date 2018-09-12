@@ -12,37 +12,37 @@ pool_part_2 = false#true
 sparse_part_3 = false#true
 pool_part_3 = false#true
 
-iterations_sparse = 10^4
-iterations_pool = 10^5
+iterations_sparse = 10^5
+iterations_pool = 5*10^4
 iterations_sparse_2 = 10^3
 iterations_pool_2 = 10^1
 iterations_sparse_3 = 10^1
 iterations_pool_3 = 10^1
 
 # ATTENTION: this is overwritten when loading first layer!
-#sparse_trace_timeconstant = 1e-2#1e-4
+sparse_trace_timeconstant = 1e-2#1e-4
+image_size = 32#32
+in_size = image_size^2
 
 patch_size = 4
-image_size = 32
-in_size = image_size^2
+overlap = 0
 hidden_size_sparse = 8 # per SC patch
 hidden_size_pool = 2
-hidden_size_sparse_2 = 18
-hidden_size_pool_2 = 9
-hidden_size_sparse_3 = 6*9
-hidden_size_pool_3 = 6
+# hidden_size_sparse_2 = 18
+# hidden_size_pool_2 = 9
+# hidden_size_sparse_3 = 6*9
+# hidden_size_pool_3 = 6
 
-inputfunction = getbar#getanchoredobject
+inputfunction = getanchoredobject#getbar#
 dynamicfunction = getmovingobject#getbouncingobject#getjitteredobject
 
 
 network = net([in_size],["input"],[1])
 addlayer!(network, hidden_size_sparse, "sparse_patchy",
   layer_sparse_patchy([in_size,hidden_size_sparse];
-  n_of_sparse_layer_patches = 8*8, patch_size = 4, in_fan = 16, overlap = 0, image_size = 32))
+    patch_size = patch_size, in_fan = patch_size^2, overlap = overlap, image_size = image_size))
 addlayer!(network, hidden_size_pool, "pool_patchy",
-  layer_pool_patchy([hidden_size_sparse,hidden_size_pool];
-  n_of_pool_layer_patches = 8*8))
+  layer_pool_patchy([hidden_size_sparse,hidden_size_pool]; patch_size = patch_size, overlap = overlap, image_size = image_size))
 
 intermediatestates = []
 
@@ -58,32 +58,34 @@ if sparse_part
   	LearningFromLayer = 2,
   	LearningUntilLayer = 2)
 
-  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer2_sparse_patchy.jld2","layer",network.layers[2])
+  #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer2_sparse_patchy.jld2","layer",network.layers[2])
 else
   network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer2_sparse_patchy.jld2","layer")
 end
 
 loadsharedweights!(network.layers[2],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse.jld2")
 
-recfields = []
-for k in 1:network.layers[2].parameters.n_of_sparse_layer_patches
-  ws = zeros(4*4,4*2)
-  for i in 1:4
-    for j in 1:2
-      ws[(i-1)*4+1:i*4,(j-1)*4+1:j*4] = reshape(network.layers[2].sparse_layer_patches[k].w[(i-1)*2+j,:],4,4)
-    end
-  end
-  push!(recfields,ws)
-end
-WS = zeros(8*4*4,8*4*2)
-for i in 1:8
-  for j in 1:8
-    WS[(i-1)*4*4+1:i*4*4,(j-1)*4*2+1:j*4*2] = recfields[(i-1)*8+j]
-  end
-end
-figure()
-imshow(WS)
-title("all rec. fields of all 64 patch-SC layers")
+# recfields = []
+# for k in 1:network.layers[2].parameters.n_of_sparse_layer_patches
+#   ws = zeros(4*4,4*2)
+#   for i in 1:4
+#     for j in 1:2
+#       ws[(i-1)*4+1:i*4,(j-1)*4+1:j*4] = reshape(network.layers[2].sparse_layer_patches[k].w[(i-1)*2+j,:],4,4)
+#     end
+#   end
+#   push!(recfields,ws)
+# end
+# figure()
+# imshow(recfields[1])
+# WS = zeros(8*4*4,8*4*2)
+# for i in 1:8
+#   for j in 1:8
+#     WS[(i-1)*4*4+1:i*4*4,(j-1)*4*2+1:j*4*2] = recfields[(i-1)*8+j]
+#   end
+# end
+# figure()
+# imshow(WS)
+# title("all rec. fields of all 64 patch-SC layers")
 
 ################################################################################
 
@@ -91,7 +93,7 @@ if pool_part
   print("train pooling part")
 
   set_init_bars!(network.layers[3]; updaterule = GH_SFA_subtractrace_Sanger!,
-    reinit_weights = true, one_over_tau_a = 1/2, p = 1/3,# one_over_tau_a = 1/4, p = 1/4
+    reinit_weights = true, one_over_tau_a = 1/4, p = 1/5,
     activationfunction = sigm!)
 
   #learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
@@ -109,10 +111,10 @@ end
 #loadsharedweights!(network.layers[3],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer3_pool.jld2")
 
 figure()
-plt[:hist](network.layers[3].pool_layer_patches[32].w[:], bins = 10, normed = true)
+plt[:hist](network.layers[3].pool_layer_patches[1].w[:], bins = 10, normed = true)
 
 figure()
-plot(network.layers[3].pool_layer_patches[32].w')
+plot(network.layers[3].pool_layer_patches[1].w')
 
 ################################################################################
 #
