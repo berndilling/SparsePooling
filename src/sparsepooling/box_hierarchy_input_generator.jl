@@ -155,7 +155,7 @@ end
 ##############################################################################
 ## Generatorfunctions for SparsePooling learning function
 
-@inline function getbar(; image_size = 32, w = 1, or = rand([true,false]))
+@inline function getbar(; image_size = 4, w = 1, or = rand([true,false]))
   pos = rand(1:image_size,2)
   l = image_size
   or ? (pos[2] = 1) : (pos[1] = 1)
@@ -181,10 +181,14 @@ end
 
 ##############################################################################
 ## Dynamic functions
-
-@inline function getmovingobject(image; duration = 8, background = [], speed = 1)
+@inline function stochasticbackgroundbar()
+  prob = 0.2
+  (rand() < prob) ? getbar().image : []
+end
+@inline function getmovingobject(image; duration = 8, background = stochasticbackgroundbar(), speed = 1) #getbar().image
    sequence = zeros(size(image.image)[1], size(image.image)[2], duration)
-   direction = rand([[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]])
+   #direction = rand([[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]])
+   direction = rand([[1,0],[0,1],[-1,0],[0,-1]])
    for i in 1:duration
       sequence[:,:,i] = circshift(image.image,i*speed*direction)
    end
@@ -244,7 +248,7 @@ end
 # figure()
 # for i in 1:size(dynamicimage)[3]
 #  imshow(dynamicimage[:,:,i])
-#  sleep(0.2)
+#  sleep(0.5)
 # end
 
 # sequence = getmovingobject(image; duration = 20, speed = 2, background = image2.image)#get_background())

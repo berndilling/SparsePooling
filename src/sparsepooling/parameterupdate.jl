@@ -49,43 +49,36 @@ end
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided
-		# BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
-		# layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
+		#BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
 		BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
+		#BLAS.ger!(layer.parameters.learningrate_v, layer.a_tr-layer.a, layer.a_tr-layer.a, layer.v)
 		layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
 		for j in 1:size(layer.v)[1]
 			layer.v[j,j] = 0. #no self-inhibition
 		end
 		#TODO clamping needed here?
 		clamp!(layer.v,0.,Inf64) #Dale's law
-		scale!((1-layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
+		#scale!((1-layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
+		scale!((1-layer.parameters.learningrate_w*layer.a.^4),layer.w)
+		#scale!((1-layer.parameters.learningrate_w*(layer.a_tr-layer.a).^2),layer.w)
 		#scale!((1-layer.parameters.learningrate_w),layer.w)
+
 		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
 		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
+		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr-layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
 
 		#TODO threshold adaptation here? -> Yes if nonlinearity is nonlinear
-		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
+		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
+		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
+		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.a_tr-layer.parameters.p,layer.t)
 		#TODO Pre/Post-trace subtraction here?
 	end
 end
 
 @inline function update_layer_parameters!(layer::layer_sparse_patchy)
-#	nthreads = Threads.nthreads()
-#	N = div(layer.parameters.n_of_sparse_layer_patches, nthreads)
-	# Threads.@threads for i in 1:nthreads
-	# 	if i == nthreads
-	# 			range = (i-1)*N + 1:layer.parameters.n_of_sparse_layer_patches
-	# 	else
-	# 			range = (i-1)*N + 1:i * N
-	# 	end
-	#		for sparse_layer_patch in layer.sparse_layer_patches[range]
-		#@sync Threads.@threads
-		#@sync @parallel
-		for sparse_layer_patch in layer.sparse_layer_patches#[range]
-		 	update_layer_parameters!(sparse_layer_patch)
-		end
-	#end
+	for sparse_layer_patch in layer.sparse_layer_patches#[range]
+	 	update_layer_parameters!(sparse_layer_patch)
+	end
 end
 @inline function update_layer_parameters!(layer::layer_pool_patchy)
 	#@sync Threads.@threads
@@ -95,8 +88,6 @@ end
 		#end
 	end
 end
-
-
 
 # PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
 @inline function update_layer_parameters!(layer::layer_pool; lc_forward = true) #false : reproduced Földiaks bars

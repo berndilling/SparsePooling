@@ -4,10 +4,10 @@
 
 #for classifier
 @inline function forwardprop!(net::classifier)
-	for i in 1:net.nl
-		BLAS.gemv!('N', 1., net.w[i], net.x[i], 0., net.ax[i])
-		BLAS.axpy!(1., net.b[i], net.ax[i])
-		net.activationfunctions[i](net.ax[i], net.x[i+1])
+	for i in 1:net.nl-1
+		BLAS.gemv!('N', 1., net.w[i], net.a[i], 0., net.u[i])
+		BLAS.axpy!(1., net.b[i], net.u[i])
+		net.activationfunctions[i](net.u[i], net.a[i+1])
 	end
 end
 
@@ -20,7 +20,8 @@ end
 #ATTENTION: FOR PCA/SFA nonlinearity should be linear!
 #PAY ATTENTION: lc_forward has to be consistent with the one in parameterupdate!
 @inline function forwardprop!(layer::layer_pool; lc_forward = true) #true
-	lc_forward ? forwardprop_lc!(layer) : forwardprop_wlc!(layer)
+	lc_forward ? forwardprop_lc!(layer) : #forwardprop_WTA!(layer) : #
+		forwardprop_wlc!(layer)
 end
 @inline function forwardprop_wlc!(layer)
 	layer.parameters.calculate_trace &&	calculatetrace!(layer)
@@ -39,6 +40,7 @@ end
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
 @inline function forwardprop!(layer::layer_sparse)
 	forwardprop_lc!(layer)
+	#forwardprop_WTA!(layer)
 end
 @inline function forwardprop_lc!(layer)
 	#if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
@@ -63,27 +65,32 @@ end
 		end
 	end
 end
+# ATTENTION: Only for testing, no explicit (plastic) lateral inhibition used!!!
+# sets winner (highest input) to 1, all other to 0
+@inline function forwardprop_WTA!(layer)
+	if norm(layer.a) != 0.
+		layer.parameters.calculate_trace &&	calculatetrace!(layer)
+	end
+	layer.u .= 0.
+	layer.a .= 0.
+	if norm(layer.a_pre) != 0.
+		input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
+		maxinput = findmax(input_without_recurrence)
+		(maxinput[1] >= layer.t[maxinput[2]]) && (layer.a[maxinput[2]] = 1.)
+	end
+end
 
 
 @inline function forwardprop!(layer::layer_sparse_patchy)
 		layer.a, layer.a_tr = [], [] # combined act. of all patches
-		# nthreads = Threads.nthreads()
-		# N = div(layer.parameters.n_of_sparse_layer_patches, nthreads)
-		# Threads.@threads for i in 1:nthreads
-		# 	if i == nthreads
-		# 			range = (i-1)*N + 1:layer.parameters.n_of_sparse_layer_patches
-		# 	else
-		# 			range = (i-1)*N + 1:i * N
-		# 	end
-		#	  for sparse_layer_patch in layer.sparse_layer_patches[range]
-		#@sync Threads.@threads
-		#@sync @parallel
+		#@sync @parallel for i in 1:length(layer.sparse_layer_patches)
 		for sparse_layer_patch in layer.sparse_layer_patches
+			#forwardprop!(layer.sparse_layer_patches[i])
 			forwardprop!(sparse_layer_patch)
 			append!(layer.a, sparse_layer_patch.a)
 			append!(layer.a_tr, sparse_layer_patch.a_tr)
 		end
-	#end
+#	end
 end
 @inline function forwardprop!(layer::layer_pool_patchy)
 	layer.a, layer.a_tr = [], [] # combined act. of all patches
@@ -141,16 +148,20 @@ end
 		layer_post.pool_layer_patches[i].a_tr_pre = deepcopy(layer_pre.sparse_layer_patches[i].a_tr)
 	end
 end
-@inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy)
-	#TAKE CARE: special case of subsamplingfactor = 2 and overlap = half patchsize!!!
+@inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy; overlap = false)
 	n_patch_pre = Int(sqrt(layer_pre.parameters.n_of_pool_layer_patches))
 	n_patch_post = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
+	# TAKE CARE: depending on "overlap"-keyword:
+	# Special case of subsamplingfactor = 2 and overlap = half patchsize
+	# or: Special case of subsamplingfactor = 2 without overlap!
 	for i in 1:n_patch_post
 		for j in 1:n_patch_post
+			overlap ? (i1range = 2*i-1:2*i+1; j1range = 2*j-1:2*j+1) :
+				(i1range = 2*i-1:2*i; j1range = 2*j-1:2*j)
 			pre_a = []
 			pre_a_tr = []
-			for i1 in 2*i-1:2*i+1
-				for j1 in 2*j-1:2*j+1
+			for i1 in i1range
+				for j1 in j1range
 					append!(pre_a, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a)
 					append!(pre_a_tr, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a_tr)
 				end
@@ -160,14 +171,8 @@ end
 		end
 	end
 end
-@inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse)
+#For all the other situations:
+@inline function distributeinput!(layer_pre, layer_post)
 	layer_post.a_pre = deepcopy(layer_pre.a)
 	layer_post.a_tr_pre = deepcopy(layer_pre.a_tr)
-end
-@inline function distributeinput!(layer_pre::layer_sparse, layer_post::layer_pool)
-	layer_post.a_pre = deepcopy(layer_pre.a)
-	layer_post.a_tr_pre = deepcopy(layer_pre.a_tr)
-end
-@inline function distributeinput!(layer_pre::layer_pool, layer_post::classifier)
-	# TODO!!!
 end

@@ -248,10 +248,10 @@ end
 		one_over_tau_a = 1/8, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
 	layer.parameters.activationfunction = activationfunction #"relu" #pwl & relu works nice but no idea why!
 	layer.parameters.updaterule = updaterule
-	layer.parameters.learningrate = 1e-2
-	layer.parameters.learningrate_v = 1e-1
-  layer.parameters.learningrate_w = 2e-2#2e-2
-  layer.parameters.learningrate_thr = 2e-2#5e-2 speeds up convergence
+	layer.parameters.learningrate = 1e-2 # for non lc-learning
+	layer.parameters.learningrate_v = 1e-2#5e-2#1e-1
+  layer.parameters.learningrate_w = 2e-2#1e-2#2e-2
+  layer.parameters.learningrate_thr = 2e-2#1e-2#2e-2 stable #5e-2 speeds up convergence
 	layer.parameters.one_over_tau_a = one_over_tau_a # shorter pooling time constant to not pool everything
 	layer.parameters.p = p
 	#reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/size(layer.w)[1] : Void
@@ -288,90 +288,90 @@ end
 
 ######### Not Needed Any More with JLD2!!!
 # to save layer, take care that parameters are the same in the new net and the saved one!
-function savelayer(path,layer::layer_sparse_patchy)
-  layerfields = []
-  for sparse_layer_patch in layer.sparse_layer_patches
-    push!(layerfields, [sparse_layer_patch.u,sparse_layer_patch.a,
-      sparse_layer_patch.a_tr,sparse_layer_patch.w,sparse_layer_patch.v,
-      sparse_layer_patch.t,sparse_layer_patch.hidden_reps])
-  end
-  save(path,"sparse_layer_patches_fields",layerfields,
-		"parameters_sparse_patchy",layer.parameters,
-		"parameters_sparse_layer_patch",string(layer.sparse_layer_patches[1].parameters))
-end
-function savelayer(path,layer::layer_pool_patchy)
-  layerfields = []
-  for pool_layer_patch in layer.pool_layer_patches
-    push!(layerfields, [pool_layer_patch.u,pool_layer_patch.a,
-      pool_layer_patch.a_tr,pool_layer_patch.w,pool_layer_patch.v,
-      pool_layer_patch.t,pool_layer_patch.b,pool_layer_patch.hidden_reps])
-  end
-  save(path,"pool_layer_patches_fields",layerfields,
-		"parameters_pool_patchy",layer.parameters,
-		"parameters_pool_layer_patch",string(layer.pool_layer_patches[1].parameters))
-end
-function savelayer(path,layer::layer_sparse)
-  layerfields = [layer.u,layer.a,
-      layer.a_tr,layer.w,layer.v,
-      layer.t,layer.hidden_reps]
-  save(path,"layer_fields",layerfields,
-		"parameters_sparse_layer",string(layer.parameters))
-end
-function savelayer(path,layer::layer_pool)
-  layerfields = [layer.u,layer.a,
-      layer.a_tr,layer.w,layer.v,
-      layer.t,layer.b,layer.hidden_reps]
-  save(path,"layer_fields",layerfields,
-		"parameters_pool_layer",string(layer.parameters))
-end
-function loadlayer!(path,layer::layer_sparse_patchy)
-	layerfields = load(path,"sparse_layer_patches_fields")
-	n_of_sparse_patches = load(path,"parameters_sparse_patchy").n_of_sparse_layer_patches
-	for i in 1:n_of_sparse_patches
-		layer.sparse_layer_patches[i].u = layerfields[i][1]
-		layer.sparse_layer_patches[i].a = layerfields[i][2]
-		layer.sparse_layer_patches[i].a_tr = layerfields[i][3]
-		layer.sparse_layer_patches[i].w = layerfields[i][4]
-		layer.sparse_layer_patches[i].v = layerfields[i][5]
-		layer.sparse_layer_patches[i].t = layerfields[i][6]
-		layer.sparse_layer_patches[i].hidden_reps = layerfields[i][7]
-	end
-end
-function loadlayer!(path,layer::layer_pool_patchy)
-	layerfields = load(path,"pool_layer_patches_fields")
-	n_of_pool_patches = load(path,"parameters_pool_patchy").n_of_pool_layer_patches
-	for i in 1:n_of_pool_patches
-		layer.pool_layer_patches[i].u = layerfields[i][1]
-		layer.pool_layer_patches[i].a = layerfields[i][2]
-		layer.pool_layer_patches[i].a_tr = layerfields[i][3]
-		layer.pool_layer_patches[i].w = layerfields[i][4]
-		layer.pool_layer_patches[i].v = layerfields[i][5]
-		layer.pool_layer_patches[i].t = layerfields[i][6]
-		layer.pool_layer_patches[i].b = layerfields[i][7]
-		layer.pool_layer_patches[i].hidden_reps = layerfields[i][8]
-	end
-end
-function loadlayer!(path,layer::layer_sparse)
-	layerfields = load(path,"layer_fields")
-	layer.u = layerfields[1]
-	layer.a = layerfields[2]
-	layer.a_tr = layerfields[3]
-	layer.w = layerfields[4]
-	layer.v = layerfields[5]
-	layer.t = layerfields[6]
-	layer.hidden_reps = layerfields[7]
-end
-function loadlayer!(path,layer::layer_pool)
-	layerfields = load(path,"layer_fields")
-	layer.u = layerfields[1]
-	layer.a = layerfields[2]
-	layer.a_tr = layerfields[3]
-	layer.w = layerfields[4]
-	layer.v = layerfields[5]
-	layer.t = layerfields[6]
-	layer.b = layerfields[7]
-	layer.hidden_reps = layerfields[8]
-end
+# function savelayer(path,layer::layer_sparse_patchy)
+#   layerfields = []
+#   for sparse_layer_patch in layer.sparse_layer_patches
+#     push!(layerfields, [sparse_layer_patch.u,sparse_layer_patch.a,
+#       sparse_layer_patch.a_tr,sparse_layer_patch.w,sparse_layer_patch.v,
+#       sparse_layer_patch.t,sparse_layer_patch.hidden_reps])
+#   end
+#   save(path,"sparse_layer_patches_fields",layerfields,
+# 		"parameters_sparse_patchy",layer.parameters,
+# 		"parameters_sparse_layer_patch",string(layer.sparse_layer_patches[1].parameters))
+# end
+# function savelayer(path,layer::layer_pool_patchy)
+#   layerfields = []
+#   for pool_layer_patch in layer.pool_layer_patches
+#     push!(layerfields, [pool_layer_patch.u,pool_layer_patch.a,
+#       pool_layer_patch.a_tr,pool_layer_patch.w,pool_layer_patch.v,
+#       pool_layer_patch.t,pool_layer_patch.b,pool_layer_patch.hidden_reps])
+#   end
+#   save(path,"pool_layer_patches_fields",layerfields,
+# 		"parameters_pool_patchy",layer.parameters,
+# 		"parameters_pool_layer_patch",string(layer.pool_layer_patches[1].parameters))
+# end
+# function savelayer(path,layer::layer_sparse)
+#   layerfields = [layer.u,layer.a,
+#       layer.a_tr,layer.w,layer.v,
+#       layer.t,layer.hidden_reps]
+#   save(path,"layer_fields",layerfields,
+# 		"parameters_sparse_layer",string(layer.parameters))
+# end
+# function savelayer(path,layer::layer_pool)
+#   layerfields = [layer.u,layer.a,
+#       layer.a_tr,layer.w,layer.v,
+#       layer.t,layer.b,layer.hidden_reps]
+#   save(path,"layer_fields",layerfields,
+# 		"parameters_pool_layer",string(layer.parameters))
+# end
+# function loadlayer!(path,layer::layer_sparse_patchy)
+# 	layerfields = load(path,"sparse_layer_patches_fields")
+# 	n_of_sparse_patches = load(path,"parameters_sparse_patchy").n_of_sparse_layer_patches
+# 	for i in 1:n_of_sparse_patches
+# 		layer.sparse_layer_patches[i].u = layerfields[i][1]
+# 		layer.sparse_layer_patches[i].a = layerfields[i][2]
+# 		layer.sparse_layer_patches[i].a_tr = layerfields[i][3]
+# 		layer.sparse_layer_patches[i].w = layerfields[i][4]
+# 		layer.sparse_layer_patches[i].v = layerfields[i][5]
+# 		layer.sparse_layer_patches[i].t = layerfields[i][6]
+# 		layer.sparse_layer_patches[i].hidden_reps = layerfields[i][7]
+# 	end
+# end
+# function loadlayer!(path,layer::layer_pool_patchy)
+# 	layerfields = load(path,"pool_layer_patches_fields")
+# 	n_of_pool_patches = load(path,"parameters_pool_patchy").n_of_pool_layer_patches
+# 	for i in 1:n_of_pool_patches
+# 		layer.pool_layer_patches[i].u = layerfields[i][1]
+# 		layer.pool_layer_patches[i].a = layerfields[i][2]
+# 		layer.pool_layer_patches[i].a_tr = layerfields[i][3]
+# 		layer.pool_layer_patches[i].w = layerfields[i][4]
+# 		layer.pool_layer_patches[i].v = layerfields[i][5]
+# 		layer.pool_layer_patches[i].t = layerfields[i][6]
+# 		layer.pool_layer_patches[i].b = layerfields[i][7]
+# 		layer.pool_layer_patches[i].hidden_reps = layerfields[i][8]
+# 	end
+# end
+# function loadlayer!(path,layer::layer_sparse)
+# 	layerfields = load(path,"layer_fields")
+# 	layer.u = layerfields[1]
+# 	layer.a = layerfields[2]
+# 	layer.a_tr = layerfields[3]
+# 	layer.w = layerfields[4]
+# 	layer.v = layerfields[5]
+# 	layer.t = layerfields[6]
+# 	layer.hidden_reps = layerfields[7]
+# end
+# function loadlayer!(path,layer::layer_pool)
+# 	layerfields = load(path,"layer_fields")
+# 	layer.u = layerfields[1]
+# 	layer.a = layerfields[2]
+# 	layer.a_tr = layerfields[3]
+# 	layer.w = layerfields[4]
+# 	layer.v = layerfields[5]
+# 	layer.t = layerfields[6]
+# 	layer.b = layerfields[7]
+# 	layer.hidden_reps = layerfields[8]
+# end
 
 function loadsharedweights!(layer::layer_sparse_patchy,path)
 	singlepatchlayer = load(path,"layer")

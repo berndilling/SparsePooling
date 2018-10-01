@@ -100,6 +100,8 @@ end
 # Supervised classifier on the activations of a "net" (could access multiple levels of hierarchy!)
 type classifier
 	nl::Int64 #number of layers in classifier (without input layer which is part of the net)
+	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
+	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
 	u::Array{Array{Float64, 1}, 1} #membrane potential
 	a::Array{Array{Float64, 1}, 1} #activation = nonlinearity(membrane potential)
 	e::Array{Array{Float64, 1}, 1} #error with respect to target
@@ -166,7 +168,7 @@ end
 
 function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 1e-2, learningrate_thr = 5e-2,
 		dt = 1e-1, epsilon = 1e-4, updaterule = GH_SFA_Sanger!,
-	activationfunction = lin!, calculate_trace = true, one_over_tau_a = 1e-1, p = 1.)
+	activationfunction = sigm!, calculate_trace = true, one_over_tau_a = 1e-1, p = 1/2)
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
 end
@@ -179,7 +181,7 @@ function layer_pool(ns::Array{Int64, 1})
 			zeros(ns[2]), #activation initialized with zeros
 			randn(ns[2], ns[1])/(10*sqrt(ns[1])), #feed-forward weights initialized gaussian distr. # rand(ns[2], ns[1])/(10*sqrt(ns[1])),#
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
-			zeros(ns[2]), #thresholds initialized with zeros (not used up to now!)
+			zeros(ns[2]), #thresholds initialized with zeros
 			zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
