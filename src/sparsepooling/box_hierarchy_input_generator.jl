@@ -155,7 +155,7 @@ end
 ##############################################################################
 ## Generatorfunctions for SparsePooling learning function
 
-@inline function getbar(; image_size = 4, w = 1, or = rand([true,false]))
+@inline function getbar(; image_size = 4, w = 1, or = rand([true,false])) # image_size = 32 or 4
   pos = rand(1:image_size,2)
   l = image_size
   or ? (pos[2] = 1) : (pos[1] = 1)
@@ -182,7 +182,7 @@ end
 ##############################################################################
 ## Dynamic functions
 @inline function stochasticbackgroundbar()
-  prob = 0.2
+  prob = 0.
   (rand() < prob) ? getbar().image : []
 end
 @inline function getmovingobject(image; duration = 8, background = stochasticbackgroundbar(), speed = 1) #getbar().image

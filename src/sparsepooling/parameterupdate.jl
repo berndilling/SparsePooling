@@ -37,6 +37,8 @@ end
 		scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
 		# Second: First term (data-driven) of weight update
 		BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
+		# TODO for second sparse layer?
+		#BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
 
 		#_normalize_inputweights!(layer.w) # explicit weight normalization/homeostasis
 
@@ -49,27 +51,35 @@ end
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided
-		#BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
 		BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
+
+		#BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
 		#BLAS.ger!(layer.parameters.learningrate_v, layer.a_tr-layer.a, layer.a_tr-layer.a, layer.v)
+
 		layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
 		for j in 1:size(layer.v)[1]
 			layer.v[j,j] = 0. #no self-inhibition
 		end
 		#TODO clamping needed here?
 		clamp!(layer.v,0.,Inf64) #Dale's law
-		#scale!((1-layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
-		scale!((1-layer.parameters.learningrate_w*layer.a.^4),layer.w)
+		#scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
+
+		scale!((1 - layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
 		#scale!((1-layer.parameters.learningrate_w*(layer.a_tr-layer.a).^2),layer.w)
 		#scale!((1-layer.parameters.learningrate_w),layer.w)
 
+		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
+
 		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
-		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
 		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr-layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
+		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,
+			(layer.a_pre-layer.a_tr_pre) .* (round.(layer.a_pre) + round.(layer.a_tr_s_pre) .!= 2), layer.w)
+		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre-layer.a_tr_s_pre,layer.w)
 
 		#TODO threshold adaptation here? -> Yes if nonlinearity is nonlinear
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
-		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
+		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
+
+		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
 		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.a_tr-layer.parameters.p,layer.t)
 		#TODO Pre/Post-trace subtraction here?
 	end

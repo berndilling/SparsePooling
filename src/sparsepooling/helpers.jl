@@ -249,9 +249,9 @@ end
 	layer.parameters.activationfunction = activationfunction #"relu" #pwl & relu works nice but no idea why!
 	layer.parameters.updaterule = updaterule
 	layer.parameters.learningrate = 1e-2 # for non lc-learning
-	layer.parameters.learningrate_v = 1e-2#5e-2#1e-1
-  layer.parameters.learningrate_w = 2e-2#1e-2#2e-2
-  layer.parameters.learningrate_thr = 2e-2#1e-2#2e-2 stable #5e-2 speeds up convergence
+	layer.parameters.learningrate_v = 5e-2#5e-2#1e-1
+  layer.parameters.learningrate_w = 5e-3#1e-2#2e-2 WTA: 1e-2
+  layer.parameters.learningrate_thr = 2e-4#1e-2#2e-2 stable #5e-2 speeds up convergence
 	layer.parameters.one_over_tau_a = one_over_tau_a # shorter pooling time constant to not pool everything
 	layer.parameters.p = p
 	#reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/size(layer.w)[1] : Void

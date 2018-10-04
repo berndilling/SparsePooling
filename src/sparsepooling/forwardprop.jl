@@ -15,6 +15,11 @@ end
 @inline function calculatetrace!(layer)
 	layer.a_tr = (1-layer.parameters.one_over_tau_a)*layer.a_tr + layer.parameters.one_over_tau_a*layer.a
 end
+@inline function calculatetrace!(layer::layer_sparse)
+	layer.a_tr = (1-layer.parameters.one_over_tau_a)*layer.a_tr + layer.parameters.one_over_tau_a*layer.a
+	layer.a_tr_s = (1-layer.parameters.one_over_tau_a_s)*layer.a_tr_s + layer.parameters.one_over_tau_a_s*layer.a
+end
+
 
 #Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
 #ATTENTION: FOR PCA/SFA nonlinearity should be linear!
@@ -76,7 +81,8 @@ end
 	if norm(layer.a_pre) != 0.
 		input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
 		maxinput = findmax(input_without_recurrence)
-		(maxinput[1] >= layer.t[maxinput[2]]) && (layer.a[maxinput[2]] = 1.)
+		#(maxinput[1] >= layer.t[maxinput[2]]) && (layer.a[maxinput[2]] = 1.)
+		layer.a[maxinput[2]] = 1.
 	end
 end
 
@@ -146,6 +152,7 @@ end
 	for i in 1:layer_post.parameters.n_of_pool_layer_patches
 		layer_post.pool_layer_patches[i].a_pre = deepcopy(layer_pre.sparse_layer_patches[i].a)
 		layer_post.pool_layer_patches[i].a_tr_pre = deepcopy(layer_pre.sparse_layer_patches[i].a_tr)
+		layer_post.pool_layer_patches[i].a_tr_s_pre = deepcopy(layer_pre.sparse_layer_patches[i].a_tr_s)
 	end
 end
 @inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy; overlap = false)

@@ -49,6 +49,11 @@ end
 		layer.a[i] = 1./(1.+exp(- λ * (layer.u[i]-layer.t[i])))
 	end
 end
+@inline function sigm_s!(layer; λ = 100.) #10
+	for i in 1:length(layer.u)
+		layer.a[i] = 1./(1.+exp(- λ * (layer.u[i]-layer.t[i])))
+	end
+end
 
 @inline function heavyside!(layer)
 	for i in 1:length(layer.u)
