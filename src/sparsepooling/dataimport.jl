@@ -28,13 +28,13 @@ function import_data(data::String)
   print("using matlab import...\n")
 	print(string("load: ",data,"\n"))
   if data == "CIFAR10"
-		file = matopen(string(path,datastring))
+	file = matopen(string(path,datastring))
   elseif data == "CIFAR10_whitened"
     file = h5open(string(path,datastring))
-	else
-		file = h5open(string(path,datastring))
-	end
-	smallimgs = read(file, "trainingimages")
+  else
+	file = h5open(string(path,datastring))
+  end
+  smallimgs = read(file, "trainingimages")
   labels = read(file, "traininglabels")
   smallimgstest = read(file, "testimages");
   labelstest =  read(file, "testlabels");
@@ -94,6 +94,37 @@ function import_unlabelled_data(data::String)
 	return smallimgs, n_samples #n_testsamples = 0
 end
 
+function import_smallNORB(datasplit::String) # "train" or "test"
+    path = "/Users/Bernd/Documents/PhD/Projects/natural_images/small_NORB/"
+    (datasplit == "train") ? (file = h5open(string(path,"data_train.h5"))) :
+        (file = h5open(string(path,"data_test.h5")))
+    images_lt = convert(Array{Float64},read(file,"images_lt"))
+    images_rt = convert(Array{Float64},read(file,"images_rt"))
+    category = convert(Array{Int64},read(file,"categories"))
+    instance = read(file,"instances")
+    elevation = convert(Array{Int64},read(file,"elevations"))
+    azimuth = convert(Array{Int64},read(file,"azimuths"))
+    lighting = convert(Array{Int64},read(file,"lightings"))
+
+    return images_lt, images_rt, category, instance, elevation, azimuth,
+        lighting, length(category)
+end
+function select_smallNORB(imgs::Array{Float64,3}, categories, instances,
+        elevations, azimuths, lightings;
+        category = 0:4, instance = 0:9, elevation = 0:8,
+        azimuth = 0:2:34, lighting= 0:5)
+
+     ind_boolians = [i in category for i in categories] .&
+                    [i in instance for i in instances] .&
+                    [i in elevation for i in elevations] .&
+                    [i in azimuth for i in azimuths] .&
+                    [i in lighting for i in lightings]
+     indices = findall(ind_boolians)
+     isempty(indices) && error("no images meet criteria!!!")
+
+     return imgs[:,:,indices]
+end
+
 #(By Johanni) subtract linewise (pixel-wise) mean
 function subtractmean!(data)
         m = mean(data, 2)
@@ -111,7 +142,7 @@ end
 #scale data between [-1,1]
 function rescaledata!(data)
         absmax = maximum(abs(data))
-        scale!(data,1./absmax)
+        scale!(data,1. / absmax)
 end
 
 # Johanni's implementation
@@ -121,5 +152,5 @@ function whiten(data; method = :f_ZCA)
         eval(method)(f) * sqrt(size(data, 2) - 1)
 end
 
-f_ZCA(f::Base.LinAlg.SVD) = f[:U] * f[:Vt]
-f_PCA(f::Base.LinAlg.SVD) = f[:Vt]
+f_ZCA(f::SVD) = f[:U] * f[:Vt]
+f_PCA(f::SVD) = f[:Vt]

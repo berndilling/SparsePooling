@@ -1,6 +1,6 @@
 #using StatsBase, PyPlot
 
-type PatternParameter
+struct PatternParameter
   edge_length::Int64 # linear dimension of complete field of view
   pattern_duration::Int64 # number of timesteps per pattern
   number_of_bars::Array{Int64, 1} # equally distributed?
@@ -93,7 +93,7 @@ end
     bar_length = parameter.bar_lengths[index]
     connection_2 = rand(parameter.connections[index])
     position .+= [orientation[1] -orientation[2]; orientation[2] -orientation[1]]*[connection_1,connection_2]
-    orientation = 1.-orientation #change orientation for every subsequent bar
+    orientation = 1. - orientation #change orientation for every subsequent bar
     pattern[clamp.(position[1]:position[1]+bar_length*orientation[1],1,parameter.edge_length),
             clamp.(position[2]:position[2]+bar_length*orientation[2],1,parameter.edge_length)] = 1
   end

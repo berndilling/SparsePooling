@@ -109,25 +109,29 @@ CompositeObject(pos, 3,
   generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1)])
 end
 @inline function tetris4(pos)
-  CompositeObject(pos, 2,
+  CompositeObject(pos, 3,
     [generatesquare(pos - [8,8]; edgelength = 9, edgewidth = 1),
     generatesquare(pos - [8,0]; edgelength = 9, edgewidth = 1),
     generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
 end
 @inline function tetris5(pos)
-  CompositeObject(pos, 2,
+  CompositeObject(pos, 3,
     [generatesquare(pos - [8,8]; edgelength = 9, edgewidth = 1),
     generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1),
     generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
 end
 @inline function tetris6(pos)
-  CompositeObject(pos, 2,
+  CompositeObject(pos, 3,
     [generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1),
     generatesquare(pos - [8,0]; edgelength = 9, edgewidth = 1),
     generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
 end
 @inline function generatetetris(; pos = [16,16])
   rand([tetris1(pos),tetris2(pos),tetris3(pos),tetris4(pos),tetris5(pos),tetris6(pos)])
+end
+@inline function generatebox(; pos = [16,16])
+  CompositeObject(pos, 1,
+    [generatesquare(pos::Array{Int64, 1}; edgelength = 9, edgewidth = 1)])
 end
 
 ##############################################################################
@@ -136,9 +140,9 @@ end
 @inline function renderobject!(object::Bar, image)
   object.orientation_horizontal ?
   image.image[object.position[1]:object.position[1]+object.width-1,
-    object.position[2]:object.position[2]+object.length-1] = 1 :
+    object.position[2]:object.position[2]+object.length-1] .= 1 :
   image.image[object.position[1]:object.position[1]+object.length-1,
-    object.position[2]:object.position[2]+object.width-1] = 1
+    object.position[2]:object.position[2]+object.width-1] .= 1
 end
 @inline function renderobject!(object::Square, image)
   for edge in object.edges
@@ -155,7 +159,7 @@ end
 ##############################################################################
 ## Generatorfunctions for SparsePooling learning function
 
-@inline function getbar(; image_size = 4, w = 1, or = rand([true,false])) # image_size = 32 or 4
+@inline function getbar(; image_size = 32, w = 1, or = rand([true,false])) # image_size = 32 or 4
   pos = rand(1:image_size,2)
   l = image_size
   or ? (pos[2] = 1) : (pos[1] = 1)
@@ -171,7 +175,7 @@ end
 # TAKE CARE: anchors/boundaries only work if all atoms have same edge length!!!
 @inline function getanchoredobject(; image_size = 32)
   image = AnchoredImage(zeros(image_size,image_size))
-  object = sample([generatecompositeobject(3),generatetetris()],Weights([0.,1.]))
+  object = sample([generatecompositeobject(3),generatebox(),generatetetris()],Weights([0.,0.,1.]))
   image.anchor = deepcopy(object.anchor)
   image.object_dims = deepcopy(object.object_dims)
   image.anchorboundaries = [image_size - image.object_dims[1],image_size - image.object_dims[2]]
@@ -232,9 +236,9 @@ end
 ############################################################
 # Testing
 #
-# using PyPlot
+#using PyPlot
 # close("all")
-# object = generatecompositeobject(3)
+# object = generatebox()#generatecompositeobject(3)
 # image = Image(zeros(32,32))
 # renderobject!(object, image)
 # imshow(image.image)
@@ -243,12 +247,13 @@ end
 # figure()
 # imshow(image2.image, origin = "lower")
 #
-# dynamicimage = getmovingobject(image2)# getbouncingobject(image2)
+# dynamicimage = getbouncingobject(image2)#getmovingobject(image2)#
 # print(size(dynamicimage))
 # figure()
 # for i in 1:size(dynamicimage)[3]
 #  imshow(dynamicimage[:,:,i])
-#  sleep(0.5)
+#  sleep(0.1)
+#  #savefig(string("/Users/Bernd/Documents/PhD/Candidacies/2ndYearCandidacy/Presentation/tetrisGIF/tetrisgif",i,".pdf"))
 # end
 
 # sequence = getmovingobject(image; duration = 20, speed = 2, background = image2.image)#get_background())

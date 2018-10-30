@@ -41,7 +41,7 @@ if sparse_part
     [dynamicfunctionsparse, dynamicfunctionpool];
     LearningFromLayer = 2,
     LearningUntilLayer = 2)
-    #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse_2tau.jld2","layer",network.layers[2])
+    #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse_2tau_sigma_s.jld2","layer",network.layers[2])
 else
   network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse_2tau.jld2","layer")
 end
@@ -75,7 +75,7 @@ learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_po
   LearningFromLayer = 3,
   LearningUntilLayer = 3)
 
-#save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer3_pool_2tau.jld2","layer",network.layers[3])
+#save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer3_pool_2tau_sigma_s.jld2","layer",network.layers[3])
 ################################################################################
 ## Plotting
 

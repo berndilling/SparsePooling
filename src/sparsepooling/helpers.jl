@@ -1,9 +1,5 @@
-
-using Distributions, ProgressMeter, JLD2, FileIO, HDF5
-
 #####################################################
 #Helpers
-
 
 @inline function parallelrange(i, N, nthreads, number_of_jobs)
 	if i == nthreads

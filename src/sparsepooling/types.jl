@@ -5,17 +5,17 @@
 
 ############################################################################
 # LAYERS
-type parameters_input
+mutable struct parameters_input
 	one_over_tau_a::Float64
 end
 
-type layer_input
+mutable struct layer_input
 	parameters::parameters_input
 	a::Array{Float64, 1} #activation
 	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
 end
 
-type parameters_sparse
+mutable struct parameters_sparse
 	learningrate_v::Float64 # learning rate for lateral inhibition
 	learningrate_w::Float64 # learning rate for feedforward weights
 	learningrate_thr::Float64 # learning rate for thresholds
@@ -29,7 +29,7 @@ type parameters_sparse
 	p::Float64 #average activation/"firing rate"
 end
 
-type layer_sparse
+mutable struct layer_sparse
 	parameters::parameters_sparse
 	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
 	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
@@ -43,7 +43,7 @@ type layer_sparse
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer (saved to accelerate further learning)
 end
 
-type parameters_sparse_patchy
+mutable struct parameters_sparse_patchy
 	n_of_sparse_layer_patches::Int64 #number of independent sparse layer patches
 	patch_size::Int64 #number of each in-fan: patch_size*patch_size
 	overlap::Int64 #overlap of patches in pixels
@@ -53,14 +53,14 @@ end
 # 	patch_size = 8, overlap = 4)
 # 	parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap)
 # end
-type layer_sparse_patchy
+mutable struct layer_sparse_patchy
 	parameters::parameters_sparse_patchy
 	sparse_layer_patches::Array{layer_sparse, 1}
 	a::Array{Float64, 1} #combined sparse activity of all sparse layer patches
 	a_tr::Array{Float64, 1} #same for activity trace
 end
 
-type parameters_pool
+mutable struct parameters_pool
 	learningrate::Float64
 	learningrate_v::Float64 # learning rate for lateral inhibition
 	learningrate_w::Float64 # learning rate for feedforward weights
@@ -74,7 +74,7 @@ type parameters_pool
 	p::Float64
 end
 
-type layer_pool
+mutable struct layer_pool
 	parameters::parameters_pool
 	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
 	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
@@ -89,11 +89,11 @@ type layer_pool
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer
 end
 
-type parameters_pool_patchy
+mutable struct parameters_pool_patchy
 	n_of_pool_layer_patches::Int64 #number of independent pool layer patches
 	in_fan::Int64 # number of pre-synaptic input units per patch
 end
-type layer_pool_patchy
+mutable struct layer_pool_patchy
 	parameters::parameters_pool_patchy
 	pool_layer_patches::Array{layer_pool, 1}
 	a::Array{Float64, 1} #combined activity of all sparse layer patches
@@ -101,7 +101,7 @@ type layer_pool_patchy
 end
 
 # Supervised classifier on the activations of a "net" (could access multiple levels of hierarchy!)
-type classifier
+mutable struct classifier
 	nl::Int64 #number of layers in classifier (without input layer which is part of the net)
 	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
 	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
@@ -117,7 +117,7 @@ end
 ## NETWORKS
 
 #Network containing sparse and pooling layers
-type net
+mutable struct net
 	nr_layers::Int64 #number of layers
 	layer_sizes::Array{Int64, 1} #sizes of layers (number of neurons)
 	layer_types::Array{String, 1} #type of layers: sparse, sparse_patchy or pool (...maybe others later)
@@ -246,10 +246,10 @@ end
 #Configuration Type
 
 #UNDER CONSTRUCTION!!!
-type config
+struct config
 	task::String
 	layer_sizes::Array{Int64, 1}
-  n_inits::Int64
+  	n_inits::Int64
 	iterations::Int64
 	learningrates::Array{Float64, 1}
 	lambda::Array{Float64, 1}

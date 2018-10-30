@@ -35,23 +35,28 @@ end
 
 @inline function sigm!(inp, outp)
 	for i in 1:length(inp)
-		outp[i] = 1./(1.+exp(-inp[i]))
+		outp[i] = 1. / (1. + exp(-inp[i]))
 	end
 end
 @inline function sigm_diff!(ax, error)
 	for i in 1:length(ax)
-		error[i] *= 1./(1+exp(-ax[i]))*(1.-1./(1+exp(-ax[i])))
+		error[i] *= 1. / (1 + exp(-ax[i]))*(1. - 1. / (1 + exp(-ax[i])))
 	end
 end
 
 @inline function sigm!(layer; λ = 10.) #10
 	for i in 1:length(layer.u)
-		layer.a[i] = 1./(1.+exp(- λ * (layer.u[i]-layer.t[i])))
+		layer.a[i] = 1. / (1. + exp(- λ * (layer.u[i]-layer.t[i])))
+	end
+end
+@inline function sigm_m!(layer; λ = 33.) #10
+	for i in 1:length(layer.u)
+		layer.a[i] = 1. / (1. + exp(- λ * (layer.u[i]-layer.t[i])))
 	end
 end
 @inline function sigm_s!(layer; λ = 100.) #10
 	for i in 1:length(layer.u)
-		layer.a[i] = 1./(1.+exp(- λ * (layer.u[i]-layer.t[i])))
+		layer.a[i] = 1. / (1. + exp(- λ * (layer.u[i]-layer.t[i])))
 	end
 end
 
@@ -83,7 +88,7 @@ end
 		if layer.u[i] <= layer.t[i]
 			layer.a[i] = 0.
 		else
-			layer.a[i] = 1./(layer.parameters.OneOverMaxFiringRate-log(1-layer.t[i]/layer.u[i]))
+			layer.a[i] = 1. / (layer.parameters.OneOverMaxFiringRate-log(1-layer.t[i]/layer.u[i]))
 		end
 	end
 end

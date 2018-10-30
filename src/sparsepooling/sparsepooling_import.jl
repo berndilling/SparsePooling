@@ -1,5 +1,6 @@
-#includes all relevant "modules"
+using Distributions, ProgressMeter, LinearAlgebra, JLD2, FileIO, HDF5#, JLD 
 
+#includes all relevant "modules"
 #path to modules
 path = "./"
 

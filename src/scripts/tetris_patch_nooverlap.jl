@@ -15,7 +15,7 @@ pool_part_3 = false#true
 
 iterations_sparse = 10^5
 iterations_pool = 10^5
-iterations_sparse_2 = 10^4
+iterations_sparse_2 = 10^5
 iterations_pool_2 = 10^1
 iterations_sparse_3 = 10^1
 iterations_pool_3 = 10^1
@@ -29,12 +29,12 @@ patch_size = 4
 overlap = 0
 hidden_size_sparse = 8 # per SC patch
 hidden_size_pool = 2
-hidden_size_sparse_2 = 4
+hidden_size_sparse_2 = 8
 # hidden_size_pool_2 = 9
 # hidden_size_sparse_3 = 6*9
 # hidden_size_pool_3 = 6
 
-inputfunction = getbar#getanchoredobject#
+inputfunction = getanchoredobject#getbar#
 dynamicfunction = getstaticobject# getmovingobject#getbouncingobject#getjitteredobject
 
 
@@ -64,7 +64,7 @@ else
   #network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer2_sparse_patchy.jld2","layer")
 end
 
-loadsharedweights!(network.layers[2],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse_2tau.jld2")
+loadsharedweights!(network.layers[2],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse_2tau_sigma_s.jld2")
 
 recfields = []
 for k in 1:network.layers[2].parameters.n_of_sparse_layer_patches
@@ -94,8 +94,8 @@ if pool_part
   print("train pooling part")
 
   set_init_bars!(network.layers[3]; updaterule = GH_SFA_subtractrace_Sanger!,
-    reinit_weights = true, one_over_tau_a = 1/4, p = 1/8,#one_over_tau_a = 1/4, p = 1/5
-    activationfunction = sigm!)
+    reinit_weights = true, one_over_tau_a = 1/4, p = 1/2,#one_over_tau_a = 1/4, p = 1/5
+    activationfunction = sigm_s!)
 
   #learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
@@ -109,13 +109,14 @@ else
   #network.layers[3] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer3_pool_patchy.jld2","layer")
 end
 
-loadsharedweights!(network.layers[3],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer3_pool_2tau.jld2")
+loadsharedweights!(network.layers[3],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer3_pool_2tau_sigma_s.jld2")
 
 figure()
 plt[:hist](network.layers[3].pool_layer_patches[1].w[:], bins = 10, normed = true)
 
 figure()
-plot(network.layers[3].pool_layer_patches[1].w')
+temp = copy(network.layers[3].pool_layer_patches[1].w')
+plot(temp)
 
 ################################################################################
 
@@ -125,8 +126,9 @@ addlayer!(network, hidden_size_sparse_2, "sparse_patchy",
 if sparse_part_2
 
   set_init_bars!(network.layers[4],hidden_size_sparse_2; reinit_weights = true,
-        activationfunction = sigm!, one_over_tau_a = sparse_trace_timeconstant,
-        p = 1/hidden_size_sparse_2)
+        activationfunction = sigm_m!,#sigm_s!
+        one_over_tau_a = sparse_trace_timeconstant,
+        p = 2 ./ hidden_size_sparse_2)
 
   # figure()
   # plot(network.layers[4].sparse_layer_patches[1].w')
@@ -140,7 +142,8 @@ if sparse_part_2
   	LearningUntilLayer = 4)
 
   figure()
-  plot(network.layers[4].sparse_layer_patches[1].w')
+  temp = copy(network.layers[4].sparse_layer_patches[1].w')
+  plot(temp)
   figure()
   imshow(network.layers[4].sparse_layer_patches[1].v)
 

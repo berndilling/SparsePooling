@@ -4,7 +4,7 @@
 
 @inline function _normalize_inputweights!(weights)
 	for j in 1:size(weights)[1]
-		weights[j,:] *= 1./norm(weights[j,:])
+		weights[j,:] *= 1. / norm(weights[j,:])
 	end
 end
 
@@ -23,7 +23,7 @@ end
 		#Update lateral inhibition matrix
 		#layer.v += lr_v*(layer.a*layer.a'-layer.parameters.p^2)
 		BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
-		layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
+		layer.v .+= -layer.parameters.learningrate_v*layer.parameters.p^2
 		for j in 1:size(layer.v)[1]
 			layer.v[j,j] = 0. #no self-inhibition
 		end
@@ -34,7 +34,7 @@ end
 		#layer.w += lr_w*layer.a*(layer.a_pre-layer.a*W) # with weight decay... or explicit weight normalization/homeostasis
 		#Optimized:
 		# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
-		scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
+		layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a.^2) * layer.w
 		# Second: First term (data-driven) of weight update
 		BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
 		# TODO for second sparse layer?
@@ -44,7 +44,7 @@ end
 
 		#Update thresholds
 		#layer.t += lr_thr*(layer.a-layer.parameters.p)
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
+		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
 		#avoid negative thesholds:
 		#clamp!(layer.t,0.,Inf64)
 	end
@@ -56,7 +56,7 @@ end
 		#BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
 		#BLAS.ger!(layer.parameters.learningrate_v, layer.a_tr-layer.a, layer.a_tr-layer.a, layer.v)
 
-		layer.v += -layer.parameters.learningrate_v*layer.parameters.p^2
+		layer.v .+= -layer.parameters.learningrate_v*layer.parameters.p^2
 		for j in 1:size(layer.v)[1]
 			layer.v[j,j] = 0. #no self-inhibition
 		end
@@ -64,7 +64,7 @@ end
 		clamp!(layer.v,0.,Inf64) #Dale's law
 		#scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
 
-		scale!((1 - layer.parameters.learningrate_w*layer.a_tr.^2),layer.w)
+		layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a_tr.^2) * layer.w
 		#scale!((1-layer.parameters.learningrate_w*(layer.a_tr-layer.a).^2),layer.w)
 		#scale!((1-layer.parameters.learningrate_w),layer.w)
 
@@ -79,7 +79,7 @@ end
 		#TODO threshold adaptation here? -> Yes if nonlinearity is nonlinear
 		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
 
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.parameters.p,layer.t)
+		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
 		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.a_tr-layer.parameters.p,layer.t)
 		#TODO Pre/Post-trace subtraction here?
 	end
