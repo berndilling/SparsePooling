@@ -12,6 +12,11 @@ struct Bar <: Object
   width::Int64
   orientation_horizontal::Bool
 end
+struct DiagBar <: Object
+  position::Array{Int64, 1}
+  length::Int64
+  SW_NO::Bool
+end
 struct Square <: Object
   position::Array{Int64, 1}
   edges::Array{Bar, 1}
@@ -24,15 +29,25 @@ end
 struct CompositeObject <: Object
   position::Array{Int64, 1}
   nr_components::Int64
-  components::Array{Square, 1}
+  components::Array{Object, 1}
   anchor::Array{Int64, 1}
   object_dims::Array{Int64, 1}
 end
 @inline function CompositeObject(position, nr_components, components)
   anchor = [minimum([comp.position[1] for comp in components]),minimum([comp.position[2] for comp in components])]
-  CompositeObject(position, nr_components, components, anchor,
-  [maximum([comp.position[1] for comp in components]) + components[1].edges[1].length - 1 - anchor[1],
-  maximum([comp.position[2] for comp in components]) + components[1].edges[1].length - 1- anchor[2]])
+  if typeof(components[1]) == Bar || typeof(components[1]) == DiagBar
+      CompositeObject(position, nr_components, components, anchor,
+      [maximum([comp.position[1] for comp in components]) + components[1].length - 1 - anchor[1],
+      maximum([comp.position[2] for comp in components]) + components[1].length - 1 - anchor[2]])
+  elseif typeof(components[1]) == CompositeObject
+      CompositeObject(position, nr_components, components, anchor,
+      [maximum([comp.position[1] for comp in components]) + components[1].components[1].length - 1 - anchor[1],
+      maximum([comp.position[2] for comp in components]) + components[1].components[1].length - 1 - anchor[2]])
+  else
+      CompositeObject(position, nr_components, components, anchor,
+      [maximum([comp.position[1] for comp in components]) + components[1].edges[1].length - 1 - anchor[1],
+      maximum([comp.position[2] for comp in components]) + components[1].edges[1].length - 1 - anchor[2]])
+  end
 end
 
 mutable struct Image
@@ -53,6 +68,9 @@ end
 
 @inline function generatebar(pos::Array{Int64, 1}, l::Int64, w::Int64, or::Bool)
   Bar(pos, l, w, or)
+end
+@inline function generatediagbar(pos::Array{Int64, 1}, l::Int64, SW_NO::Bool)
+  DiagBar(pos, l, SW_NO)
 end
 @inline function generatesquare(pos::Array{Int64, 1}; edgelength = rand([5,7,9]), edgewidth = rand([1,2]))
   Square(pos, [generatebar(pos,edgelength,edgewidth,true),generatebar(pos,edgelength,edgewidth,false),
@@ -90,48 +108,95 @@ end
 ##############################################################################
 ## Tetris objects
 
-@inline function tetris1(pos)
+@inline function tetris1(edgelength, edgewidth, pos)
   CompositeObject(pos, 3,
-    [generatesquare(pos - [4,4]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [4,12]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos + [-4,4]; edgelength = 9, edgewidth = 1)])
+    [generatesquare(pos - [Int(floor(edgelength/2)),Int(floor(edgelength/2))]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [Int(floor(edgelength/2)),Int(floor(edgelength/2))+edgelength-edgewidth]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [Int(floor(edgelength/2)),-Int(floor(edgelength/2))]; edgelength = edgelength, edgewidth = edgewidth)])
 end
-@inline function tetris2(pos)
+@inline function tetris2(edgelength, edgewidth, pos)
   CompositeObject(pos, 3,
-    [generatesquare(pos - [4,3]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [12,3]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [-4,3]; edgelength = 9, edgewidth = 1)])
+    [generatesquare(pos - [Int(floor(edgelength/2)),0]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [Int(floor(edgelength/2))+edgelength-edgewidth,0]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [-Int(floor(edgelength/2)),0]; edgelength = edgelength, edgewidth = edgewidth)])
 end
-@inline function tetris3(pos)
+@inline function tetris3(edgelength, edgewidth, pos)
 CompositeObject(pos, 3,
-  [generatesquare(pos - [8,8]; edgelength = 9, edgewidth = 1),
-  generatesquare(pos - [8,0]; edgelength = 9, edgewidth = 1),
-  generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1)])
+  [generatesquare(pos - [edgelength - edgewidth,edgelength - edgewidth]; edgelength = edgelength, edgewidth = edgewidth),
+  generatesquare(pos - [edgelength - edgewidth,0]; edgelength = edgelength, edgewidth = edgewidth),
+  generatesquare(pos - [0,edgelength - edgewidth]; edgelength = edgelength, edgewidth = edgewidth)])
 end
-@inline function tetris4(pos)
+@inline function tetris4(edgelength, edgewidth, pos)
   CompositeObject(pos, 3,
-    [generatesquare(pos - [8,8]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [8,0]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
+    [generatesquare(pos - [edgelength - edgewidth,edgelength - edgewidth]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [edgelength - edgewidth,0]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [0,0]; edgelength = edgelength, edgewidth = edgewidth)])
 end
-@inline function tetris5(pos)
+@inline function tetris5(edgelength, edgewidth, pos)
   CompositeObject(pos, 3,
-    [generatesquare(pos - [8,8]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
+    [generatesquare(pos - [edgelength - edgewidth,edgelength - edgewidth]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [0,edgelength - edgewidth]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [0,0]; edgelength = edgelength, edgewidth = edgewidth)])
 end
-@inline function tetris6(pos)
+@inline function tetris6(edgelength, edgewidth, pos)
   CompositeObject(pos, 3,
-    [generatesquare(pos - [0,8]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [8,0]; edgelength = 9, edgewidth = 1),
-    generatesquare(pos - [0,0]; edgelength = 9, edgewidth = 1)])
+    [generatesquare(pos - [0,edgelength - edgewidth]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [edgelength - edgewidth,0]; edgelength = edgelength, edgewidth = edgewidth),
+    generatesquare(pos - [0,0]; edgelength = edgelength, edgewidth = edgewidth)])
 end
-@inline function generatetetris(; pos = [16,16])
-  rand([tetris1(pos),tetris2(pos),tetris3(pos),tetris4(pos),tetris5(pos),tetris6(pos)])
+@inline function generatetetris(; edgelength = 5, edgewidth = 1, pos = [16,16])
+  rand([tetris1(edgelength, edgewidth, pos),tetris2(edgelength, edgewidth, pos),
+        tetris3(edgelength, edgewidth, pos),tetris4(edgelength, edgewidth, pos),
+        tetris5(edgelength, edgewidth, pos),tetris6(edgelength, edgewidth, pos)])
 end
 @inline function generatebox(; pos = [16,16])
   CompositeObject(pos, 1,
-    [generatesquare(pos::Array{Int64, 1}; edgelength = 9, edgewidth = 1)])
+    [generatesquare(pos::Array{Int64, 1}; edgelength = 7, edgewidth = 1)])
+end
+
+##############################################################################
+## Triangles
+
+@inline function triangle1(edgelength, edgewidth, pos)
+    CompositeObject(pos, 3,
+        [generatebar(pos,edgelength,edgewidth,false),
+        generatebar(pos,edgelength,edgewidth,true),
+        generatediagbar(pos, edgelength, false)])
+end
+@inline function triangle2(edgelength, edgewidth, pos)
+    CompositeObject(pos, 3,
+        [generatebar(pos,edgelength,edgewidth,false),
+        generatebar(pos+[edgelength - edgewidth,0],edgelength,edgewidth,true),
+        generatediagbar(pos, edgelength, true)])
+end
+@inline function triangle3(edgelength, edgewidth, pos)
+    CompositeObject(pos, 3,
+        [generatebar(pos+[0,edgelength - edgewidth],edgelength,edgewidth,false),
+        generatebar(pos+[edgelength - edgewidth,0],edgelength,edgewidth,true),
+        generatediagbar(pos, edgelength, false)])
+end
+@inline function triangle4(edgelength, edgewidth, pos)
+    CompositeObject(pos, 3,
+        [generatebar(pos+[0,edgelength - edgewidth],edgelength,edgewidth,false),
+        generatebar(pos,edgelength,edgewidth,true),
+        generatediagbar(pos, edgelength, true)])
+end
+@inline function generatetriangle(; edgelength = 5, edgewidth = 1, pos = [16,16])
+    rand([triangle1(edgelength, edgewidth, pos),triangle2(edgelength, edgewidth, pos),
+          triangle3(edgelength, edgewidth, pos),triangle4(edgelength, edgewidth, pos)])
+end
+@inline function getbunchoftriangles(; edgelength = 5, edgewidth = 1, pos = [16,16])
+    triangles = [triangle1,triangle2,triangle3,triangle4]
+    trianglepick = rand([false,true],4,4)
+    n_tr = length(findall(trianglepick[:]))
+    CompositeObject(pos, n_tr,
+        vcat([triangles[i](edgelength, edgewidth, pos) for i in findall(trianglepick[1,:])],
+             [triangles[i](edgelength, edgewidth,
+                pos .+ [edgelength - edgewidth,0]) for i in findall(trianglepick[2,:])],
+             [triangles[i](edgelength, edgewidth,
+                pos .+ [0,edgelength - edgewidth]) for i in findall(trianglepick[3,:])],
+             [triangles[i](edgelength, edgewidth,
+                pos .+ [edgelength - edgewidth,edgelength - edgewidth]) for i in findall(trianglepick[4,:])]))
 end
 
 ##############################################################################
@@ -144,14 +209,26 @@ end
   image.image[object.position[1]:object.position[1]+object.length-1,
     object.position[2]:object.position[2]+object.width-1] .= 1
 end
+@inline function renderobject!(object::DiagBar, image)
+    if object.SW_NO
+        for i in 0:object.length-1
+            image.image[object.position[1]+i,object.position[2]+i] = 1
+        end
+    else
+        for i in 0:object.length-1
+            image.image[object.position[1]+object.length-1-i,object.position[2]+i] = 1
+        end
+    end
+end
 @inline function renderobject!(object::Square, image)
   for edge in object.edges
     renderobject!(edge, image)
   end
 end
-@inline function renderobject!(object::CompositeObject, image; rand_pos = true)
+@inline function renderobject!(object::CompositeObject, image; rand_pos = true) #can be used recursively
   for comp in object.components
-    renderobject!(comp, image)
+    typeof(comp) == CompositeObject ? renderobject!(comp, image; rand_pos = false) :
+        renderobject!(comp, image)
   end
   rand_pos && (image.image = circshift(image.image,rand(0:size(image.image)[1],2)))
 end
@@ -171,6 +248,11 @@ end
   image = Image(zeros(image_size,image_size))
   renderobject!(generatecompositeobject(n_of_components), image)
   return image
+end
+@inline function gettriangle(; image_size = 32)
+    image = AnchoredImage(zeros(image_size,image_size))
+    renderobject!(generatetriangle(), image)
+    return image
 end
 # TAKE CARE: anchors/boundaries only work if all atoms have same edge length!!!
 @inline function getanchoredobject(; image_size = 32)
@@ -237,7 +319,8 @@ end
 # Testing
 #
 #using PyPlot
-# close("all")
+
+#close("all")
 # object = generatebox()#generatecompositeobject(3)
 # image = Image(zeros(32,32))
 # renderobject!(object, image)
@@ -246,7 +329,6 @@ end
 # image2 = getanchoredobject()
 # figure()
 # imshow(image2.image, origin = "lower")
-#
 # dynamicimage = getbouncingobject(image2)#getmovingobject(image2)#
 # print(size(dynamicimage))
 # figure()
@@ -282,3 +364,7 @@ end
 #   imshow(dynamicimage[:,:,i])
 #   sleep(0.1)
 # end
+
+# figure()
+# image = gettriangle()
+# imshow(image.image)

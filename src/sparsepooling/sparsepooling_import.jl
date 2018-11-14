@@ -1,4 +1,4 @@
-using Distributions, ProgressMeter, LinearAlgebra, JLD2, FileIO, HDF5#, JLD 
+using Distributions, ProgressMeter, LinearAlgebra, Statistics, JLD2, FileIO, HDF5#, JLD
 
 #includes all relevant "modules"
 #path to modules

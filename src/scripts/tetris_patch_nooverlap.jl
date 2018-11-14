@@ -4,18 +4,18 @@ close("all")
 #@everywhere
 include("./../sparsepooling/sparsepooling_import.jl")
 
-BLAS.set_num_threads(1)
+#BLAS.set_num_threads(1)
 
-sparse_part = false#true#true
-pool_part = false#true#true
-sparse_part_2 = true#true#true
+sparse_part = true#true
+pool_part = false#true
+sparse_part_2 = false#true#true
 pool_part_2 = false#true
 sparse_part_3 = false#true
 pool_part_3 = false#true
 
 iterations_sparse = 10^5
-iterations_pool = 10^5
-iterations_sparse_2 = 10^5
+iterations_pool = 10^4
+iterations_sparse_2 = 10^4
 iterations_pool_2 = 10^1
 iterations_sparse_3 = 10^1
 iterations_pool_3 = 10^1
@@ -25,17 +25,17 @@ sparse_trace_timeconstant = 1e-2#1e-4
 image_size = 32#32
 in_size = image_size^2
 
-patch_size = 4
+patch_size = 2
 overlap = 0
-hidden_size_sparse = 8 # per SC patch
-hidden_size_pool = 2
-hidden_size_sparse_2 = 8
+hidden_size_sparse = 8#8 # per SC patch
+hidden_size_pool = 3#2
+hidden_size_sparse_2 = 12#8
 # hidden_size_pool_2 = 9
 # hidden_size_sparse_3 = 6*9
 # hidden_size_pool_3 = 6
 
-inputfunction = getanchoredobject#getbar#
-dynamicfunction = getstaticobject# getmovingobject#getbouncingobject#getjitteredobject
+inputfunction = gettriangle#getanchoredobject#getbar#
+dynamicfunction = getmovingobject#getbouncingobject#getjitteredobject#getstaticobject#getstaticobject#
 
 
 network = net([in_size],["input"],[1])
@@ -51,7 +51,8 @@ intermediatestates = []
 
 if sparse_part
   set_init_bars!(network.layers[2],hidden_size_sparse; reinit_weights = true,
-    activationfunction = sigm!, one_over_tau_a = sparse_trace_timeconstant)
+    activationfunction = sigm!, one_over_tau_a = sparse_trace_timeconstant,
+    p = 1. / hidden_size_sparse)
 
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
   	[inputfunction for i in 1:network.nr_layers-1],
@@ -59,34 +60,38 @@ if sparse_part
   	LearningFromLayer = 2,
   	LearningUntilLayer = 2)
 
-  #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer2_sparse_patchy.jld2","layer",network.layers[2])
+  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/julia1.0/tetris_no_overlap_layer2_sparse_patchy.jld2","layer",network.layers[2])
 else
   #network.layers[2] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer2_sparse_patchy.jld2","layer")
 end
 
-loadsharedweights!(network.layers[2],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse_2tau_sigma_s.jld2")
+#loadsharedweights!(network.layers[2],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer2_sparse_2tau_sigma_s.jld2")
 
 recfields = []
+split1 = 2 #4
+split2 = Int(hidden_size_sparse/split1)
 for k in 1:network.layers[2].parameters.n_of_sparse_layer_patches
-  ws = zeros(4*4,4*2)
-  for i in 1:4
-    for j in 1:2
-      ws[(i-1)*4+1:i*4,(j-1)*4+1:j*4] = reshape(network.layers[2].sparse_layer_patches[k].w[(i-1)*2+j,:],4,4)
+  ws = zeros(patch_size*split1,patch_size*split2)
+  for i in 1:split1
+    for j in 1:split2
+      ws[(i-1)*patch_size+1:i*patch_size,(j-1)*patch_size+1:j*patch_size] =
+        reshape(network.layers[2].sparse_layer_patches[k].w[(i-1)*split2+j,:],patch_size,patch_size)
     end
   end
   push!(recfields,ws)
 end
 figure()
-imshow(recfields[1])
-WS = zeros(8*4*4,8*4*2)
-for i in 1:8
-  for j in 1:8
-    WS[(i-1)*4*4+1:i*4*4,(j-1)*4*2+1:j*4*2] = recfields[(i-1)*8+j]
+n_of_patches_sqrt = Int(image_size/patch_size)
+imshow(recfields[Int(n_of_patches_sqrt^2/2)])
+WS = zeros(n_of_patches_sqrt*patch_size*split1,n_of_patches_sqrt*patch_size*split2)
+for i in 1:n_of_patches_sqrt
+  for j in 1:n_of_patches_sqrt
+    WS[(i-1)*patch_size*split1+1:i*patch_size*split1,(j-1)*patch_size*split2+1:j*patch_size*split2] = recfields[(i-1)*n_of_patches_sqrt+j]
   end
 end
 figure()
 imshow(WS)
-title("all rec. fields of all 64 patch-SC layers")
+title(string("all rec. fields of all ",n_of_patches_sqrt^2," patch-SC layers"))
 
 ################################################################################
 
@@ -94,8 +99,8 @@ if pool_part
   print("train pooling part")
 
   set_init_bars!(network.layers[3]; updaterule = GH_SFA_subtractrace_Sanger!,
-    reinit_weights = true, one_over_tau_a = 1/4, p = 1/2,#one_over_tau_a = 1/4, p = 1/5
-    activationfunction = sigm_s!)
+    reinit_weights = true, one_over_tau_a = 1/4, p = 1/(2*hidden_size_pool),#one_over_tau_a = 1/4, p = 1/5
+    activationfunction = sigm!) # sigm_s!
 
   #learn_layer_pool!(network.layers[2],network.layers[3],n_of_moving_patterns)
   learn_net_layerwise!(network,intermediatestates,[iterations_sparse,iterations_pool],
@@ -104,12 +109,12 @@ if pool_part
     LearningFromLayer = 3,
     LearningUntilLayer = 3)
 
-  #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer3_pool_patchy.jld2","layer",network.layers[3])
+  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/julia1.0/tetris_no_overlap_layer3_pool_patchy.jld2","layer",network.layers[3])
 else
   #network.layers[3] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer3_pool_patchy.jld2","layer")
 end
 
-loadsharedweights!(network.layers[3],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer3_pool_2tau_sigma_s.jld2")
+#loadsharedweights!(network.layers[3],"/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/singlepatchtests/bars_layer3_pool_2tau_sigma_s.jld2")
 
 figure()
 plt[:hist](network.layers[3].pool_layer_patches[1].w[:], bins = 10, normed = true)
@@ -122,7 +127,7 @@ plot(temp)
 
 addlayer!(network, hidden_size_sparse_2, "sparse_patchy",
   layer_sparse_patchy([hidden_size_pool*network.layers[2].parameters.n_of_sparse_layer_patches,hidden_size_sparse_2];
-  patch_size = 8, in_fan = hidden_size_pool*4, overlap = 0, image_size = 32))
+  patch_size = 2*patch_size, in_fan = hidden_size_pool*4, overlap = 0, image_size = 32))
 if sparse_part_2
 
   set_init_bars!(network.layers[4],hidden_size_sparse_2; reinit_weights = true,
@@ -149,7 +154,7 @@ if sparse_part_2
 
   figure()
   imshow(network.layers[4].sparse_layer_patches[1].w)
-  #save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer4_sparse_patchy.jld2","layer",network.layers[4])
+  save("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/julia1.0/tetris_no_overlap_layer4_sparse_patchy.jld2","layer",network.layers[4])
 else
   #network.layers[4] = load("/Users/Bernd/Documents/PhD/Projects/SparsePooling/analysis/patchy/tetris_no_overlap_layer4_sparse_patchy.jld2","layer")
 end

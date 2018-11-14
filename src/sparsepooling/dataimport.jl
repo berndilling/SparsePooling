@@ -98,8 +98,8 @@ function import_smallNORB(datasplit::String) # "train" or "test"
     path = "/Users/Bernd/Documents/PhD/Projects/natural_images/small_NORB/"
     (datasplit == "train") ? (file = h5open(string(path,"data_train.h5"))) :
         (file = h5open(string(path,"data_test.h5")))
-    images_lt = convert(Array{Float64},read(file,"images_lt"))
-    images_rt = convert(Array{Float64},read(file,"images_rt"))
+    images_lt = permutedims(convert(Array{Float64},read(file,"images_lt")),[2,1,3])
+    images_rt = permutedims(convert(Array{Float64},read(file,"images_rt")),[2,1,3])
     category = convert(Array{Int64},read(file,"categories"))
     instance = read(file,"instances")
     elevation = convert(Array{Int64},read(file,"elevations"))
