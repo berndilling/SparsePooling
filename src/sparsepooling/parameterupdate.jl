@@ -9,6 +9,26 @@
 end
 
 ############################################################################
+## Classifier
+############################################################################
+
+function update_layer_parameters!(net::classifier; learningrate = 1e-3,
+				   nonlinearity_diff = [lin_diff! for i in 1:net.nl],
+				   set_error_lossderivative = _seterror_crossentropysoftmax!) # or _seterror_mse!
+   	target = getlabel()
+   	set_error_lossderivative(net, target)
+	for i in net.nl:-1:2
+		nonlinearity_diff[i](net.u[i], net.e[i])
+		BLAS.gemv!('T', 1., net.w[i], net.e[i], 0., net.e[i-1])
+	end
+	nonlinearity_diff[1](net.u[1], net.e[1])
+	for i in 1:net.nl
+		BLAS.ger!(learningrate, net.e[i], net.a[i], net.w[i])
+		BLAS.axpy!(learningrate, net.e[i], net.b[i])
+	end
+end
+
+############################################################################
 ## Sparse layer
 ############################################################################
 
@@ -21,7 +41,6 @@ end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
 		#Update lateral inhibition matrix
-		#layer.v += lr_v*(layer.a*layer.a'-layer.parameters.p^2)
 		BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
 		layer.v .+= -layer.parameters.learningrate_v*layer.parameters.p^2
 		for j in 1:size(layer.v)[1]
@@ -30,11 +49,9 @@ end
 		clamp!(layer.v,0.,Inf64) #Dale's law
 
 		#Update input weight matrix
-		#Learning rule:
-		#layer.w += lr_w*layer.a*(layer.a_pre-layer.a*W) # with weight decay... or explicit weight normalization/homeostasis
-		#Optimized:
 		# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
-		layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a.^2) * layer.w
+		#layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a.^2) * layer.w
+		layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a) * layer.w
 		# Second: First term (data-driven) of weight update
 		BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
 		# TODO for second sparse layer?
@@ -43,10 +60,7 @@ end
 		#_normalize_inputweights!(layer.w) # explicit weight normalization/homeostasis
 
 		#Update thresholds
-		#layer.t += lr_thr*(layer.a-layer.parameters.p)
 		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
-		#avoid negative thesholds:
-		#clamp!(layer.t,0.,Inf64)
 	end
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
@@ -64,16 +78,17 @@ end
 		clamp!(layer.v,0.,Inf64) #Dale's law
 		#scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
 
-		layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a_tr.^2) * layer.w
+		layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a_tr) * layer.w
+		#layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a_tr.^2) * layer.w
 		#scale!((1-layer.parameters.learningrate_w*(layer.a_tr-layer.a).^2),layer.w)
 		#scale!((1-layer.parameters.learningrate_w),layer.w)
 
-		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
+		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
 
 		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
 		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr-layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
-		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,
-			(layer.a_pre-layer.a_tr_pre) .* (round.(layer.a_pre) + round.(layer.a_tr_s_pre) .!= 2), layer.w)
+		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,
+		#	(layer.a_pre-layer.a_tr_pre) .* (round.(layer.a_pre) + round.(layer.a_tr_s_pre) .!= 2), layer.w)
 		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre-layer.a_tr_s_pre,layer.w)
 
 		#TODO threshold adaptation here? -> Yes if nonlinearity is nonlinear

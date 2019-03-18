@@ -185,10 +185,14 @@ end
     rand([triangle1(edgelength, edgewidth, pos),triangle2(edgelength, edgewidth, pos),
           triangle3(edgelength, edgewidth, pos),triangle4(edgelength, edgewidth, pos)])
 end
-@inline function getbunchoftriangles(; edgelength = 5, edgewidth = 1, pos = [16,16])
-    triangles = [triangle1,triangle2,triangle3,triangle4]
+@inline function trianglepicker()
     trianglepick = rand([false,true],4,4)
     n_tr = length(findall(trianglepick[:]))
+    n_tr == 0 ? trianglepicker() : return trianglepick, n_tr
+end
+@inline function generatebunchoftriangles(; edgelength = 5, edgewidth = 1, pos = [16,16])
+    triangles = [triangle1,triangle2,triangle3,triangle4]
+    trianglepick, n_tr = trianglepicker()
     CompositeObject(pos, n_tr,
         vcat([triangles[i](edgelength, edgewidth, pos) for i in findall(trianglepick[1,:])],
              [triangles[i](edgelength, edgewidth,
@@ -257,7 +261,7 @@ end
 # TAKE CARE: anchors/boundaries only work if all atoms have same edge length!!!
 @inline function getanchoredobject(; image_size = 32)
   image = AnchoredImage(zeros(image_size,image_size))
-  object = sample([generatecompositeobject(3),generatebox(),generatetetris()],Weights([0.,0.,1.]))
+  object = generatebunchoftriangles()#sample([generatecompositeobject(3),generatebox(),generatetetris()],Weights([0.,0.,1.]))
   image.anchor = deepcopy(object.anchor)
   image.object_dims = deepcopy(object.object_dims)
   image.anchorboundaries = [image_size - image.object_dims[1],image_size - image.object_dims[2]]

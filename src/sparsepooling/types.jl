@@ -165,8 +165,8 @@ function get_n_of_layer_patches(image_size, patch_size, overlap)
 	(overlap == 0) ? Int(image_size/patch_size)^2 : (Int(image_size/(patch_size - overlap))-1)^2
 end
 function layer_sparse_patchy(ns::Array{Int64, 1};
-		patch_size = 8, in_fan = patch_size^2, overlap = 4, image_size = 32) #ns: size of in-fan and hidden layer per sparse layer patch
-	n_of_sparse_layer_patches = get_n_of_layer_patches(image_size, patch_size, overlap)
+		patch_size = 8, in_fan = patch_size^2, overlap = 4, image_size = 32, #ns: size of in-fan and hidden layer per sparse layer patch
+		n_of_sparse_layer_patches = get_n_of_layer_patches(image_size, patch_size, overlap))
 	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap, image_size),
 	[layer_sparse(ns; in_fan = in_fan) for i in 1:n_of_sparse_layer_patches],
 	zeros(ns[2]*n_of_sparse_layer_patches),
@@ -194,8 +194,8 @@ function layer_pool(ns::Array{Int64, 1})
 			zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
-function layer_pool_patchy(ns::Array{Int64, 1}; in_fan = ns[1], patch_size = 8, overlap = 4, image_size = 32) # pooling occurs within each sparse layer patch
-	n_of_pool_layer_patches = get_n_of_layer_patches(image_size, patch_size, overlap)
+function layer_pool_patchy(ns::Array{Int64, 1}; in_fan = ns[1], patch_size = 8, overlap = 4, image_size = 32, # pooling occurs within each sparse layer patch
+		n_of_pool_layer_patches = get_n_of_layer_patches(image_size, patch_size, overlap))
 	layer_pool_patchy(parameters_pool_patchy(n_of_pool_layer_patches, in_fan),
 	[layer_pool(ns) for i in 1:n_of_pool_layer_patches],
 	zeros(ns[2]*n_of_pool_layer_patches),
@@ -206,26 +206,44 @@ end
 function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 	nl = length(ns)
 	classifier(nl - 1,
+			zeros(ns[1]),
+			zeros(ns[1]),
 		    [zeros(ns[i]) for i in 1:nl],
 			[zeros(ns[i]) for i in 2:nl],
 			[zeros(ns[i]) for i in 2:nl],
 			[randn(ns[i+1], ns[i])/(10*sqrt(ns[i])) for i in 1:nl - 1],
 			[rand(ns[i])/10 for i in 2:nl],
-			[relu! for i in 2:nl])
+			[lin! for i in 2:nl])
 end
 
-function net(sl::Array{Int64, 1}, tl::Array{String, 1},
-		n_of_layer_patches::Array{Int64, 1}) #sl: Sizes of layers, tl: types of layers
+# This constructor assumes a factor-2-downsampling at each pool/sparse transition
+# -> doubling of receptive field size
+function net(sl::Array{Int64, 1}, tl::Array{String, 1}; overlap = false) #sl: Sizes of layers, tl: types of layers
 	nl = length(sl)
 	network = net(nl,sl,tl,[layer_input(sl[1])])
 	for i in 2:nl
 		if tl[i] == "sparse"
-			push!(network.layers,layer_sparse(sl[i-1:i]))
+			if tl[i-1] == "sparse_patchy"
+				push!(network.layers,layer_sparse([network.layers[i-1].parameters.n_of_sparse_layer_patches * sl[i-1],sl[i]]))
+			elseif tl[i-1] == "pool_patchy"
+				push!(network.layers,layer_sparse([network.layers[i-1].parameters.n_of_pool_layer_patches * sl[i-1],sl[i]]))
+			else
+				push!(network.layers,layer_sparse(sl[i-1:i]))
+			end
 		elseif tl[i] == "sparse_patchy"
-			push!(network.layers,layer_sparse_patchy(sl[i-1:i];
-				n_of_sparse_layer_patches = n_of_layer_patches[i]))
+			if tl[i-1] == "pool_patchy"
+				push!(network.layers,layer_sparse_patchy(sl[i-1:i];
+					patch_size = 2 * network.layers[i-2].parameters.patch_size,
+					in_fan = (overlap ? 9 : 4) * sl[i-1],
+					n_of_sparse_layer_patches = (overlap ? Int((sqrt(network.layers[i-1].parameters.n_of_pool_layer_patches)-1)/2)^2 :
+					Int(network.layers[i-1].parameters.n_of_pool_layer_patches/4))))
+			else
+				push!(network.layers,layer_sparse_patchy(sl[i-1:i]))
+			end
 		elseif tl[i] == "pool"
-			if tl[i-1] == "sparse"
+			if tl[i-1] == "sparse_patchy"
+				push!(network.layers,layer_pool([network.layers[i-1].parameters.n_of_sparse_layer_patches * sl[i-1],sl[i]]))
+			elseif tl[i-1] == "sparse"
 				push!(network.layers,layer_pool(sl[i-1:i]))
 			else
 				error("Pool layer should come after sparse layer!")
@@ -233,9 +251,17 @@ function net(sl::Array{Int64, 1}, tl::Array{String, 1},
 		elseif tl[i] == "pool_patchy"
 			if tl[i-1] == "sparse_patchy"
 				push!(network.layers,layer_pool_patchy(sl[i-1:i];
-					n_of_pool_layer_patches = n_of_layer_patches[i]))
+					n_of_pool_layer_patches = network.layers[i-1].parameters.n_of_sparse_layer_patches))
 			else
 				error("Pool patch layer should come after sparse patch layer!")
+			end
+		elseif tl[i] == "classifier"
+			if tl[i-1] == "sparse_patchy"
+				push!(network.layers,classifier([network.layers[i-1].parameters.n_of_sparse_layer_patches * sl[i-1],sl[i]]))
+			elseif tl[i-1] == "pool_patchy"
+				push!(network.layers,classifier([network.layers[i-1].parameters.n_of_pool_layer_patches * sl[i-1],sl[i]]))
+			else
+				push!(network.layers,classifier(sl[i-1:i]))
 			end
 		end
 	end

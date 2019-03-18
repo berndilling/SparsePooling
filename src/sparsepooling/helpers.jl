@@ -14,8 +14,11 @@ end
 end
 
 @inline function getsmallimg()
-    patternindex = rand(1:size(smallimgs)[2])
+    global patternindex = rand(1:size(smallimgs)[2])
     smallimgs[:, patternindex]
+end
+@inline function getlabel()
+    [labels[patternindex] == i for i in 0:9]
 end
 
 @inline function getsmallimg(iteration) #select images in fixed order
@@ -40,6 +43,61 @@ end
 		path = "/home/illing/"
 	end
 end
+
+###########################################################################
+# Classifier helpers
+#target must be one-hot
+
+function _seterror_mse!(net, target)
+	net.e[end] = target - net.a[end]
+end
+
+function _loss_mse(net, target)
+	return norm(net.e[end])
+end
+
+function _softmax(input)
+	input = deepcopy(input)
+	exps = exp.(input .- maximum(input))
+  return exps / sum(exps)
+end
+
+#target must be one-hot
+function _seterror_crossentropysoftmax!(net, target)
+	probs = _softmax(net.a[end])
+	net.e[end] = target - probs
+end
+
+function _loss_crossentropy(net, target)
+	probs = _softmax(net.a[end])
+	return -target'*log.(probs)
+end
+
+function geterrors!(net, imgs, labels; getwrongindices = false)
+	error = 0
+	noftest = size(imgs)[2]
+	if getwrongindices
+		wrongindices = []
+		for i in 1:noftest
+			net.layers[1].a = imgs[:,i]
+			forwardprop!(net)
+			if findmax(net.layers[end].a)[2] != labels[i] + 1
+				error += 1
+				push!(wrongindices,i)
+			end
+		end
+		return error/noftest, wrongindices
+	else
+		for i in 1:noftest
+			net.layers[1].a = imgs[:,i]
+			forwardprop!(net)
+			error += findmax(net.layers[end].a)[2] != labels[i] + 1
+		end
+		error/noftest
+	end
+end
+
+###########################################################################
 
 @inline function assigninput!(layer,images,i)
 	input = images[:,i]
@@ -107,8 +165,20 @@ end
 ##################################################################################
 # Input helpers
 
+@inline function getmovingimage(img; duration = 20, speed = 1)
+	img_s = Int(ceil(sqrt(size(img)[1])))
+	movingimg = zeros(img_s, img_s, duration)
+	dir = rand([-1,1],2) # select 1 of 8 possible directions
+	for i in 1:duration
+		movingimg[:,:,i] = circshift(reshape(img,img_s,img_s), i * speed .* dir)
+	end
+	return movingimg
+end
+
+####################
+
 @inline function generatemovingpatches(patches, layer_pre, layer_post;
-	nr_presentations_per_patch = 30, number_of_patches = Int(5e4))
+	nr_presentations_per_patch = 30, number_of_patches = Int(5e4), speed = 1.)
 		dim = Int(ceil(sqrt(size(patches)[1])))
 		movingpatches = zeros(Int(size(patches)[1]),Int(nr_presentations_per_patch*number_of_patches))
 		hiddenreps = zeros(length(layer_post.a),Int(nr_presentations_per_patch*number_of_patches))
@@ -116,7 +186,7 @@ end
 			index = rand(1:Int(size(patches)[2]))
 			dir = rand(-1:1,2) # select 1 of 9 possible directions
 			for j in 1:nr_presentations_per_patch
-				movingpatches[:,(i-1)*nr_presentations_per_patch+j] = circshift(reshape(patches[:,index],dim,dim),j.*dir)[:]
+				movingpatches[:,(i-1)*nr_presentations_per_patch+j] = circshift(reshape(patches[:,index],dim,dim),j * speed .* dir)[:]
 				layer_pre.a = movingpatches[:,(i-1)*nr_presentations_per_patch+j]
 				forwardprop_lc!(layer_pre, layer_post)
 				hiddenreps[:,(i-1)*nr_presentations_per_patch+j] = deepcopy(layer_post.a)
@@ -222,6 +292,9 @@ end
 	circshift(reshape(imagevector,dim,dim),amps)[:]
 end
 
+#######################################################################################
+# Initialization
+
 @inline function set_init_bars!(layer::layer_sparse,hidden_size; reinit_weights = false,
 		p = 1/hidden_size, one_over_tau_a = 1/1000, activationfunction = sigm!) #inspired by Földiak 1991 init
 	layer.parameters.learningrate_v = 1e-1
@@ -230,7 +303,7 @@ end
 	layer.parameters.p = p
 	layer.parameters.one_over_tau_a = one_over_tau_a
 	layer.parameters.activationfunction = activationfunction
-	reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/hidden_size : Void
+	reinit_weights && (layer.w = rand(size(layer.w)[1],size(layer.w)[2])/hidden_size)
 end
 @inline function set_init_bars!(layer::layer_sparse_patchy, hidden_size; reinit_weights = false,
 		p = 1/hidden_size, one_over_tau_a = 1/1000, activationfunction = pwl!)
@@ -245,13 +318,13 @@ end
 	layer.parameters.activationfunction = activationfunction #"relu" #pwl & relu works nice but no idea why!
 	layer.parameters.updaterule = updaterule
 	layer.parameters.learningrate = 1e-2 # for non lc-learning
-	layer.parameters.learningrate_v = 5e-2#5e-2#1e-1
-  layer.parameters.learningrate_w = 5e-3#1e-2#2e-2 WTA: 1e-2
-  layer.parameters.learningrate_thr = 2e-4#1e-2#2e-2 stable #5e-2 speeds up convergence
+	layer.parameters.learningrate_v = 1e-2#1e-2#5e-2#5e-2#1e-1
+    layer.parameters.learningrate_w = 2e-2#2e-3#5e-3#1e-2#2e-2 WTA: 1e-2
+    layer.parameters.learningrate_thr = 2e-2#2e-3#2e-4#1e-2#2e-2 stable #5e-2 speeds up convergence
 	layer.parameters.one_over_tau_a = one_over_tau_a # shorter pooling time constant to not pool everything
 	layer.parameters.p = p
-	#reinit_weights ? layer.w = rand(size(layer.w)[1],size(layer.w)[2])/size(layer.w)[1] : Void
-	reinit_weights ? layer.v = rand(size(layer.v)[1],size(layer.v)[1]) : Void
+	reinit_weights && (layer.w = rand(size(layer.w)[1],size(layer.w)[2])/size(layer.w)[1])
+	#reinit_weights ? layer.v = rand(size(layer.v)[1],size(layer.v)[1]) : Void
 end
 @inline function set_init_bars!(layer::layer_pool_patchy;  reinit_weights = false,
 		p = 1/2, one_over_tau_a = 1/8, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
@@ -281,93 +354,6 @@ function addlayer!(net::net,layersize::Int64,layertype::String,layer)
 	push!(net.layer_types,layertype)
 	net.nr_layers = length(net.layers)
 end
-
-######### Not Needed Any More with JLD2!!!
-# to save layer, take care that parameters are the same in the new net and the saved one!
-# function savelayer(path,layer::layer_sparse_patchy)
-#   layerfields = []
-#   for sparse_layer_patch in layer.sparse_layer_patches
-#     push!(layerfields, [sparse_layer_patch.u,sparse_layer_patch.a,
-#       sparse_layer_patch.a_tr,sparse_layer_patch.w,sparse_layer_patch.v,
-#       sparse_layer_patch.t,sparse_layer_patch.hidden_reps])
-#   end
-#   save(path,"sparse_layer_patches_fields",layerfields,
-# 		"parameters_sparse_patchy",layer.parameters,
-# 		"parameters_sparse_layer_patch",string(layer.sparse_layer_patches[1].parameters))
-# end
-# function savelayer(path,layer::layer_pool_patchy)
-#   layerfields = []
-#   for pool_layer_patch in layer.pool_layer_patches
-#     push!(layerfields, [pool_layer_patch.u,pool_layer_patch.a,
-#       pool_layer_patch.a_tr,pool_layer_patch.w,pool_layer_patch.v,
-#       pool_layer_patch.t,pool_layer_patch.b,pool_layer_patch.hidden_reps])
-#   end
-#   save(path,"pool_layer_patches_fields",layerfields,
-# 		"parameters_pool_patchy",layer.parameters,
-# 		"parameters_pool_layer_patch",string(layer.pool_layer_patches[1].parameters))
-# end
-# function savelayer(path,layer::layer_sparse)
-#   layerfields = [layer.u,layer.a,
-#       layer.a_tr,layer.w,layer.v,
-#       layer.t,layer.hidden_reps]
-#   save(path,"layer_fields",layerfields,
-# 		"parameters_sparse_layer",string(layer.parameters))
-# end
-# function savelayer(path,layer::layer_pool)
-#   layerfields = [layer.u,layer.a,
-#       layer.a_tr,layer.w,layer.v,
-#       layer.t,layer.b,layer.hidden_reps]
-#   save(path,"layer_fields",layerfields,
-# 		"parameters_pool_layer",string(layer.parameters))
-# end
-# function loadlayer!(path,layer::layer_sparse_patchy)
-# 	layerfields = load(path,"sparse_layer_patches_fields")
-# 	n_of_sparse_patches = load(path,"parameters_sparse_patchy").n_of_sparse_layer_patches
-# 	for i in 1:n_of_sparse_patches
-# 		layer.sparse_layer_patches[i].u = layerfields[i][1]
-# 		layer.sparse_layer_patches[i].a = layerfields[i][2]
-# 		layer.sparse_layer_patches[i].a_tr = layerfields[i][3]
-# 		layer.sparse_layer_patches[i].w = layerfields[i][4]
-# 		layer.sparse_layer_patches[i].v = layerfields[i][5]
-# 		layer.sparse_layer_patches[i].t = layerfields[i][6]
-# 		layer.sparse_layer_patches[i].hidden_reps = layerfields[i][7]
-# 	end
-# end
-# function loadlayer!(path,layer::layer_pool_patchy)
-# 	layerfields = load(path,"pool_layer_patches_fields")
-# 	n_of_pool_patches = load(path,"parameters_pool_patchy").n_of_pool_layer_patches
-# 	for i in 1:n_of_pool_patches
-# 		layer.pool_layer_patches[i].u = layerfields[i][1]
-# 		layer.pool_layer_patches[i].a = layerfields[i][2]
-# 		layer.pool_layer_patches[i].a_tr = layerfields[i][3]
-# 		layer.pool_layer_patches[i].w = layerfields[i][4]
-# 		layer.pool_layer_patches[i].v = layerfields[i][5]
-# 		layer.pool_layer_patches[i].t = layerfields[i][6]
-# 		layer.pool_layer_patches[i].b = layerfields[i][7]
-# 		layer.pool_layer_patches[i].hidden_reps = layerfields[i][8]
-# 	end
-# end
-# function loadlayer!(path,layer::layer_sparse)
-# 	layerfields = load(path,"layer_fields")
-# 	layer.u = layerfields[1]
-# 	layer.a = layerfields[2]
-# 	layer.a_tr = layerfields[3]
-# 	layer.w = layerfields[4]
-# 	layer.v = layerfields[5]
-# 	layer.t = layerfields[6]
-# 	layer.hidden_reps = layerfields[7]
-# end
-# function loadlayer!(path,layer::layer_pool)
-# 	layerfields = load(path,"layer_fields")
-# 	layer.u = layerfields[1]
-# 	layer.a = layerfields[2]
-# 	layer.a_tr = layerfields[3]
-# 	layer.w = layerfields[4]
-# 	layer.v = layerfields[5]
-# 	layer.t = layerfields[6]
-# 	layer.b = layerfields[7]
-# 	layer.hidden_reps = layerfields[8]
-# end
 
 function loadsharedweights!(layer::layer_sparse_patchy,path)
 	singlepatchlayer = load(path,"layer")

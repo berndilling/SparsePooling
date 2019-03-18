@@ -4,6 +4,7 @@
 
 #for classifier
 @inline function forwardprop!(net::classifier)
+	net.u[1] = deepcopy(net.a_pre)
 	for i in 1:net.nl-1
 		BLAS.gemv!('N', 1., net.w[i], net.a[i], 0., net.u[i])
 		BLAS.axpy!(1., net.b[i], net.u[i])
@@ -158,9 +159,7 @@ end
 @inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy; overlap = false)
 	n_patch_pre = Int(sqrt(layer_pre.parameters.n_of_pool_layer_patches))
 	n_patch_post = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
-	# TAKE CARE: depending on "overlap"-keyword:
-	# Special case of subsamplingfactor = 2 and overlap = half patchsize
-	# or: Special case of subsamplingfactor = 2 without overlap!
+	# TAKE CARE: Special case of subsamplingfactor = 2 (and overlap = half of patchsize)
 	for i in 1:n_patch_post
 		for j in 1:n_patch_post
 			overlap ? (i1range = 2*i-1:2*i+1; j1range = 2*j-1:2*j+1) :

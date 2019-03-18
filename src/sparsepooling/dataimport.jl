@@ -17,11 +17,11 @@ function import_data(data::String)
     datastring = "cifar-10-batches-py/CIFAR10_all.mat"
   elseif data == "CIFAR10_whitened"
     datastring = "cifar-10-batches-py/CIFAR10_all_ZCA_white.mat"
-	end
+  end
 
-  if is_apple()
+  if Sys.isapple()
     path = "/Users/Bernd/Documents/PhD/Projects/"
-  elseif is_linux()
+  elseif Sys.islinux()
     path = "/home/illing/"
   end
 
@@ -41,21 +41,24 @@ function import_data(data::String)
   close(file)
 
 	if data == "CIFAR10"
-		smallimgs = reshape(smallimgs,50000,32*32)'
+		smallimgs = convert(Array{Float64, 2}, reshape(smallimgs,50000,32*32)')
 		labels = convert(Array{Float64, 1},reshape(labels,50000))
-		smallimgstest = reshape(smallimgstest,10000,32*32)'
+		smallimgstest = convert(Array{Float64, 2}, reshape(smallimgstest,10000,32*32)')
 		labelstest = convert(Array{Float64, 1},reshape(labelstest,10000))
 	end
 	n_trainsamples = size(smallimgs)[2]
 	n_testsamples = size(smallimgstest)[2]
 
+    data_max = maximum([maximum(abs.(smallimgs)),maximum(abs.(smallimgstest))])
+    smallimgs ./= data_max
+    smallimgstest ./= data_max
   return smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples
 end
 
 function import_unlabelled_data(data::String)
-  if is_apple()
+  if Sys.isapple()
     path = "/Users/Bernd/Documents/PhD/Projects/"
-  elseif is_linux()
+  elseif Sys.islinux()
     path = "/home/illing/"
   end
 
