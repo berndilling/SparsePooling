@@ -13,8 +13,8 @@ end
 ############################################################################
 
 function update_layer_parameters!(net::classifier; learningrate = 1e-3,
-				   nonlinearity_diff = [lin_diff! for i in 1:net.nl],
-				   set_error_lossderivative = _seterror_crossentropysoftmax!) # or _seterror_mse!
+				   nonlinearity_diff = [relu_diff! for i in 1:net.nl],
+				   set_error_lossderivative = _seterror_mse!) # or _seterror_crossentropysoftmax!
    	target = getlabel()
    	set_error_lossderivative(net, target)
 	for i in net.nl:-1:2

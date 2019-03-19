@@ -4,8 +4,8 @@
 
 #for classifier
 @inline function forwardprop!(net::classifier)
-	net.u[1] = deepcopy(net.a_pre)
-	for i in 1:net.nl-1
+	net.a[1] = deepcopy(net.a_pre)
+	for i in 1:net.nl
 		BLAS.gemv!('N', 1., net.w[i], net.a[i], 0., net.u[i])
 		BLAS.axpy!(1., net.b[i], net.u[i])
 		net.activationfunctions[i](net.u[i], net.a[i+1])
@@ -63,7 +63,7 @@ end
 			scaling_factor = layer.parameters.epsilon/layer.parameters.dt
 			voltage_incr = scaling_factor*norm(layer.u)+1 #+1 to make sure loop is entered
 			input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
-			while norm(voltage_incr) > scaling_factor*norm(layer.u)
+			while norm(voltage_incr) > scaling_factor * norm(layer.u) #for _ in 1:20 #
 				voltage_incr = input_without_recurrence - BLAS.gemv('N',layer.v,layer.a) - layer.u
 				BLAS.axpy!(layer.parameters.dt, voltage_incr, layer.u) # update membrane potential
 				layer.parameters.activationfunction(layer) # apply activation function
@@ -111,7 +111,7 @@ end
 ###############################################################################
 # For whole net until specified layer
 
-@inline function forwardprop!(net::net; FPUntilLayer = net.nr_layers - 1)
+@inline function forwardprop!(net::net; FPUntilLayer = net.nr_layers)
 	calculatetrace!(net.layers[1])
 	for i in 1:FPUntilLayer-1
 		distributeinput!(net.layers[i],net.layers[i+1])
@@ -156,7 +156,8 @@ end
 		layer_post.pool_layer_patches[i].a_tr_s_pre = deepcopy(layer_pre.sparse_layer_patches[i].a_tr_s)
 	end
 end
-@inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy; overlap = false)
+@inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy)
+	overlap = (layer_post.parameters.overlap != 0)
 	n_patch_pre = Int(sqrt(layer_pre.parameters.n_of_pool_layer_patches))
 	n_patch_post = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
 	# TAKE CARE: Special case of subsamplingfactor = 2 (and overlap = half of patchsize)

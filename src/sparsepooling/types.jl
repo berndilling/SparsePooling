@@ -137,11 +137,11 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 	zeros(ns))
 end
 
-function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 1e-3, learningrate_thr = 1e-2,
-		dt = 1e-1, epsilon = 1e-4, activationfunction = pwl!, OneOverMaxFiringRate = 1/50,
-		calculate_trace = true, one_over_tau_a = 1e-1,
+function parameters_sparse(; learningrate_v = 5e-2, learningrate_w = 5e-3, learningrate_thr = 5e-2,
+		dt = 5e-2, epsilon = 1e-2, activationfunction = relu!, OneOverMaxFiringRate = 1/50,
+		calculate_trace = true, one_over_tau_a = 1e-2,
 		one_over_tau_a_s = 1.,
-		p = 1/12) #p: average activation set to 5% (as in Zylberberg)
+		p = 1/10) #p = 1/12 average activation set to 5% (as in Zylberberg)
 	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, activationfunction, OneOverMaxFiringRate,
 			calculate_trace, one_over_tau_a,
@@ -174,9 +174,9 @@ function layer_sparse_patchy(ns::Array{Int64, 1};
 	)
 end
 
-function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 1e-2, learningrate_thr = 5e-2,
-		dt = 1e-1, epsilon = 1e-4, updaterule = GH_SFA_Sanger!,
-	activationfunction = sigm!, calculate_trace = true, one_over_tau_a = 1e-1, p = 1/2)
+function parameters_pool(; learningrate = 1e-2, learningrate_v = 5e-2, learningrate_w = 5e-3, learningrate_thr = 1e-1,
+		dt = 1e-2, epsilon = 1e-2, updaterule = GH_SFA_Sanger!,
+	activationfunction = pwl!, calculate_trace = true, one_over_tau_a = 1e-2, p = 1/20) # p = 1/2
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
 end
@@ -208,12 +208,12 @@ function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 	classifier(nl - 1,
 			zeros(ns[1]),
 			zeros(ns[1]),
-		    [zeros(ns[i]) for i in 1:nl],
-			[zeros(ns[i]) for i in 2:nl],
+		    [zeros(ns[i]) for i in 2:nl],
+			[zeros(ns[i]) for i in 1:nl],
 			[zeros(ns[i]) for i in 2:nl],
 			[randn(ns[i+1], ns[i])/(10*sqrt(ns[i])) for i in 1:nl - 1],
 			[rand(ns[i])/10 for i in 2:nl],
-			[lin! for i in 2:nl])
+			[relu! for i in 2:nl])
 end
 
 # This constructor assumes a factor-2-downsampling at each pool/sparse transition

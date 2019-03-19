@@ -10,7 +10,7 @@
 end
 
 @inline function getsparsity(input::Array{Float64, 1})
-	length(find(x -> (x == 0),input))/length(input)
+	length(findall(x -> (x == 0),input))/length(input)
 end
 
 @inline function getsmallimg()
@@ -73,25 +73,25 @@ function _loss_crossentropy(net, target)
 	return -target'*log.(probs)
 end
 
-function geterrors!(net, imgs, labels; getwrongindices = false)
+function geterrors!(net, imgs, labels; getwrongindices = false, noftest = size(imgs)[2])
+	print("calculate classification errors...")
 	error = 0
-	noftest = size(imgs)[2]
 	if getwrongindices
 		wrongindices = []
-		for i in 1:noftest
+		@showprogress for i in 1:noftest
 			net.layers[1].a = imgs[:,i]
 			forwardprop!(net)
-			if findmax(net.layers[end].a)[2] != labels[i] + 1
+			if findmax(net.layers[end].a[end])[2] != Int(labels[i] + 1)
 				error += 1
 				push!(wrongindices,i)
 			end
 		end
 		return error/noftest, wrongindices
 	else
-		for i in 1:noftest
+		@showprogress for i in 1:noftest
 			net.layers[1].a = imgs[:,i]
 			forwardprop!(net)
-			error += findmax(net.layers[end].a)[2] != labels[i] + 1
+			error += findmax(net.layers[end].a[end])[2] != Int(labels[i] + 1)
 		end
 		error/noftest
 	end
@@ -173,6 +173,10 @@ end
 		movingimg[:,:,i] = circshift(reshape(img,img_s,img_s), i * speed .* dir)
 	end
 	return movingimg
+end
+@inline function getstaticimage(img)
+	img_s = Int(ceil(sqrt(size(img)[1])))
+	return reshape(img,img_s,img_s,1)
 end
 
 ####################
@@ -339,7 +343,7 @@ end
 	for i in 1:size(network.layers[2].w)[1]
 		#indices = gethighestvalues(abs.(network.layers[2].w[i,:]); number = number)
 		indices = gethighestvalues(network.layers[2].w[i,:]; number = number)
-		#indices = find(x -> (x > 0),network.layers[2].w[i,:])
+		#indices = findall(x -> (x > 0),network.layers[2].w[i,:])
 		for j in 1:size(network.layers[2].w)[2]
 			network.layers[2].w[i,j] *= Int(j in indices)
 		end

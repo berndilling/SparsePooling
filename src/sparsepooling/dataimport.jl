@@ -130,7 +130,7 @@ end
 
 #(By Johanni) subtract linewise (pixel-wise) mean
 function subtractmean!(data)
-        m = mean(data, 2)
+        m = mean(data, dims=2)
         d, n = size(data)
         for i in 0:n-1
                 BLAS.axpy!(-1., m, 1:d, data, i*d + 1: (i+1) * d)
