@@ -151,9 +151,9 @@ end
 # Johanni's implementation
 # data is dxn array of n d-dimensional random vectors with mean 0
 function whiten(data; method = :f_ZCA)
-        f = svdfact(data)
+        f = svd(data)
         eval(method)(f) * sqrt(size(data, 2) - 1)
 end
 
-f_ZCA(f::SVD) = f[:U] * f[:Vt]
-f_PCA(f::SVD) = f[:Vt]
+f_ZCA(f::SVD) = f.U * f.Vt
+f_PCA(f::SVD) = f.Vt

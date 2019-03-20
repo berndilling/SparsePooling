@@ -88,7 +88,7 @@ end
 end
 
 
-@inline function forwardprop!(layer::layer_sparse_patchy)
+@inline function forwardprop!(layer::layer_sparse_patchy; normalize = true)
 		layer.a, layer.a_tr = [], [] # combined act. of all patches
 		#@sync @parallel for i in 1:length(layer.sparse_layer_patches)
 		for sparse_layer_patch in layer.sparse_layer_patches
@@ -96,6 +96,10 @@ end
 			forwardprop!(sparse_layer_patch)
 			append!(layer.a, sparse_layer_patch.a)
 			append!(layer.a_tr, sparse_layer_patch.a_tr)
+		end
+		if normalize
+			(maximum(layer.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer.a)))
+			layer.a ./= layer.a_max; layer.a_tr ./= layer.a_max
 		end
 #	end
 end

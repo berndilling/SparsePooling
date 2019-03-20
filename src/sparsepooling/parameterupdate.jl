@@ -12,7 +12,7 @@ end
 ## Classifier
 ############################################################################
 
-function update_layer_parameters!(net::classifier; learningrate = 1e-3,
+function update_layer_parameters!(net::classifier; learningrate = .1 / length(net.a_pre),
 				   nonlinearity_diff = [relu_diff! for i in 1:net.nl],
 				   set_error_lossderivative = _seterror_mse!) # or _seterror_crossentropysoftmax!
    	target = getlabel()
@@ -60,6 +60,7 @@ end
 		#_normalize_inputweights!(layer.w) # explicit weight normalization/homeostasis
 
 		#Update thresholds
+		#BLAS.axpy!(layer.parameters.learningrate_thr,Float64.(layer.a .> layer.t) .- p, layer.t)
 		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
 	end
 end
@@ -94,8 +95,8 @@ end
 		#TODO threshold adaptation here? -> Yes if nonlinearity is nonlinear
 		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
 
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
-		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.a_tr-layer.parameters.p,layer.t)
+		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
+		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.a_tr-layer.parameters.p,layer.t)
 		#TODO Pre/Post-trace subtraction here?
 	end
 end

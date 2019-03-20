@@ -58,6 +58,7 @@ mutable struct layer_sparse_patchy
 	sparse_layer_patches::Array{layer_sparse, 1}
 	a::Array{Float64, 1} #combined sparse activity of all sparse layer patches
 	a_tr::Array{Float64, 1} #same for activity trace
+	a_max::Float64 #max activation of whole layer (for normalization)
 end
 
 mutable struct parameters_pool
@@ -137,11 +138,11 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 	zeros(ns))
 end
 
-function parameters_sparse(; learningrate_v = 5e-2, learningrate_w = 5e-3, learningrate_thr = 5e-2,
-		dt = 5e-2, epsilon = 1e-2, activationfunction = relu!, OneOverMaxFiringRate = 1/50,
+function parameters_sparse(; learningrate_v = 2e-2, learningrate_w = 2e-3, learningrate_thr = 2e-2,
+		dt = 1e-1, epsilon = 1e-3, activationfunction = relu!, OneOverMaxFiringRate = 1/50,
 		calculate_trace = true, one_over_tau_a = 1e-2,
 		one_over_tau_a_s = 1.,
-		p = 1/10) #p = 1/12 average activation set to 5% (as in Zylberberg)
+		p = 1/5) #p = 1/12 average activation set to 5% (as in Zylberberg)
 	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, activationfunction, OneOverMaxFiringRate,
 			calculate_trace, one_over_tau_a,
@@ -162,16 +163,16 @@ function layer_sparse(ns::Array{Int64, 1}; in_fan = ns[1]) #ns: number of neuron
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
 function get_n_of_layer_patches(image_size, patch_size, overlap)
-	(overlap == 0) ? Int(image_size/patch_size)^2 : (Int(image_size/(patch_size - overlap))-1)^2
+	(overlap == 0) ? Int(image_size/patch_size)^2 : (Int((image_size - patch_size) / (patch_size - overlap)) + 1)^2
 end
 function layer_sparse_patchy(ns::Array{Int64, 1};
-		patch_size = 8, in_fan = patch_size^2, overlap = 4, image_size = 32, #ns: size of in-fan and hidden layer per sparse layer patch
+		patch_size = 10, in_fan = patch_size^2, overlap = 9, image_size = 32, #ns: size of in-fan and hidden layer per sparse layer patch
 		n_of_sparse_layer_patches = get_n_of_layer_patches(image_size, patch_size, overlap))
 	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap, image_size),
 	[layer_sparse(ns; in_fan = in_fan) for i in 1:n_of_sparse_layer_patches],
 	zeros(ns[2]*n_of_sparse_layer_patches),
-	zeros(ns[2]*n_of_sparse_layer_patches)
-	)
+	zeros(ns[2]*n_of_sparse_layer_patches),
+	1.)
 end
 
 function parameters_pool(; learningrate = 1e-2, learningrate_v = 5e-2, learningrate_w = 5e-3, learningrate_thr = 1e-1,

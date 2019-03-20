@@ -8,7 +8,7 @@ subtractmean!(smallimgs)
 subtractmean!(smallimgstest)
 
 ## Create network
-network = net([size(smallimgs)[1],20,10], #20, 10,20,10
+network = net([size(smallimgs)[1],10,10], #20, 10,20,10
             ["input","sparse_patchy","classifier"]; #  "pool_patchy","sparse_patchy","pool_patchy"
             overlap = true)
 
@@ -22,7 +22,7 @@ learn_net_layerwise!(network,intermediatestates,[10^4,10^5],#[10^3 for i in 1:ne
   [dynamicfunction for i in 1:network.nr_layers-1];
   LearningFromLayer = 2, LearningUntilLayer = network.nr_layers)
 
-noftest = 10^3 #!!!
+noftest = 10^4 #!!!
 error_train = geterrors!(network, smallimgs, labels; noftest = noftest)
 error_test = geterrors!(network, smallimgstest, labelstest; noftest = noftest)
 print(string("Train Error: ", 100 * error_train," %"))
