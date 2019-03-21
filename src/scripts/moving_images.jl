@@ -17,12 +17,12 @@ inputfunction = getsmallimg
 dynamicfunction =  getstaticimage #getmovingimage #
 
 intermediatestates = []
-learn_net_layerwise!(network,intermediatestates,[10^4,10^5],#[10^3 for i in 1:network.nr_layers-1],
+learn_net_layerwise!(network,intermediatestates,[10^4,10^4],#[10^3 for i in 1:network.nr_layers-1],
   [inputfunction for i in 1:network.nr_layers-1],
   [dynamicfunction for i in 1:network.nr_layers-1];
   LearningFromLayer = 2, LearningUntilLayer = network.nr_layers)
 
-noftest = 10^4 #!!!
+noftest = 10^3 #!!!
 error_train = geterrors!(network, smallimgs, labels; noftest = noftest)
 error_test = geterrors!(network, smallimgstest, labelstest; noftest = noftest)
 print(string("Train Error: ", 100 * error_train," %"))

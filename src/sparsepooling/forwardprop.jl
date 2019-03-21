@@ -88,7 +88,7 @@ end
 end
 
 
-@inline function forwardprop!(layer::layer_sparse_patchy; normalize = true)
+@inline function forwardprop!(layer::layer_sparse_patchy; normalize = false)
 		layer.a, layer.a_tr = [], [] # combined act. of all patches
 		#@sync @parallel for i in 1:length(layer.sparse_layer_patches)
 		for sparse_layer_patch in layer.sparse_layer_patches

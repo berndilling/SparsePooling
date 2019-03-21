@@ -166,7 +166,7 @@ function get_n_of_layer_patches(image_size, patch_size, overlap)
 	(overlap == 0) ? Int(image_size/patch_size)^2 : (Int((image_size - patch_size) / (patch_size - overlap)) + 1)^2
 end
 function layer_sparse_patchy(ns::Array{Int64, 1};
-		patch_size = 10, in_fan = patch_size^2, overlap = 9, image_size = 32, #ns: size of in-fan and hidden layer per sparse layer patch
+		patch_size = 10, in_fan = patch_size^2, overlap = 8, image_size = 32, #ns: size of in-fan and hidden layer per sparse layer patch
 		n_of_sparse_layer_patches = get_n_of_layer_patches(image_size, patch_size, overlap))
 	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap, image_size),
 	[layer_sparse(ns; in_fan = in_fan) for i in 1:n_of_sparse_layer_patches],
