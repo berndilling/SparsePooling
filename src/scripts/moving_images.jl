@@ -1,6 +1,6 @@
 
 using LinearAlgebra, Statistics, StatsBase, ProgressMeter, JLD2, FileIO, PyPlot, MAT
-include("./../sparsepooling/sparsepooling_import.jl")
+include("./../sparsepooling/sparsepooling_import].jl")
 
 ## Load data
 smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples = import_data("CIFAR10")
