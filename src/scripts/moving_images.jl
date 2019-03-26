@@ -1,6 +1,6 @@
 
-using LinearAlgebra, Statistics, StatsBase, ProgressMeter, JLD2, FileIO, PyPlot, MAT
-include("./../sparsepooling/sparsepooling_import].jl")
+using LinearAlgebra, Distributions, Statistics, ProgressMeter, JLD2, FileIO, PyPlot, MAT
+include("./../sparsepooling/sparsepooling_import.jl")
 
 ## Load data
 smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples = import_data("CIFAR10")
@@ -25,7 +25,7 @@ learn_net_layerwise!(network,intermediatestates,[10^4,10^4],#[10^3 for i in 1:ne
 noftest = 10^3 #!!!
 error_train = geterrors!(network, smallimgs, labels; noftest = noftest)
 error_test = geterrors!(network, smallimgstest, labelstest; noftest = noftest)
-print(string("Train Error: ", 100 * error_train," %"))
-print(string("Test Error: ", 100 * error_test," %"))
+print(string("\n Train Accuracy: ", 100 * (1 - error_train)," % \n"))
+print(string("\n Test Accuracy: ", 100 * (1 - error_test)," % \n"))
 
 # TODO: Implement batch-norm like mechanism with running average?!

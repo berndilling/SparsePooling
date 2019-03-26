@@ -12,7 +12,7 @@ end
 ## Classifier
 ############################################################################
 
-function update_layer_parameters!(net::classifier; learningrate = 1. / length(net.a_pre), # 0.1 / ...
+function update_layer_parameters!(net::classifier; learningrate = .1 / length(net.a_pre), # 0.1 / ...
 				   nonlinearity_diff = [relu_diff! for i in 1:net.nl],
 				   set_error_lossderivative = _seterror_mse!) # or _seterror_crossentropysoftmax!)
    	target = getlabel()

@@ -5,11 +5,12 @@ using Metalhead
 using Images: channelview
 using Statistics: mean
 using Base.Iterators: partition
-using LinearAlgebra, ProgressMeter, JLD2, FileIO, PyPlot, MAT, Random
+using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
+#using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 include("./../sparsepooling/dataimport.jl")
 
-data_set = "MNIST" #"CIFAR10_gray" #"CIFAR10_gray" #
-epochs = 3
+data_set = "CIFAR10_gray" #"CIFAR10_gray" # "MNIST" #
+epochs = 20
 batch_size = 128 # 500
 index = 10000 # for evaluating accuracy
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
@@ -54,19 +55,24 @@ elseif data_set == "CIFAR10_gray"
     vallabels = labels[:, valset] |> gpu
 elseif data_set == "MNIST"
     @info("Loading data set: MNIST")
-    imgs = MNIST.images(:train)[1:60000]
+    imgs = MNIST.images(:train)
     imgstest = MNIST.images(:test)
-    labels = onehotbatch(MNIST.labels(:train)[1:60000], 0:9)
-    testlabels = onehotbatch(MNIST.labels(:test), 0:9)
+    labels = gpu.(onehotbatch(MNIST.labels(:train), 0:9))
+    labelstest = gpu.(onehotbatch(MNIST.labels(:test), 0:9))
 
     train = gpu.([(cat(float.(imgs[i])..., dims = 4), labels[:,i])
              for i in partition(1:50000, batch_size)])
 
     # Prepare test set (first 1,000 images) & for on-line testing
-    X_all = zeros(28,28,1,60000)
-    for i in 1:60000 X_all[:,:,:,i] = imgs[i] end
-    testX = zeros(28,28,1,10000)
-    for i in 1:10000 testX[:,:,:,i] = imgstest[i] end
+    X_all_temp = zeros(28,28,1,60000)
+    for i in 1:60000 X_all_temp[:,:,:,i] = imgs[i] end
+    X_all = X_all_temp |> gpu
+    labels = labels[:,1:end] |> gpu
+
+    testX_temp = zeros(28,28,1,10000)
+    for i in 1:10000 testX_temp[:,:,:,i] = imgstest[i] end
+    testX = testX_temp |> gpu
+    testlabels = labelstest[:,1:end] |> gpu
 
     valset = collect(59001:60000)
     valX = cat(float.(imgs[valset])..., dims = 4) |> gpu
@@ -98,10 +104,10 @@ Simple_CNN() = Chain(
     Dropout(0.25),
 
     x -> reshape(x, :, size(x, 4)),
-    (data_set == "MNIST") ? Dense(1600, 128, relu) : Dense(4096, 128, relu),
+    (data_set == "MNIST") ? Dense(1600, 128, relu) : Dense(2304, 128, relu),
     Dropout(0.5),
-    Dense(128, 10, relu),
-    softmax)
+    Dense(128, 10),
+    softmax) |> gpu
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
   BatchNorm(64),
@@ -142,24 +148,27 @@ vgg16() = Chain(
   Dense(4096, 10),
   softmax) |> gpu
 
-m = Simple_CNN() #vgg16() #
+m = Simple_CNN()
 
 loss(x, y) = crossentropy(m(x), y)
 accuracy(x, y) = mean(onecold(m(x), 1:10) .== onecold(y, 1:10))
 
 # Defining the callback and the optimizer
 evalcb = throttle(() -> @show(accuracy(valX, valY)), 10)
+
 opt = ADAM()
 
 @info("Train CNN...")
 for i in 1:epochs
     @info(string("Epoch nr. ",i," out of ",epochs))
-    @time Flux.train!(loss, params(m), train, opt) #, cb = evalcb)
+    @time Flux.train!(loss, params(m), train, opt)
+    GC.gc()
     println("val acc: ", accuracy(valX, vallabels))
-    #@show(accuracy(tX, tY))
 end
 
 # Evaluate train and test accuracy
 @info("Evaluate accuracies...")
+GC.gc()
 println("acc train: ", accuracy(X_all, labels))
+GC.gc()
 println("acc test: ", accuracy(testX, testlabels))
