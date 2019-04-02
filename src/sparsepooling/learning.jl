@@ -121,8 +121,7 @@ function learn_net_layerwise!(net::net,intermediatestates,
 		print(string("\n Learning Layer Nr. ",k," (",typeof(net.layers[k]),")\n"))
 		@showprogress for i in 1:iterations[k - 1]
 			pattern = inputfunctions[k-1]()
-			(typeof(net.layers[k]) != classifier) ? (dynamicpattern = dynamicfunctions[k-1](pattern)) :
-				(dynamicpattern = getstaticimage(pattern))
+			dynamicpattern = dynamicfunctions[k-1](pattern)
 			for j in 1:size(dynamicpattern)[3]
 				net.layers[1].a = dynamicpattern[:,:,j][:]
 				forwardprop!(net; FPUntilLayer = k)

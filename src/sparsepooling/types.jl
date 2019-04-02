@@ -138,8 +138,8 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 	zeros(ns))
 end
 
-function parameters_sparse(; learningrate_v = 2e-2, learningrate_w = 2e-3, learningrate_thr = 2e-2,
-		dt = 1e-1, epsilon = 1e-3, activationfunction = relu!, OneOverMaxFiringRate = 1/50,
+function parameters_sparse(; learningrate_v = 1e-2, learningrate_w = 1e-3, learningrate_thr = 1e-2,
+		dt = 1e-1, epsilon = 1e-2, activationfunction = relu!, OneOverMaxFiringRate = 1/50,
 		calculate_trace = true, one_over_tau_a = 1e-2,
 		one_over_tau_a_s = 1.,
 		p = 1/5) #p = 1/12 average activation set to 5% (as in Zylberberg)
@@ -175,9 +175,9 @@ function layer_sparse_patchy(ns::Array{Int64, 1};
 	1.)
 end
 
-function parameters_pool(; learningrate = 1e-2, learningrate_v = 5e-2, learningrate_w = 5e-3, learningrate_thr = 1e-1,
-		dt = 1e-2, epsilon = 1e-2, updaterule = GH_SFA_Sanger!,
-	activationfunction = pwl!, calculate_trace = true, one_over_tau_a = 1e-2, p = 1/20) # p = 1/2
+function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-2, learningrate_w = 1e-3, learningrate_thr = 1e-2,
+		dt = 2e-2, epsilon = 1e-2, updaterule = GH_SFA_Sanger!,
+	activationfunction = pwl!, calculate_trace = true, one_over_tau_a = 1e-2, p = 1/2) # p = 1/2
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
 end
@@ -195,7 +195,7 @@ function layer_pool(ns::Array{Int64, 1})
 			zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
-function layer_pool_patchy(ns::Array{Int64, 1}; in_fan = ns[1], patch_size = 8, overlap = 4, image_size = 32, # pooling occurs within each sparse layer patch
+function layer_pool_patchy(ns::Array{Int64, 1}; in_fan = ns[1], patch_size = 10, overlap = 8, image_size = 32, # pooling occurs within each sparse layer patch
 		n_of_pool_layer_patches = get_n_of_layer_patches(image_size, patch_size, overlap))
 	layer_pool_patchy(parameters_pool_patchy(n_of_pool_layer_patches, in_fan),
 	[layer_pool(ns) for i in 1:n_of_pool_layer_patches],
@@ -236,8 +236,9 @@ function net(sl::Array{Int64, 1}, tl::Array{String, 1}; overlap = false) #sl: Si
 				push!(network.layers,layer_sparse_patchy(sl[i-1:i];
 					patch_size = 2 * network.layers[i-2].parameters.patch_size,
 					in_fan = (overlap ? 9 : 4) * sl[i-1],
-					n_of_sparse_layer_patches = (overlap ? Int((sqrt(network.layers[i-1].parameters.n_of_pool_layer_patches)-1)/2)^2 :
+					n_of_sparse_layer_patches = (overlap ? Int(floor((sqrt(network.layers[i-1].parameters.n_of_pool_layer_patches)-1)/2))^2 :
 					Int(network.layers[i-1].parameters.n_of_pool_layer_patches/4))))
+			# TODO add sparse_patchy -> sparse_patchy option. Also add in distributeinput!!!
 			else
 				push!(network.layers,layer_sparse_patchy(sl[i-1:i]))
 			end

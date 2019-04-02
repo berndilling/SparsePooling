@@ -178,6 +178,9 @@ end
 	img_s = Int(ceil(sqrt(size(img)[1])))
 	return reshape(img,img_s,img_s,1)
 end
+@inline function getstatichiddenrep(imgs)
+	reshape(imgs,length(imgs),1,1)
+end
 
 ####################
 

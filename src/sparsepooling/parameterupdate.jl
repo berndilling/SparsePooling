@@ -12,7 +12,7 @@ end
 ## Classifier
 ############################################################################
 
-function update_layer_parameters!(net::classifier; learningrate = .1 / length(net.a_pre), # 0.1 / ...
+function update_layer_parameters!(net::classifier; learningrate = 1. / length(net.a_pre), # 0.1 / ...
 				   nonlinearity_diff = [relu_diff! for i in 1:net.nl],
 				   set_error_lossderivative = _seterror_mse!) # or _seterror_crossentropysoftmax!)
    	target = getlabel()
@@ -41,8 +41,8 @@ end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
 		#Update lateral inhibition matrix
-		BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
-		layer.v .+= -layer.parameters.learningrate_v*layer.parameters.p^2
+		BLAS.ger!(layer.parameters.learningrate_v, layer.a, layer.a, layer.v)
+		layer.v .+= -layer.parameters.learningrate_v * layer.parameters.p^2
 		for j in 1:size(layer.v)[1]
 			layer.v[j,j] = 0. #no self-inhibition
 		end
@@ -84,7 +84,7 @@ end
 		#scale!((1-layer.parameters.learningrate_w*(layer.a_tr-layer.a).^2),layer.w)
 		#scale!((1-layer.parameters.learningrate_w),layer.w)
 
-		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
+		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre - layer.a_tr_pre,layer.w)
 
 		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
 		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr-layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
@@ -96,7 +96,7 @@ end
 		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
 
 		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a-layer.a_tr-layer.parameters.p,layer.t)
+		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a - layer.a_tr .- layer.parameters.p,layer.t)
 		#TODO Pre/Post-trace subtraction here?
 	end
 end
