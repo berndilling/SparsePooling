@@ -138,11 +138,11 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 	zeros(ns))
 end
 
-function parameters_sparse(; learningrate_v = 1e-2, learningrate_w = 1e-3, learningrate_thr = 1e-2,
-		dt = 1e-1, epsilon = 1e-2, activationfunction = relu!, OneOverMaxFiringRate = 1/50,
+function parameters_sparse(; learningrate_v = 2e-2, learningrate_w = 2e-3, learningrate_thr = 2e-2,
+		dt = 1e-1, epsilon = 1e-2, activationfunction = pwl!, OneOverMaxFiringRate = 1/50,
 		calculate_trace = true, one_over_tau_a = 1e-2,
 		one_over_tau_a_s = 1.,
-		p = 1/5) #p = 1/12 average activation set to 5% (as in Zylberberg)
+		p = 1/10) #p = 1/12 average activation set to 5% (as in Zylberberg)
 	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, activationfunction, OneOverMaxFiringRate,
 			calculate_trace, one_over_tau_a,

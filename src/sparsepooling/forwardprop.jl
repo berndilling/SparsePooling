@@ -99,7 +99,8 @@ end
 		end
 		if normalize
 			(maximum(layer.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer.a)))
-			layer.a ./= layer.a_max; layer.a_tr ./= layer.a_max
+			layer.a ./= layer.a_max
+			layer.a_tr ./= layer.a_max
 		end
 #	end
 end

@@ -8,7 +8,7 @@ subtractmean!(smallimgs)
 subtractmean!(smallimgstest)
 
 ## Create network
-network = net([size(smallimgs)[1],10,5,5], #20, 10,20,10
+network = net([size(smallimgs)[1],10,5,10], #20, 10,20,10
             ["input","sparse_patchy","pool_patchy","sparse_patchy"]; #  "pool_patchy","sparse_patchy","pool_patchy"
             overlap = true)
 
@@ -17,12 +17,12 @@ inputfunction = getsmallimg
 dynamicfunction =  getstaticimage #getmovingimage #
 
 intermediatestates = []
-learn_net_layerwise!(network,intermediatestates,[10^4,10^3,10^4],#[10^3 for i in 1:network.nr_layers-1],
+learn_net_layerwise!(network,intermediatestates,[10^3,10^2,10^3],#[10^3 for i in 1:network.nr_layers-1],
   [inputfunction for i in 1:network.nr_layers],
   [getstaticimage, getmovingimage, getstaticimage]; # vcat([dynamicfunction for i in 1:network.nr_layers-2],getstaticimage);
   LearningFromLayer = 2, LearningUntilLayer = network.nr_layers)
 
-ind = 10000
+ind = 1000#0
 class1 = net([length(network.layers[network.nr_layers].a),10], ["input","classifier"])
 reps = zeros(length(network.layers[network.nr_layers].a),ind)
 repstest = zeros(length(network.layers[network.nr_layers].a),ind)
