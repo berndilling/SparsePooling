@@ -1,4 +1,6 @@
 
+using LinearAlgebra
+
 ###############################################################################
 # forwardpropagation of activity in layers
 
@@ -99,8 +101,7 @@ end
 		end
 		if normalize
 			(maximum(layer.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer.a)))
-			layer.a ./= layer.a_max
-			layer.a_tr ./= layer.a_max
+			layer.a ./= layer.a_max; layer.a_tr ./= layer.a_max
 		end
 #	end
 end
@@ -130,56 +131,73 @@ end
 # Mainly used for (potential parallelization)
 # Not needed for fully connected layers!
 
+@inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
+							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64)
+	copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
+			reshape(src, isize, isize),
+			CartesianIndices(((i-1)*str+1:(i-1)*str+psize, (j-1)*str+1:(j-1)*str+psize)))
+end
 @inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)
 	n_patch = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
 	p_size = layer_post.parameters.patch_size
 	i_size = layer_post.parameters.image_size
-	ol = layer_post.parameters.overlap
-	# TODO optimize and parallelize this!!!
+	str = layer_post.parameters.stride
 	for i in 1:n_patch
 		for j in 1:n_patch
-			layer_post.sparse_layer_patches[(i-1)*n_patch+j].a_pre =
-				reshape(layer_pre.a,i_size,i_size)[(i-1)*(p_size-ol)+1:i*(p_size)-(i-1)*ol,
-              (j-1)*(p_size-ol)+1:j*(p_size)-(j-1)*ol][:]
-			layer_post.sparse_layer_patches[(i-1)*n_patch+j].a_tr_pre =
-				reshape(layer_pre.a_tr,i_size,i_size)[(i-1)*(p_size-ol)+1:i*(p_size)-(i-1)*ol,
-              (j-1)*(p_size-ol)+1:j*(p_size)-(j-1)*ol][:]
+			copyinput!(layer_post.sparse_layer_patches[(i-1)*n_patch+j].a_pre,
+			 		   layer_pre.a,	i, j, p_size, i_size, str)
+		   	copyinput!(layer_post.sparse_layer_patches[(i-1)*n_patch+j].a_tr_pre,
+			 		   layer_pre.a_tr, i, j, p_size, i_size, str)
 		end
 	end
 end
+
 @inline function distributeinput!(layer_pre::layer_sparse_patchy, layer_post::layer_pool_patchy)
-	(layer_pre.parameters.n_of_sparse_layer_patches != layer_post.parameters.n_of_pool_layer_patches) &&
-		error("pool patches must be same number as sparse patches in previous layer!")
-	for i in 1:layer_post.parameters.n_of_pool_layer_patches
-		layer_post.pool_layer_patches[i].a_pre = deepcopy(layer_pre.sparse_layer_patches[i].a)
-		layer_post.pool_layer_patches[i].a_tr_pre = deepcopy(layer_pre.sparse_layer_patches[i].a_tr)
-		layer_post.pool_layer_patches[i].a_tr_s_pre = deepcopy(layer_pre.sparse_layer_patches[i].a_tr_s)
-	end
+
 end
+
 @inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy)
-	overlap = (layer_post.parameters.overlap != 0)
-	n_patch_pre = Int(sqrt(layer_pre.parameters.n_of_pool_layer_patches))
-	n_patch_post = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
-	# TAKE CARE: Special case of subsamplingfactor = 2 (and overlap = half of patchsize)
-	for i in 1:n_patch_post
-		for j in 1:n_patch_post
-			overlap ? (i1range = 2*i-1:2*i+1; j1range = 2*j-1:2*j+1) :
-				(i1range = 2*i-1:2*i; j1range = 2*j-1:2*j)
-			pre_a = []
-			pre_a_tr = []
-			for i1 in i1range
-				for j1 in j1range
-					append!(pre_a, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a)
-					append!(pre_a_tr, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a_tr)
-				end
-			end
-			layer_post.sparse_layer_patches[(i-1)*n_patch_post+j].a_pre = pre_a
-			layer_post.sparse_layer_patches[(i-1)*n_patch_post+j].a_tr_pre = pre_a_tr
-		end
-	end
+
 end
-#For all the other situations:
+
+#For all the other situations (fully connected):
 @inline function distributeinput!(layer_pre, layer_post)
-	layer_post.a_pre = deepcopy(layer_pre.a)
-	layer_post.a_tr_pre = deepcopy(layer_pre.a_tr)
+	inds = CartesianIndices((1:length(layer_post.a_pre))
+	copyto!(layer_post.a_pre, inds, layer_pre.a, inds)
+	copyto!(layer_post.a_tr_pre, inds, layer_pre.a_tr, inds)
 end
+
+
+#TODO: write functions for layer 1 -> layer 2 in ConvNet-like fashion ("tensor convolution")
+
+# @inline function distributeinput!(layer_pre::layer_sparse_patchy, layer_post::layer_pool_patchy)
+# 	(layer_pre.parameters.n_of_sparse_layer_patches != layer_post.parameters.n_of_pool_layer_patches) &&
+# 		error("pool patches must be same number as sparse patches in previous layer!")
+# 	inds = CartesianIndices((1:length(layer_post.pool_layer_patches[1].a_pre)))
+# 	for i in 1:layer_post.parameters.n_of_pool_layer_patches
+# 		copyto!(layer_post.pool_layer_patches[i].a_pre, inds, layer_pre.sparse_layer_patches[i].a, inds)
+# 		copyto!(layer_post.pool_layer_patches[i].a_tr_pre, inds, layer_pre.sparse_layer_patches[i].a_tr, inds)
+# 		copyto!(layer_post.pool_layer_patches[i].a_tr_s_pre, inds, layer_pre.sparse_layer_patches[i].a_tr_s, inds)
+# 	end
+# end
+# @inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy)
+# 	n_patch_pre = Int(sqrt(layer_pre.parameters.n_of_pool_layer_patches))
+# 	n_patch_post = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
+# 	# TAKE CARE: Special case of subsamplingfactor = 2 (and overlap = half of patchsize)
+# 	for i in 1:n_patch_post
+# 		for j in 1:n_patch_post
+# 			overlap ? (i1range = 2*i-1:2*i+1; j1range = 2*j-1:2*j+1) :
+# 				(i1range = 2*i-1:2*i; j1range = 2*j-1:2*j)
+# 			pre_a = []
+# 			pre_a_tr = []
+# 			for i1 in i1range
+# 				for j1 in j1range
+# 					append!(pre_a, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a)
+# 					append!(pre_a_tr, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a_tr)
+# 				end
+# 			end
+# 			layer_post.sparse_layer_patches[(i-1)*n_patch_post+j].a_pre = pre_a
+# 			layer_post.sparse_layer_patches[(i-1)*n_patch_post+j].a_tr_pre = pre_a_tr
+# 		end
+# 	end
+# end

@@ -3,13 +3,15 @@
 # Basic types and constructors
 ############################################################################
 
+abstract type layer end
+
 ############################################################################
 # LAYERS
 mutable struct parameters_input
 	one_over_tau_a::Float64
 end
 
-mutable struct layer_input
+mutable struct layer_input <: layer
 	parameters::parameters_input
 	a::Array{Float64, 1} #activation
 	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
@@ -29,7 +31,7 @@ mutable struct parameters_sparse
 	p::Float64 #average activation/"firing rate"
 end
 
-mutable struct layer_sparse
+mutable struct layer_sparse <: layer
 	parameters::parameters_sparse
 	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
 	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
@@ -44,16 +46,12 @@ mutable struct layer_sparse
 end
 
 mutable struct parameters_sparse_patchy
-	n_of_sparse_layer_patches::Int64 #number of independent sparse layer patches
-	patch_size::Int64 #number of each in-fan: patch_size*patch_size
-	overlap::Int64 #overlap of patches in pixels
+	n_of_sparse_layer_patches::Int64 #number of independent sparse layer patches/populations
+	patch_size::Int64 #linear dimension of patch/kernel in #pixels or #populations
+	stride::Int64 #stride of patch centers (in #pixels (input) or #populations)
 	image_size::Int64 #size of total image: image_size*image_size
 end
-# function parameters_sparse_patchy(; n_of_sparse_layer_patches = 49,
-# 	patch_size = 8, overlap = 4)
-# 	parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap)
-# end
-mutable struct layer_sparse_patchy
+mutable struct layer_sparse_patchy <: layer
 	parameters::parameters_sparse_patchy
 	sparse_layer_patches::Array{layer_sparse, 1}
 	a::Array{Float64, 1} #combined sparse activity of all sparse layer patches
@@ -75,7 +73,7 @@ mutable struct parameters_pool
 	p::Float64
 end
 
-mutable struct layer_pool
+mutable struct layer_pool <: layer
 	parameters::parameters_pool
 	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
 	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
@@ -91,10 +89,12 @@ mutable struct layer_pool
 end
 
 mutable struct parameters_pool_patchy
-	n_of_pool_layer_patches::Int64 #number of independent pool layer patches
-	in_fan::Int64 # number of pre-synaptic input units per patch
+	n_of_pool_layer_patches::Int64 #number of independent pool layer patches/populations
+	patch_size::Int64 #linear dimension of patch/kernel in #pixels or #populations
+	stride::Int64 #stride of patch centers (in #pixels (input) or #populations)
+	image_size::Int64 #size of total image: image_size*image_size
 end
-mutable struct layer_pool_patchy
+mutable struct layer_pool_patchy <: layer
 	parameters::parameters_pool_patchy
 	pool_layer_patches::Array{layer_pool, 1}
 	a::Array{Float64, 1} #combined activity of all sparse layer patches
@@ -102,7 +102,7 @@ mutable struct layer_pool_patchy
 end
 
 # Supervised classifier on the activations of a "net" (could access multiple levels of hierarchy!)
-mutable struct classifier
+mutable struct classifier <: layer
 	nl::Int64 #number of layers in classifier (without input layer which is part of the net)
 	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
 	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
@@ -138,8 +138,8 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 	zeros(ns))
 end
 
-function parameters_sparse(; learningrate_v = 2e-2, learningrate_w = 2e-3, learningrate_thr = 2e-2,
-		dt = 1e-1, epsilon = 1e-2, activationfunction = pwl!, OneOverMaxFiringRate = 1/50,
+function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2,
+		dt = 1e-1, epsilon = 5e-2, activationfunction = relu!, OneOverMaxFiringRate = 1/50,
 		calculate_trace = true, one_over_tau_a = 1e-2,
 		one_over_tau_a_s = 1.,
 		p = 1/10) #p = 1/12 average activation set to 5% (as in Zylberberg)
@@ -162,12 +162,16 @@ function layer_sparse(ns::Array{Int64, 1}; in_fan = ns[1]) #ns: number of neuron
 			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
-function get_n_of_layer_patches(image_size, patch_size, overlap)
-	(overlap == 0) ? Int(image_size/patch_size)^2 : (Int((image_size - patch_size) / (patch_size - overlap)) + 1)^2
+function get_n_of_layer_patches(in_size::Int64, patch_size::Int64, stride::Int64)
+	# in_size: linear number of dimension (pixel/populations) in previous layer
+	# patch_size: linear dimension of patch/kernel in pixels/populations
+	# stride: stride of patches/kernel in #pixels or #populations
+	Int(floor((in_size - patch_size) / stride) + 1) ^ 2
 end
 function layer_sparse_patchy(ns::Array{Int64, 1};
-		patch_size = 10, in_fan = patch_size^2, overlap = 8, image_size = 32, #ns: size of in-fan and hidden layer per sparse layer patch
+		patch_size = 10, stride = 8, image_size = 32,
 		n_of_sparse_layer_patches = get_n_of_layer_patches(image_size, patch_size, overlap))
+		#ns: size of in-fan and hidden layer per sparse layer patch
 	layer_sparse_patchy(parameters_sparse_patchy(n_of_sparse_layer_patches, patch_size, overlap, image_size),
 	[layer_sparse(ns; in_fan = in_fan) for i in 1:n_of_sparse_layer_patches],
 	zeros(ns[2]*n_of_sparse_layer_patches),
@@ -175,9 +179,9 @@ function layer_sparse_patchy(ns::Array{Int64, 1};
 	1.)
 end
 
-function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-2, learningrate_w = 1e-3, learningrate_thr = 1e-2,
-		dt = 2e-2, epsilon = 1e-2, updaterule = GH_SFA_Sanger!,
-	activationfunction = pwl!, calculate_trace = true, one_over_tau_a = 1e-2, p = 1/2) # p = 1/2
+function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2,
+		dt = 1e-1, epsilon = 5e-2, updaterule = GH_SFA_Sanger!,
+	activationfunction = relu!, calculate_trace = true, one_over_tau_a = 3e-1, p = 1/4) # p = 1/2 # one_over_tau_a = 1e-2
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
 end
