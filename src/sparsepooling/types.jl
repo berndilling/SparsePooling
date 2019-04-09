@@ -50,6 +50,7 @@ mutable struct parameters_sparse_patchy
 	patch_size::Int64 #linear dimension of patch/kernel in #pixels or #populations
 	stride::Int64 #stride of patch centers (in #pixels (input) or #populations)
 	in_size::Int64 #size of total input image/filter bank (1 filter): in_size*in_size
+	in_fan::Int64 #total number of inputs per population
 end
 mutable struct layer_sparse_patchy <: layer_patchy
 	parameters::parameters_sparse_patchy
@@ -93,6 +94,7 @@ mutable struct parameters_pool_patchy
 	patch_size::Int64 #linear dimension of patch/kernel in #pixels or #populations
 	stride::Int64 #stride of patch centers (in #pixels (input) or #populations)
 	in_size::Int64 #size of total image/filter bank (1 filter): in_size*in_size
+	in_fan::Int64 #total number of inputs per population
 end
 mutable struct layer_pool_patchy <: layer_patchy
 	parameters::parameters_pool_patchy
@@ -117,13 +119,16 @@ end
 ############################################################################
 ## NETWORKS
 
-#Network containing sparse and pooling layers
+# Network containing multiple layers.
+# Tlayers has to be a tuple of layers. For constructing, e.g. net(... , (layer_input(...), layer_sparse(...)))
+# If only one layer is presented: pass (layer,) as argument
 mutable struct net{Tlayers}
 	nr_layers::Int64 #number of layers
-	layer_sizes::Array{Int64, 1} #sizes of layers (number of neurons)
 	layer_types::Array{String, 1} #type of layers: sparse, sparse_patchy or pool (...maybe others later)
-	layers::Array{Any, 1} #layers of the network
-	# parametric type: give Tlayers as tuple of layer-types (not array!)
+	layer_sizes::Array{Int64, 1} #sizes of layers (number of neurons)
+	layer_kernelsizes::Array{Int64, 1} #size (linear dim) of kernel (0 for fully connected)
+	layer_strides::Array{Int64, 1} #strides (0 for fully connected)
+	layers::Tlayers #layers of the network
 end
 
 ############################################################################
@@ -172,7 +177,7 @@ end
 function layer_sparse_patchy(ns::Array{Int64, 1};
 		patch_size = 10, stride = 1, in_size = 32, in_fan = ns[1],
 		n_of_layer_patches = get_n_of_layer_patches(in_size, patch_size, stride))
-	layer_sparse_patchy(parameters_sparse_patchy(n_of_layer_patches, patch_size, stride, in_size),
+	layer_sparse_patchy(parameters_sparse_patchy(n_of_layer_patches, patch_size, stride, in_size, in_fan),
 	[layer_sparse(ns; in_fan = in_fan) for i in 1:n_of_layer_patches],
 	zeros(ns[2]*n_of_layer_patches),
 	zeros(ns[2]*n_of_layer_patches),
@@ -185,15 +190,15 @@ function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningr
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
 end
-function layer_pool(ns::Array{Int64, 1})
+function layer_pool(ns::Array{Int64, 1}; in_fan = ns[1])
 	layer_pool(parameters_pool(), # default parameter init
-			zeros(ns[1]), #pre activation initialized with zeros
-			zeros(ns[1]), #pre low-pass filtered activity initialized with zeros
-			zeros(ns[1]),
+			zeros(in_fan), #pre activation initialized with zeros
+			zeros(in_fan), #pre low-pass filtered activity initialized with zeros
+			zeros(in_fan),
 			zeros(ns[2]), #membrane potential initialized with zeros
 			zeros(ns[2]), #low-pass filtered activity initialized with zeros
 			zeros(ns[2]), #activation initialized with zeros
-			randn(ns[2], ns[1])/(10*sqrt(ns[1])), #feed-forward weights initialized gaussian distr. # rand(ns[2], ns[1])/(10*sqrt(ns[1])),#
+			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr. # rand(ns[2], ns[1])/(10*sqrt(ns[1])),#
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			zeros(ns[2]), #thresholds initialized with zeros
 			zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
@@ -202,8 +207,8 @@ end
 function layer_pool_patchy(ns::Array{Int64, 1};
 		patch_size = 10, stride = 1, in_size = 32, in_fan = ns[1],
 		n_of_layer_patches = get_n_of_layer_patches(in_size, patch_size, stride))
-	layer_pool_patchy(parameters_pool_patchy(n_of_layer_patches, in_fan),
-	[layer_pool(ns) for i in 1:n_of_layer_patches],
+	layer_pool_patchy(parameters_pool_patchy(n_of_layer_patches, patch_size, stride, in_size, in_fan),
+	[layer_pool(ns; in_fan = in_fan) for i in 1:n_of_layer_patches],
 	zeros(ns[2]*n_of_layer_patches),
 	zeros(ns[2]*n_of_layer_patches)
 	)
@@ -222,8 +227,48 @@ function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 			[relu! for i in 2:nl])
 end
 
-function net(sl::Array{Int64, 1}, tl::Array{String, 1}) #sl: Sizes of layers, tl: types of layers
-	nl = length(sl)
+
+function addfullyconnectedlayer!(layers, i, layertype::Function, tl, sl)
+	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
+		layers = (layers... , layertype([layers[i-1].parameters.n_of_layer_patches * sl[i-1],sl[i]]))
+	else
+		layers = (layers... , layertype(sl[i-1:i])))
+	end
+end
+function addpatchylayer!(layers, i, layertype::Function, tl, sl, ks, str)
+	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
+		layers = (layers... , layertype())
+	elseif #TODO fully connected and input?
+		layers = (layers... , layertype())
+	end
+end
+function net(tl::Array{String, 1}, # tl: types of layers
+			 sl::Array{Int64, 1}, # sl: number of neurons (patchy layers: per popul.)
+			 ks::Array{Int64, 1}, # ks: kernel/patch sizes
+			 str::Array{Int64, 1}) # str: strides
+	nl = length(tl)
+	layers = ()
+	for i in 1:nl
+		if tl[i] == "input"
+			layers = (layers... , layer_input(sl[i]))
+		elseif tl[i] == "sparse"
+			addfullyconnectedlayer!(layers, i, layer_sparse, tl, sl)
+		elseif tl[i] == "pool"
+			addfullyconnectedlayer!(layers, i, layer_pool, tl, sl)
+		elseif tl[i] == "sparse_patchy"
+			addpatchylayer!(layers, i, layer_sparse_patchy, tl, sl, ks, str)
+		elseif tl[i] == "pool_patchy"
+			addpatchylayer!(layers, i, layer_pool_patchy, tl, sl, ks, str)
+		elseif tl[i] == "classifier"
+			addfullyconnectedlayer!(layers, i, classifier, tl, sl)
+		end
+	end
+	net(nl, tl, sl, ks, str, layers)
+end
+
+
+#####################
+
 	network = net(nl,sl,tl,[layer_input(sl[1])])
 	for i in 2:nl
 		if tl[i] == "sparse"
@@ -238,9 +283,9 @@ function net(sl::Array{Int64, 1}, tl::Array{String, 1}) #sl: Sizes of layers, tl
 			if tl[i-1] == "pool_patchy"
 				push!(network.layers,layer_sparse_patchy(sl[i-1:i];
 					patch_size = 2 * network.layers[i-2].parameters.patch_size,
-					#in_fan = (overlap ? 9 : 4) * sl[i-1],
-					#n_of_layer_patches = (overlap ? Int(floor((sqrt(network.layers[i-1].parameters.n_of_layer_patches)-1)/2))^2 :
-					#Int(network.layers[i-1].parameters.n_of_layer_patches/4))))
+					in_fan = (overlap ? 9 : 4) * sl[i-1],
+					n_of_layer_patches = (overlap ? Int(floor((sqrt(network.layers[i-1].parameters.n_of_layer_patches)-1)/2))^2 :
+					Int(network.layers[i-1].parameters.n_of_layer_patches/4))))
 			else
 				push!(network.layers,layer_sparse_patchy(sl[i-1:i]))
 			end
@@ -270,21 +315,4 @@ function net(sl::Array{Int64, 1}, tl::Array{String, 1}) #sl: Sizes of layers, tl
 		end
 	end
 	return network
-end
-
-#############################################################
-#Configuration Type
-
-#UNDER CONSTRUCTION!!!
-struct config
-	task::String
-	layer_sizes::Array{Int64, 1}
-  	n_inits::Int64
-	iterations::Int64
-	learningrates::Array{Float64, 1}
-	lambda::Array{Float64, 1}
-	weight_decay::Float64
-	nonlinearity::Array{Function, 1}
-	nonlinearity_diff::Array{Function, 1}
-	nonlin_diff::Bool
 end

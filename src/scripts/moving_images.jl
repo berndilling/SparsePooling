@@ -9,8 +9,9 @@ subtractmean!(smallimgstest)
 
 ## Create network
 network = net([size(smallimgs)[1],10,5,10], #20, 10,20,10
-            ["input","sparse_patchy","pool_patchy","sparse_patchy"]; #  "pool_patchy","sparse_patchy","pool_patchy"
-            overlap = true)
+            ["input","sparse_patchy","pool_patchy","sparse_patchy"], #  "pool_patchy","sparse_patchy","pool_patchy"
+            [0,10,10,10], # patch/kernel sizes
+            [0,1,1,1]) # strides
 
 ## Training
 inputfunction = getsmallimg
