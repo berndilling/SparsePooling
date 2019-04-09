@@ -226,7 +226,7 @@ end
 	patch_edge_length = layer.parameters.patch_size
 	overlap = parameters.overlap
   number_of_patches_along_edge = Int(32/(patch_edge_length-overlap)-1)
-	number_of_patches_along_edge^2 != layer.parameters.n_of_sparse_layer_patches ?
+	number_of_patches_along_edge^2 != layer.parameters.n_of_layer_patches ?
 		error("patches/image size not compatible with layer_sparse_patches (patchsize/overlap)") : Void
   patches = zeros(patch_edge_length,patch_edge_length,number_of_patches_along_edge^2)
   for i in 1:number_of_patches_along_edge
@@ -314,8 +314,8 @@ end
 end
 @inline function set_init_bars!(layer::layer_sparse_patchy, hidden_size; reinit_weights = false,
 		p = 1/hidden_size, one_over_tau_a = 1/1000, activationfunction = pwl!)
-	for sparse_layer_patch in layer.sparse_layer_patches
-		set_init_bars!(sparse_layer_patch,hidden_size_sparse; reinit_weights = reinit_weights,
+	for layer_patch in layer.layer_patches
+		set_init_bars!(layer_patch,hidden_size_sparse; reinit_weights = reinit_weights,
 			p = p, one_over_tau_a = one_over_tau_a, activationfunction = activationfunction)
 	end
 end
@@ -335,8 +335,8 @@ end
 end
 @inline function set_init_bars!(layer::layer_pool_patchy;  reinit_weights = false,
 		p = 1/2, one_over_tau_a = 1/8, updaterule = GH_SFA_Sanger!, activationfunction = lin!)
-	for pool_layer_patch in layer.pool_layer_patches
-		set_init_bars!(pool_layer_patch; reinit_weights = reinit_weights, p = p,
+	for layer_patch in layer.layer_patches
+		set_init_bars!(layer_patch; reinit_weights = reinit_weights, p = p,
 			one_over_tau_a = one_over_tau_a, updaterule = updaterule,
 			activationfunction = activationfunction)
 	end
@@ -364,13 +364,13 @@ end
 
 function loadsharedweights!(layer::layer_sparse_patchy,path)
 	singlepatchlayer = load(path,"layer")
-	for i in 1:layer.parameters.n_of_sparse_layer_patches
-		layer.sparse_layer_patches[i] = deepcopy(singlepatchlayer)
+	for i in 1:layer.parameters.n_of_layer_patches
+		layer.layer_patches[i] = deepcopy(singlepatchlayer)
 	end
 end
 function loadsharedweights!(layer::layer_pool_patchy,path)
 	singlepatchlayer = load(path,"layer")
-	for i in 1:layer.parameters.n_of_pool_layer_patches
-		layer.pool_layer_patches[i] = deepcopy(singlepatchlayer)
+	for i in 1:layer.parameters.n_of_layer_patches
+		layer.layer_patches[i] = deepcopy(singlepatchlayer)
 	end
 end

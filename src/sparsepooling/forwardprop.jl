@@ -91,27 +91,31 @@ end
 
 
 @inline function forwardprop!(layer::layer_sparse_patchy; normalize = false)
-		layer.a, layer.a_tr = [], [] # combined act. of all patches
-		#@sync @parallel for i in 1:length(layer.sparse_layer_patches)
-		for sparse_layer_patch in layer.sparse_layer_patches
-			#forwardprop!(layer.sparse_layer_patches[i])
-			forwardprop!(sparse_layer_patch)
-			append!(layer.a, sparse_layer_patch.a)
-			append!(layer.a_tr, sparse_layer_patch.a_tr)
-		end
-		if normalize
-			(maximum(layer.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer.a)))
-			layer.a ./= layer.a_max; layer.a_tr ./= layer.a_max
-		end
-#	end
+	len = length(layer.layer_patches[1].a)
+	i = 1
+	for layer_patch in layer.layer_patches
+		forwardprop!(layer_patch)
+		copyto!(layer.a, CartesianIndices(((i-1)*len+1:i*len)),
+				layer_patch.a, CartesianIndices((1:len)))
+		copyto!(layer.a_tr, CartesianIndices(((i-1)*len+1:i*len)),
+				layer_patch.a_tr, CartesianIndices((1:len)))
+		i += 1
+	end
+	if normalize
+		(maximum(layer.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer.a)))
+		layer.a ./= layer.a_max; layer.a_tr ./= layer.a_max
+	end
 end
 @inline function forwardprop!(layer::layer_pool_patchy)
-	layer.a, layer.a_tr = [], [] # combined act. of all patches
-	#@sync Threads.@threads
-	for pool_layer_patch in layer.pool_layer_patches
-		forwardprop!(pool_layer_patch)
-		append!(layer.a, pool_layer_patch.a)
-		append!(layer.a_tr, pool_layer_patch.a_tr)
+	len = length(layer.layer_patches[1].a)
+	i = 1
+	for layer_patch in layer.layer_patches
+		forwardprop!(layer_patch)
+		copyto!(layer.a, CartesianIndices(((i-1)*len+1:i*len)),
+				layer_patch.a, CartesianIndices((1:len)))
+		copyto!(layer.a_tr, CartesianIndices(((i-1)*len+1:i*len)),
+				layer_patch.a_tr, CartesianIndices((1:len)))
+		i += 1
 	end
 end
 ###############################################################################
@@ -128,76 +132,64 @@ end
 
 ###########################################################################
 # For broadcasting and distributing input on patches (patch-connectivity is realized here!)
-# Mainly used for (potential parallelization)
-# Not needed for fully connected layers!
 
+@inline function getindx1(i, j, n_rows) = (i-1) * n_rows + j
+@inline function getindx2(i, j, i1, j1, str, i_size) = (i-1)*str+i1 + (j-1)*str*i_size + (j1-1)*isize
+@inline function getparameters(layer::layer_patchy)
+	return Int(sqrt(layer_post.parameters.n_of_layer_patches)),
+		layer_post.parameters.patch_size, layer_post.parameters.in_size,
+		layer_post.parameters.stride
+end
 @inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
 							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64)
 	copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
 			reshape(src, isize, isize),
 			CartesianIndices(((i-1)*str+1:(i-1)*str+psize, (j-1)*str+1:(j-1)*str+psize)))
 end
+@inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
+							i1::Int64, j1::Int64, n_neurons_per_pop::Int64, p_size::Int64)
+	copyto!(dest, CartesianIndices((getindx1(i1, j1, p_size):getindx1(i1, j1, p_size)+n_neurons_per_pop)),
+			src, CartesianIndices((1:length(src))))
+end
+
+# for input layer -> patchy layer
 @inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)
-	n_patch = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
-	p_size = layer_post.parameters.patch_size
-	i_size = layer_post.parameters.image_size
-	str = layer_post.parameters.stride
+	n_patch, p_size, i_size, str = getparameters(layer_post)
 	for i in 1:n_patch
 		for j in 1:n_patch
-			copyinput!(layer_post.sparse_layer_patches[(i-1)*n_patch+j].a_pre,
+			copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_pre,
 			 		   layer_pre.a,	i, j, p_size, i_size, str)
-		   	copyinput!(layer_post.sparse_layer_patches[(i-1)*n_patch+j].a_tr_pre,
+		   	copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_tr_pre,
 			 		   layer_pre.a_tr, i, j, p_size, i_size, str)
 		end
 	end
 end
-
-@inline function distributeinput!(layer_pre::layer_sparse_patchy, layer_post::layer_pool_patchy)
-
+# for patchy layer -> patchy layer
+@inline function distributeinput!(layer_pre::layer_patchy, layer_post::layer_patchy)
+	n_patch_pre, p_size_pre, i_size_pre, str_pre = getparameters(layer_pre)
+	n_patch, p_size, i_size, str = getparameters(layer_post)
+	n_neurons_per_pop = length(layer_pre.layer_patches[1].a)
+	for i in 1:n_patch
+		for j in 1:n_patch
+			for i1 in 1:p_size
+				for j1 in 1:p_size
+					copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_pre,
+					 			layer_pre.layer_patches[getindx2(i, j, i1, j1, str, i_size)].a,
+								i1, j1, n_neurons_per_pop)
+					copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_tr_pre,
+					 			layer_pre.layer_patches[getindx2(i, j, i1, j1, str, i_size)].a_tr,
+								i1, j1, n_neurons_per_pop)
+					# copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_tr_s_pre,
+					#  			layer_pre.layer_patches[getindx2(i, j, i1, j1, str, i_size)].a_tr_s,
+					# 			i1, j1, n_neurons_per_pop)
+				end
+			end
+		end
+	end
 end
-
-@inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy)
-
-end
-
 #For all the other situations (fully connected):
-@inline function distributeinput!(layer_pre, layer_post)
+@inline function distributeinput!(layer_pre::layer, layer_post::layer)
 	inds = CartesianIndices((1:length(layer_post.a_pre))
 	copyto!(layer_post.a_pre, inds, layer_pre.a, inds)
 	copyto!(layer_post.a_tr_pre, inds, layer_pre.a_tr, inds)
 end
-
-
-#TODO: write functions for layer 1 -> layer 2 in ConvNet-like fashion ("tensor convolution")
-
-# @inline function distributeinput!(layer_pre::layer_sparse_patchy, layer_post::layer_pool_patchy)
-# 	(layer_pre.parameters.n_of_sparse_layer_patches != layer_post.parameters.n_of_pool_layer_patches) &&
-# 		error("pool patches must be same number as sparse patches in previous layer!")
-# 	inds = CartesianIndices((1:length(layer_post.pool_layer_patches[1].a_pre)))
-# 	for i in 1:layer_post.parameters.n_of_pool_layer_patches
-# 		copyto!(layer_post.pool_layer_patches[i].a_pre, inds, layer_pre.sparse_layer_patches[i].a, inds)
-# 		copyto!(layer_post.pool_layer_patches[i].a_tr_pre, inds, layer_pre.sparse_layer_patches[i].a_tr, inds)
-# 		copyto!(layer_post.pool_layer_patches[i].a_tr_s_pre, inds, layer_pre.sparse_layer_patches[i].a_tr_s, inds)
-# 	end
-# end
-# @inline function distributeinput!(layer_pre::layer_pool_patchy, layer_post::layer_sparse_patchy)
-# 	n_patch_pre = Int(sqrt(layer_pre.parameters.n_of_pool_layer_patches))
-# 	n_patch_post = Int(sqrt(layer_post.parameters.n_of_sparse_layer_patches))
-# 	# TAKE CARE: Special case of subsamplingfactor = 2 (and overlap = half of patchsize)
-# 	for i in 1:n_patch_post
-# 		for j in 1:n_patch_post
-# 			overlap ? (i1range = 2*i-1:2*i+1; j1range = 2*j-1:2*j+1) :
-# 				(i1range = 2*i-1:2*i; j1range = 2*j-1:2*j)
-# 			pre_a = []
-# 			pre_a_tr = []
-# 			for i1 in i1range
-# 				for j1 in j1range
-# 					append!(pre_a, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a)
-# 					append!(pre_a_tr, layer_pre.pool_layer_patches[(i1-1)*n_patch_pre+j1].a_tr)
-# 				end
-# 			end
-# 			layer_post.sparse_layer_patches[(i-1)*n_patch_post+j].a_pre = pre_a
-# 			layer_post.sparse_layer_patches[(i-1)*n_patch_post+j].a_tr_pre = pre_a_tr
-# 		end
-# 	end
-# end

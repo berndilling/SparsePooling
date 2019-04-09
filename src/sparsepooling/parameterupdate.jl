@@ -102,15 +102,15 @@ end
 end
 
 @inline function update_layer_parameters!(layer::layer_sparse_patchy)
-	for sparse_layer_patch in layer.sparse_layer_patches#[range]
-	 	update_layer_parameters!(sparse_layer_patch)
+	for layer_patch in layer.layer_patches#[range]
+	 	update_layer_parameters!(layer_patch)
 	end
 end
 @inline function update_layer_parameters!(layer::layer_pool_patchy)
 	#@sync Threads.@threads
-	for pool_layer_patch in layer.pool_layer_patches
-		#if norm(pool_layer_patch.a_pre) != 0. #THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
-	 	update_layer_parameters!(pool_layer_patch)
+	for layer_patch in layer.layer_patches
+		#if norm(layer_patch.a_pre) != 0. #THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
+	 	update_layer_parameters!(layer_patch)
 		#end
 	end
 end
