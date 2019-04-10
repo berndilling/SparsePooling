@@ -230,16 +230,22 @@ end
 
 function addfullyconnectedlayer!(layers, i, layertype::Function, tl, sl)
 	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
-		layers = (layers... , layertype([layers[i-1].parameters.n_of_layer_patches * sl[i-1],sl[i]]))
+		layers = (layers... , layertype([layers[i-1].parameters.n_of_layer_patches * sl[i-1], sl[i]]))
 	else
-		layers = (layers... , layertype(sl[i-1:i])))
+		layers = (layers... , layertype(sl[i-1:i]))
 	end
 end
 function addpatchylayer!(layers, i, layertype::Function, tl, sl, ks, str)
 	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
-		layers = (layers... , layertype())
-	elseif #TODO fully connected and input?
-		layers = (layers... , layertype())
+		layers = (layers... , layertype([ks[i]^2 * sl[i-1],sl[i]];
+					patch_size = ks[i], stride = str[i],
+					in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches)),
+					in_fan = ks[i]^2 * sl[i-1]))
+	elseif tl[i-1] == "input"
+		layers = (layers... , layertype([ks[i]^2, sl[i]];
+					patch_size = ks[i], stride = str[i],
+					in_size = Int(sqrt(length(layers[i-1].a))),
+					in_fan = ks[i]^2))
 	end
 end
 function net(tl::Array{String, 1}, # tl: types of layers
@@ -264,55 +270,4 @@ function net(tl::Array{String, 1}, # tl: types of layers
 		end
 	end
 	net(nl, tl, sl, ks, str, layers)
-end
-
-
-#####################
-
-	network = net(nl,sl,tl,[layer_input(sl[1])])
-	for i in 2:nl
-		if tl[i] == "sparse"
-			if tl[i-1] == "sparse_patchy"
-				push!(network.layers,layer_sparse([network.layers[i-1].parameters.n_of_layer_patches * sl[i-1],sl[i]]))
-			elseif tl[i-1] == "pool_patchy"
-				push!(network.layers,layer_sparse([network.layers[i-1].parameters.n_of_layer_patches * sl[i-1],sl[i]]))
-			else
-				push!(network.layers,layer_sparse(sl[i-1:i]))
-			end
-		elseif tl[i] == "sparse_patchy"
-			if tl[i-1] == "pool_patchy"
-				push!(network.layers,layer_sparse_patchy(sl[i-1:i];
-					patch_size = 2 * network.layers[i-2].parameters.patch_size,
-					in_fan = (overlap ? 9 : 4) * sl[i-1],
-					n_of_layer_patches = (overlap ? Int(floor((sqrt(network.layers[i-1].parameters.n_of_layer_patches)-1)/2))^2 :
-					Int(network.layers[i-1].parameters.n_of_layer_patches/4))))
-			else
-				push!(network.layers,layer_sparse_patchy(sl[i-1:i]))
-			end
-		elseif tl[i] == "pool"
-			if tl[i-1] == "sparse_patchy"
-				push!(network.layers,layer_pool([network.layers[i-1].parameters.n_of_layer_patches * sl[i-1],sl[i]]))
-			elseif tl[i-1] == "sparse"
-				push!(network.layers,layer_pool(sl[i-1:i]))
-			else
-				error("Pool layer should come after sparse layer!")
-			end
-		elseif tl[i] == "pool_patchy"
-			if tl[i-1] == "sparse_patchy"
-				push!(network.layers,layer_pool_patchy(sl[i-1:i];
-					n_of_layer_patches = network.layers[i-1].parameters.n_of_layer_patches))
-			else
-				error("Pool patch layer should come after sparse patch layer!")
-			end
-		elseif tl[i] == "classifier"
-			if tl[i-1] == "sparse_patchy"
-				push!(network.layers,classifier([network.layers[i-1].parameters.n_of_layer_patches * sl[i-1],sl[i]]))
-			elseif tl[i-1] == "pool_patchy"
-				push!(network.layers,classifier([network.layers[i-1].parameters.n_of_layer_patches * sl[i-1],sl[i]]))
-			else
-				push!(network.layers,classifier(sl[i-1:i]))
-			end
-		end
-	end
-	return network
 end

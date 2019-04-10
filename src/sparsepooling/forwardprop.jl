@@ -133,8 +133,8 @@ end
 ###########################################################################
 # For broadcasting and distributing input on patches (patch-connectivity is realized here!)
 
-@inline function getindx1(i, j, n_rows) = (i-1) * n_rows + j
-@inline function getindx2(i, j, i1, j1, str, i_size) = (i-1)*str+i1 + (j-1)*str*i_size + (j1-1)*isize
+@inline getindx1(i, j, n_rows) = (i-1) * n_rows + j
+@inline getindx2(i, j, i1, j1, str, i_size) = (i-1)*str+i1 + (j-1)*str*i_size + (j1-1)*isize
 @inline function getparameters(layer::layer_patchy)
 	return Int(sqrt(layer_post.parameters.n_of_layer_patches)),
 		layer_post.parameters.patch_size, layer_post.parameters.in_size,
@@ -189,7 +189,7 @@ end
 end
 #For all the other situations (fully connected):
 @inline function distributeinput!(layer_pre::layer, layer_post::layer)
-	inds = CartesianIndices((1:length(layer_post.a_pre))
+	inds = CartesianIndices((1:length(layer_post.a_pre)))
 	copyto!(layer_post.a_pre, inds, layer_pre.a, inds)
 	copyto!(layer_post.a_tr_pre, inds, layer_pre.a_tr, inds)
 end
