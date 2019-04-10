@@ -125,8 +125,8 @@ function traintopendclassifier!(network, imgs, imgstest, labels, labelstest;
 				[0,0], [0,0])
 	i2 = []
 	learn_net_layerwise!(class1,i2,[iters],
-	  [inputfunction for i in 1:network.nr_layers-1],
-	  [getstatichiddenrep for i in 1:network.nr_layers-1];
+	  [inputfunction for i in 1:class1.nr_layers-1],
+	  [getstatichiddenrep for i in 1:class1.nr_layers-1];
 	  LearningFromLayer = 2, LearningUntilLayer = 2)
 
 	error_train = geterrors!(class1, imgs, labels; noftest = ind)

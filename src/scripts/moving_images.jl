@@ -7,37 +7,36 @@ smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples = im
 subtractmean!(smallimgs)
 subtractmean!(smallimgstest)
 
-## Create network
-# network = net(["input","sparse_patchy","pool_patchy","sparse_patchy"],
-#             [size(smallimgs)[1],10,5,10],
-#             [0,10,10,10],
-#             [0,1,1,1])
-network = net(["input","sparse_patchy"],
-            [size(smallimgs)[1],10],
-            [0,10],
-            [0,2])
+ind = 10000 # for training & evaluating classifier
+
+network = net(["input","sparse_patchy","pool_patchy"],
+            [size(smallimgs)[1],10,10],
+            [0,8,4],
+            [0,2,2])
 
 ## Training
 inputfunction = getsmallimg
 intermediatestates = []
 learn_net_layerwise!(network,intermediatestates,
-    [10^3],
+    [10^4,10^3],
     [inputfunction for i in 1:network.nr_layers],
-    [getstaticimage, getmovingimage, getstaticimage];
+    [getstaticimage, getmovingimage];
     LearningFromLayer = 2,
     LearningUntilLayer = network.nr_layers)
 
-## Train top-end classifier
-ind = 1000
-reps = generatehiddenreps!(network, smallimgs;
-        ind = ind, normalize = true, subtractmean = false)
-repstest = generatehiddenreps!(network, smallimgstest;
-        ind = ind, normalize = true, subtractmean = false)
 
-smallimgs = reps
-smallimgstest = repstest
-
-traintopendclassifier!(network, smallimgs, smallimgstest, labels, labelstest;
-			iters = 10^5, ind = ind, indtest = ind)
+if network.layer_types[end] == "classifier"
+    error_train = geterrors!(network, smallimgs, labels; noftest = ind)
+    error_test = geterrors!(network, smallimgstest, labelstest; noftest = ind)
+    print(string("\n Train Accuracy: ", 100 * (1 - error_train)," % \n"))
+    print(string("\n Test Accuracy: ", 100 * (1 - error_test)," % \n"))
+else ## Train top-end classifier
+    smallimgs = generatehiddenreps!(network, smallimgs;
+            ind = ind, normalize = true, subtractmean = false)
+    smallimgstest = generatehiddenreps!(network, smallimgstest;
+            ind = ind, normalize = true, subtractmean = false)
+    traintopendclassifier!(network, smallimgs, smallimgstest, labels, labelstest;
+    			iters = 10^6, ind = ind, indtest = ind)
+end
 
 # TODO: Implement batch-norm like mechanism with running average?!

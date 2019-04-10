@@ -121,24 +121,28 @@ end
 # For broadcasting and distributing input on patches (patch-connectivity is realized here!)
 
 @inline getindx1(i, j, n_rows) = (i-1) * n_rows + j
-@inline getindx2(i, j, i1, j1, str, i_size) = (i-1)*str+i1 + (j-1)*str*i_size + (j1-1)*isize
+@inline getindx2(i, j, i1, j1, str, isize) = (i-1)*str+i1 + (j-1)*str*isize + (j1-1)*isize
 @inline function getparameters(layer::layer_patchy)
 	return Int(sqrt(layer.parameters.n_of_layer_patches)),
 		layer.parameters.patch_size, layer.parameters.in_size,
 		layer.parameters.stride
 end
+# input layer -> patchy layer
 @inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
 							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64)
 	copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
 			reshape(src, isize, isize),
 			CartesianIndices(((i-1)*str+1:(i-1)*str+psize, (j-1)*str+1:(j-1)*str+psize)))
 end
+# patchy layer -> patchy layer
 @inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
 							i1::Int64, j1::Int64, n_neurons_per_pop::Int64, p_size::Int64)
-	copyto!(dest, getindx1(i1, j1, p_size):getindx1(i1, j1, p_size)+n_neurons_per_pop,
+
+	#TODO: fix bug here!!!
+
+	copyto!(dest, getindx1(i1, j1, p_size):getindx1(i1, j1, p_size)+n_neurons_per_pop-1,
 			src, 1:length(src))
 end
-
 # for input layer -> patchy layer
 @inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)
 	n_patch, p_size, i_size, str = getparameters(layer_post)
@@ -161,10 +165,10 @@ end
 				for j1 in 1:p_size
 					copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_pre,
 					 			layer_pre.layer_patches[getindx2(i, j, i1, j1, str, i_size)].a,
-								i1, j1, n_neurons_per_pop)
+								i1, j1, n_neurons_per_pop, p_size)
 					copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_tr_pre,
 					 			layer_pre.layer_patches[getindx2(i, j, i1, j1, str, i_size)].a_tr,
-								i1, j1, n_neurons_per_pop)
+								i1, j1, n_neurons_per_pop, p_size)
 					# copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_tr_s_pre,
 					#  			layer_pre.layer_patches[getindx2(i, j, i1, j1, str, i_size)].a_tr_s,
 					# 			i1, j1, n_neurons_per_pop)
@@ -174,7 +178,7 @@ end
 	end
 end
 #For all the other situations (fully connected):
-@inline function distributeinput!(layer_pre::layer, layer_post::layer)
+@inline function distributeinput!(layer_pre, layer_post)
 	inds = 1:length(layer_post.a_pre)
 	copyto!(layer_post.a_pre, inds, layer_pre.a, inds)
 	copyto!(layer_post.a_tr_pre, inds, layer_pre.a_tr, inds)
