@@ -101,19 +101,12 @@ end
 	end
 end
 
-@inline function update_layer_parameters!(layer::layer_sparse_patchy)
+@inline function update_layer_parameters!(layer::layer_patchy)
 	for layer_patch in layer.layer_patches#[range]
 	 	update_layer_parameters!(layer_patch)
 	end
 end
-@inline function update_layer_parameters!(layer::layer_pool_patchy)
-	#@sync Threads.@threads
-	for layer_patch in layer.layer_patches
-		#if norm(layer_patch.a_pre) != 0. #THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
-	 	update_layer_parameters!(layer_patch)
-		#end
-	end
-end
+
 
 # PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
 @inline function update_layer_parameters!(layer::layer_pool; lc_forward = true) #false : reproduced Földiaks bars

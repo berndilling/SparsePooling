@@ -228,14 +228,15 @@ function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 end
 
 
-function addfullyconnectedlayer!(layers, i, layertype::Function, tl, sl)
+function addfullyconnectedlayer(layers, i, layertype, tl, sl)
 	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
 		layers = (layers... , layertype([layers[i-1].parameters.n_of_layer_patches * sl[i-1], sl[i]]))
 	else
 		layers = (layers... , layertype(sl[i-1:i]))
 	end
+	return layers
 end
-function addpatchylayer!(layers, i, layertype::Function, tl, sl, ks, str)
+function addpatchylayer(layers, i, layertype, tl, sl, ks, str)
 	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
 		layers = (layers... , layertype([ks[i]^2 * sl[i-1],sl[i]];
 					patch_size = ks[i], stride = str[i],
@@ -247,6 +248,7 @@ function addpatchylayer!(layers, i, layertype::Function, tl, sl, ks, str)
 					in_size = Int(sqrt(length(layers[i-1].a))),
 					in_fan = ks[i]^2))
 	end
+	return layers
 end
 function net(tl::Array{String, 1}, # tl: types of layers
 			 sl::Array{Int64, 1}, # sl: number of neurons (patchy layers: per popul.)
@@ -258,15 +260,15 @@ function net(tl::Array{String, 1}, # tl: types of layers
 		if tl[i] == "input"
 			layers = (layers... , layer_input(sl[i]))
 		elseif tl[i] == "sparse"
-			addfullyconnectedlayer!(layers, i, layer_sparse, tl, sl)
+			layers = addfullyconnectedlayer(layers, i, layer_sparse, tl, sl)
 		elseif tl[i] == "pool"
-			addfullyconnectedlayer!(layers, i, layer_pool, tl, sl)
+			layers = addfullyconnectedlayer(layers, i, layer_pool, tl, sl)
 		elseif tl[i] == "sparse_patchy"
-			addpatchylayer!(layers, i, layer_sparse_patchy, tl, sl, ks, str)
+			layers = addpatchylayer(layers, i, layer_sparse_patchy, tl, sl, ks, str)
 		elseif tl[i] == "pool_patchy"
-			addpatchylayer!(layers, i, layer_pool_patchy, tl, sl, ks, str)
+			layers = addpatchylayer(layers, i, layer_pool_patchy, tl, sl, ks, str)
 		elseif tl[i] == "classifier"
-			addfullyconnectedlayer!(layers, i, classifier, tl, sl)
+			layers = addfullyconnectedlayer(layers, i, classifier, tl, sl)
 		end
 	end
 	net(nl, tl, sl, ks, str, layers)

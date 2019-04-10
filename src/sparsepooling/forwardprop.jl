@@ -16,7 +16,7 @@ end
 
 # update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
 @inline function calculatetrace!(layer)
-	layer.a_tr = (1-layer.parameters.one_over_tau_a)*layer.a_tr + layer.parameters.one_over_tau_a*layer.a
+	layer.a_tr = (1-layer.parameters.one_over_tau_a) .* layer.a_tr + layer.parameters.one_over_tau_a .* layer.a
 end
 @inline function calculatetrace!(layer::layer_sparse)
 	layer.a_tr = (1-layer.parameters.one_over_tau_a)*layer.a_tr + layer.parameters.one_over_tau_a*layer.a
@@ -50,7 +50,7 @@ end
 	forwardprop_lc!(layer)
 	#forwardprop_WTA!(layer)
 end
-@inline function forwardprop_lc!(layer)
+@inline function forwardprop_lc!(layer::layer)
 	#if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
 	if norm(layer.a) != 0.
 		layer.parameters.calculate_trace &&	calculatetrace!(layer)
@@ -90,34 +90,21 @@ end
 end
 
 
-@inline function forwardprop!(layer::layer_sparse_patchy; normalize = false)
+@inline function forwardprop!(layer::layer_patchy; normalize = false)
 	len = length(layer.layer_patches[1].a)
 	i = 1
 	for layer_patch in layer.layer_patches
 		forwardprop!(layer_patch)
-		copyto!(layer.a, CartesianIndices(((i-1)*len+1:i*len)),
-				layer_patch.a, CartesianIndices((1:len)))
-		copyto!(layer.a_tr, CartesianIndices(((i-1)*len+1:i*len)),
-				layer_patch.a_tr, CartesianIndices((1:len)))
+		copyto!(layer.a, (i-1)*len+1:i*len,	layer_patch.a, 1:len)
+		copyto!(layer.a_tr, (i-1)*len+1:i*len, layer_patch.a_tr, 1:len)
 		i += 1
 	end
-	if normalize
+	if normalize # take care this only works for layer_sparse_patchy yet!
 		(maximum(layer.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer.a)))
 		layer.a ./= layer.a_max; layer.a_tr ./= layer.a_max
 	end
 end
-@inline function forwardprop!(layer::layer_pool_patchy)
-	len = length(layer.layer_patches[1].a)
-	i = 1
-	for layer_patch in layer.layer_patches
-		forwardprop!(layer_patch)
-		copyto!(layer.a, CartesianIndices(((i-1)*len+1:i*len)),
-				layer_patch.a, CartesianIndices((1:len)))
-		copyto!(layer.a_tr, CartesianIndices(((i-1)*len+1:i*len)),
-				layer_patch.a_tr, CartesianIndices((1:len)))
-		i += 1
-	end
-end
+
 ###############################################################################
 # For whole net until specified layer
 
@@ -136,9 +123,9 @@ end
 @inline getindx1(i, j, n_rows) = (i-1) * n_rows + j
 @inline getindx2(i, j, i1, j1, str, i_size) = (i-1)*str+i1 + (j-1)*str*i_size + (j1-1)*isize
 @inline function getparameters(layer::layer_patchy)
-	return Int(sqrt(layer_post.parameters.n_of_layer_patches)),
-		layer_post.parameters.patch_size, layer_post.parameters.in_size,
-		layer_post.parameters.stride
+	return Int(sqrt(layer.parameters.n_of_layer_patches)),
+		layer.parameters.patch_size, layer.parameters.in_size,
+		layer.parameters.stride
 end
 @inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
 							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64)
@@ -148,8 +135,8 @@ end
 end
 @inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
 							i1::Int64, j1::Int64, n_neurons_per_pop::Int64, p_size::Int64)
-	copyto!(dest, CartesianIndices((getindx1(i1, j1, p_size):getindx1(i1, j1, p_size)+n_neurons_per_pop)),
-			src, CartesianIndices((1:length(src))))
+	copyto!(dest, getindx1(i1, j1, p_size):getindx1(i1, j1, p_size)+n_neurons_per_pop,
+			src, 1:length(src))
 end
 
 # for input layer -> patchy layer
@@ -166,7 +153,6 @@ end
 end
 # for patchy layer -> patchy layer
 @inline function distributeinput!(layer_pre::layer_patchy, layer_post::layer_patchy)
-	n_patch_pre, p_size_pre, i_size_pre, str_pre = getparameters(layer_pre)
 	n_patch, p_size, i_size, str = getparameters(layer_post)
 	n_neurons_per_pop = length(layer_pre.layer_patches[1].a)
 	for i in 1:n_patch
@@ -189,7 +175,7 @@ end
 end
 #For all the other situations (fully connected):
 @inline function distributeinput!(layer_pre::layer, layer_post::layer)
-	inds = CartesianIndices((1:length(layer_post.a_pre)))
+	inds = 1:length(layer_post.a_pre)
 	copyto!(layer_post.a_pre, inds, layer_pre.a, inds)
 	copyto!(layer_post.a_tr_pre, inds, layer_pre.a_tr, inds)
 end

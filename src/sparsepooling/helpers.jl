@@ -38,7 +38,7 @@ end
 
 @inline function getsavepath()
 	if is_apple()
-		path = "/Users/Bernd/Documents/PhD/Projects/"
+		path = "/Users/Bernd/Documents/PhD/Projects/SparsePooling/"
 	elseif is_linux()
 		path = "/home/illing/"
 	end
@@ -97,69 +97,42 @@ function geterrors!(net, imgs, labels; getwrongindices = false, noftest = size(i
 	end
 end
 
-###########################################################################
-
-@inline function assigninput!(layer,images,i)
-	input = images[:,i]
-	if norm(input) == 0
-		assigninput!(layer,images,i+1)
-	else
-		layer.a = input
+@inline function generatehiddenreps!(network::net, imgs;
+					ind = size(imgs)[2], normalize = true,
+					subtractmean = false)
+	reps = zeros(length(network.layers[network.nr_layers].a),ind)
+	@info("calculate hidden reps")
+	@showprogress for i in 1:ind
+	    network.layers[1].a = imgs[:,i]
+	    forwardprop!(network, FPUntilLayer = network.nr_layers)
+	    reps[:,i] = deepcopy(network.layers[network.nr_layers].a)
 	end
-end
-@inline function generatehiddenreps(layer_pre, layer_post, images; number_of_reps = Int(5e4), mode = "no_lc")
-	print("\n")
-	print(string("Generate ",number_of_reps," hidden representations for layer type: ",typeof(layer_post)))
-	print("\n")
-	layer_post.hidden_reps = zeros(length(layer_post.a),number_of_reps)
-	@showprogress for i in 1:number_of_reps
-		assigninput!(layer_pre,images,i)
-		if mode == "lc"
-			forwardprop_lc!(layer_pre, layer_post)
-		else
-			#print(i)
-			forwardprop!(layer_pre, layer_post)
-		end
-		layer_post.hidden_reps[:,i] = deepcopy(layer_post.a)
+	if normalize
+		maximum(reps) != 0 && (reps ./= maximum(reps))
 	end
+	if subtractmean
+		subtractmean!(reps)
+	end
+	return reps
 end
 
-@inline function generateratetriggeredrecfields(layer_pre, layer_post; number_of_reps = Int(5e4), mode = "no_lc")
-	#smallimgs in main have to be (sparse coding) hidden reps of jitteredpatches
-	print("\n")
-	print(string("Generate rate triggered receptive fields for layer type: ",typeof(layer_post)))
-	print("\n")
-	ratetriggeredrecfields = zeros(length(layer_post.a),length(layer_pre.a))
-	@showprogress for i in 1:number_of_reps
-		layer_pre.a = smallimgs[:,i]
-		if mode == "lc"
-			forwardprop_lc!(layer_pre, layer_post)
-		else
-			forwardprop!(layer_pre, layer_post)
-		end
-		ratetriggeredrecfields += deepcopy(layer_post.a*layer_pre.a')
-	end
-	ratetriggeredrecfields./number_of_reps
-end
+function traintopendclassifier!(network, imgs, imgstest, labels, labelstest;
+			iters = 10^6, ind = size(imgs)[2], indtest = size(imgstest)[2],
+			n_classes = 10)
 
-@inline function generatecomplexrecfields(layer_pre,layer_post,jitteredpatches; mode = "no_lc")
-	#smallimgs in main have to be (sparse coding) hidden reps of jitteredpatches
-	print("\n")
-	print(string("Generate complex rec. fields for layer type: ",typeof(layer_post)))
-	print("\n")
-	print("CAUTION: smallimgs in main have to be sparse coding hidden reps!")
-	print("\n")
-	complexrecfields = zeros(length(layer_post.a),size(jitteredpatches)[1])
-	@showprogress for i in 1:size(jitteredpatches)[2]
-		layer_pre.a = smallimgs[:,i]
-		if mode == "lc"
-			forwardprop_lc!(layer_pre, layer_post)
-		else
-			forwardprop!(layer_pre, layer_post)
-		end
-		complexrecfields += deepcopy(layer_post.a*jitteredpatches[:,i]')
-	end
-	complexrecfields./size(jitteredpatches)[2]
+	class1 = net(["input","classifier"],
+				[length(network.layers[network.nr_layers].a),n_classes],
+				[0,0], [0,0])
+	i2 = []
+	learn_net_layerwise!(class1,i2,[iters],
+	  [inputfunction for i in 1:network.nr_layers-1],
+	  [getstatichiddenrep for i in 1:network.nr_layers-1];
+	  LearningFromLayer = 2, LearningUntilLayer = 2)
+
+	error_train = geterrors!(class1, imgs, labels; noftest = ind)
+	error_test = geterrors!(class1, imgstest, labelstest; noftest = indtest)
+	print(string("\n Train Accuracy: ", 100 * (1 - error_train)," % \n"))
+	print(string("\n Test Accuracy: ", 100 * (1 - error_test)," % \n"))
 end
 
 ##################################################################################
@@ -182,7 +155,8 @@ end
 	reshape(imgs,length(imgs),1,1)
 end
 
-####################
+
+########################
 
 @inline function generatemovingpatches(patches, layer_pre, layer_post;
 	nr_presentations_per_patch = 30, number_of_patches = Int(5e4), speed = 1.)
@@ -355,21 +329,11 @@ end
 
 #######################################################################################
 
-function addlayer!(net::net,layersize::Int64,layertype::String,layer)
-	push!(net.layers,layer)
-	push!(net.layer_sizes,layersize)
-	push!(net.layer_types,layertype)
-	net.nr_layers = length(net.layers)
+function loadsharedweights!(layer::layer,filepath)
+	layer = deepcopy(load(filepath,"layer"))
 end
-
-function loadsharedweights!(layer::layer_sparse_patchy,path)
-	singlepatchlayer = load(path,"layer")
-	for i in 1:layer.parameters.n_of_layer_patches
-		layer.layer_patches[i] = deepcopy(singlepatchlayer)
-	end
-end
-function loadsharedweights!(layer::layer_pool_patchy,path)
-	singlepatchlayer = load(path,"layer")
+function loadsharedweights!(layer::layer_patchy,filepath)
+	singlepatchlayer = load(filepath,"layer")
 	for i in 1:layer.parameters.n_of_layer_patches
 		layer.layer_patches[i] = deepcopy(singlepatchlayer)
 	end

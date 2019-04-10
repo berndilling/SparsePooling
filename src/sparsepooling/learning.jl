@@ -6,6 +6,7 @@ function learn_net_layerwise!(net::net,intermediatestates,
 	inputfunctions,
 	dynamicfunctions;
 	LearningFromLayer = 2, LearningUntilLayer = net.nr_layers)
+
 	print(string("\n Learn network layers ",LearningFromLayer, " to ",LearningUntilLayer,"\n"))
 	for k in LearningFromLayer:LearningUntilLayer
 		print(string("\n Learning Layer Nr. ",k," (",typeof(net.layers[k]),")\n"))
@@ -21,3 +22,5 @@ function learn_net_layerwise!(net::net,intermediatestates,
 		push!(intermediatestates,deepcopy(net))
 	end
 end
+
+#TODO function learn_single_patch ... ?!
