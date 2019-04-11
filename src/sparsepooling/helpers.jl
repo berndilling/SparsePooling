@@ -1,5 +1,5 @@
 #####################################################
-#Helpers
+# input helpers
 
 @inline function parallelrange(i, N, nthreads, number_of_jobs)
 	if i == nthreads
@@ -26,16 +26,6 @@ end
     smallimgs[:, iteration]
 end
 
-@inline function getsample()
-    patternindex = rand(1:n_samples)
-    smallimgs[:, patternindex]
-end
-
-@inline function getlabel(x)
-    [labels[patternindex] == i for i in 0:9]
-end
-
-
 @inline function getsavepath()
 	if is_apple()
 		path = "/Users/Bernd/Documents/PhD/Projects/SparsePooling/"
@@ -46,7 +36,7 @@ end
 
 ###########################################################################
 # Classifier helpers
-#target must be one-hot
+# target must be one-hot coded
 
 function _seterror_mse!(net, target)
 	net.e[end] = target - net.a[end]
@@ -137,26 +127,49 @@ end
 
 ##################################################################################
 # Input helpers
-
-@inline function getmovingimage(img; duration = 20, speed = 1)
-	img_s = Int(ceil(sqrt(size(img)[1])))
+@inline getdir() = rand([-1,1], 2)
+@inline getimsize(img) = Int(sqrt(size(img)[1]))
+@inline function getmovingimage(img; cut_size = 0, duration = 20, speed = 1)
+	img_s = getimsize(img)
 	movingimg = zeros(img_s, img_s, duration)
-	dir = rand([-1,1],2) # select 1 of 8 possible directions
+	dir = getdir() # select 1 of 8 possible directions
 	for i in 1:duration
 		movingimg[:,:,i] = circshift(reshape(img,img_s,img_s), i * speed .* dir)
 	end
 	return movingimg
 end
-@inline function getstaticimage(img)
-	img_s = Int(ceil(sqrt(size(img)[1])))
+@inline function getstaticimage(img; cut_size = 0)
+	img_s = getimsize(img)
 	return reshape(img,img_s,img_s,1)
 end
-@inline function getstatichiddenrep(imgs)
+@inline function getstatichiddenrep(imgs; cut_size = 0)
 	reshape(imgs,length(imgs),1,1)
 end
 
+@inline function getpatchparams(img, patch_size)
+	img_s = getimsize(img)
+	return img_s, rand(1:img_s-patch_size, 2)
+end
+@inline cutindices(patchpos, patch_size) =
+	CartesianIndices((patchpos[1]:patchpos[1]+patch_size-1, patchpos[2]:patchpos[2]+patch_size-1))
+
+@inline function getmovingimagepatch(img; cut_size = 8, duration = 20, speed = 1)
+	img_s, patchpos = getpatchparams(img, cut_size)
+	movingpatch = zeros(cut_size, cut_size, duration)
+	dir = getdir()
+	for i in 1:duration
+		movingpatch[:,:,i] =
+			circshift(reshape(img,img_s,img_s), i * speed .* dir)[cutindices(patchpos, cut_size)]
+	end
+	return movingpatch
+end
+@inline function getstaticimagepatch(img; cut_size = 8)
+	img_s, patchpos = getpatchparams(img, cut_size)
+	return reshape(reshape(img, img_s, img_s)[cutindices(patchpos, cut_size)],cut_size,cut_size,1)
+end
 
 ########################
+# Deprecated
 
 @inline function generatemovingpatches(patches, layer_pre, layer_post;
 	nr_presentations_per_patch = 30, number_of_patches = Int(5e4), speed = 1.)

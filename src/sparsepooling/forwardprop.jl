@@ -121,7 +121,9 @@ end
 # For broadcasting and distributing input on patches (patch-connectivity is realized here!)
 
 @inline getindx1(i, j, n_rows) = (i-1) * n_rows + j
-@inline getindx2(i, j, i1, j1, str, isize) = (i-1)*str+i1 + (j-1)*str*isize + (j1-1)*isize
+@inline getindx2(i, j, i1, j1, str, isize) = (i-1)*str*isize + (i1-1)*isize + (j-1)*str+j1
+@inline getindx3(i, j, psize, n_neurons_per_pop) = (getindx1(i, j, psize)-1)*n_neurons_per_pop + 1:getindx1(i, j, psize)*n_neurons_per_pop
+@inline getindx4(k, str, psize) = (k-1)*str+1:(k-1)*str+psize
 @inline function getparameters(layer::layer_patchy)
 	return Int(sqrt(layer.parameters.n_of_layer_patches)),
 		layer.parameters.patch_size, layer.parameters.in_size,
@@ -132,16 +134,12 @@ end
 							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64)
 	copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
 			reshape(src, isize, isize),
-			CartesianIndices(((i-1)*str+1:(i-1)*str+psize, (j-1)*str+1:(j-1)*str+psize)))
+			CartesianIndices((getindx4(i, str, psize), getindx4(j, str, psize))))
 end
 # patchy layer -> patchy layer
 @inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
 							i1::Int64, j1::Int64, n_neurons_per_pop::Int64, p_size::Int64)
-
-	#TODO: fix bug here!!!
-
-	copyto!(dest, getindx1(i1, j1, p_size):getindx1(i1, j1, p_size)+n_neurons_per_pop-1,
-			src, 1:length(src))
+	copyto!(dest, getindx3(i1, j1, p_size, n_neurons_per_pop), src, 1:length(src))
 end
 # for input layer -> patchy layer
 @inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)

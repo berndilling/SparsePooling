@@ -10,9 +10,9 @@ subtractmean!(smallimgstest)
 ind = 10000 # for training & evaluating classifier
 
 network = net(["input","sparse_patchy","pool_patchy"],
-            [size(smallimgs)[1],10,10],
-            [0,8,4],
-            [0,2,2])
+            [size(smallimgs)[1],10,20],
+            [0,6,3],
+            [0,1,2])
 
 ## Training
 inputfunction = getsmallimg
@@ -36,7 +36,7 @@ else ## Train top-end classifier
     smallimgstest = generatehiddenreps!(network, smallimgstest;
             ind = ind, normalize = true, subtractmean = false)
     traintopendclassifier!(network, smallimgs, smallimgstest, labels, labelstest;
-    			iters = 10^6, ind = ind, indtest = ind)
+    			iters = 10^5, ind = ind, indtest = ind)
 end
 
 # TODO: Implement batch-norm like mechanism with running average?!
