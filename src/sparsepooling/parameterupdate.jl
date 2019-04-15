@@ -35,83 +35,67 @@ end
 # Update rule for sparse coding algorithm: meant for both, sparse and pooling layers
 #Algorithm for parameter update in sparse coding as proposed by Zylberberg et al PLoS Comp Bio 2011
 # Parameters in this paper (lr_v,lr_w,lr_thr)=(0.1,0.001,0.01) (started with higher rates and then decreased)
-@inline function update_layer_parameters!(layer::layer_sparse)
-	 update_layer_parameters_lc!(layer)
+@inline function update_recurrent_weights!(lr, p, post, v)
+	BLAS.ger!(lr, post, post, v)
+	@. v += - lr * p^2
+	for j in 1:size(v)[1]
+		v[j,j] = 0. #no self-inhibition
+	end
+	clamp!(v, 0., Inf64) # Dale's Law
+end
+@inline function update_ff_weights!(lr, post, pre, w)
+	# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
+	temp = Diagonal(1 .- lr * post) * w
+	@. w = temp
+	# Second: First term (data-driven) of weight update
+	BLAS.ger!(lr, post, pre, w)
+	# TODO for sparse layer after non-input layer?
+	#BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
+end
+@inline function update_thresholds!(lr, p, post, t)
+	BLAS.axpy!(lr, post .- p, t)
+	#BLAS.axpy!(layer.parameters.learningrate_thr,Float64.(layer.a .> layer.t) .- p, layer.t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
-	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
-		#Update lateral inhibition matrix
-		BLAS.ger!(layer.parameters.learningrate_v, layer.a, layer.a, layer.v)
-		layer.v .+= -layer.parameters.learningrate_v * layer.parameters.p^2
-		for j in 1:size(layer.v)[1]
-			layer.v[j,j] = 0. #no self-inhibition
-		end
-		clamp!(layer.v,0.,Inf64) #Dale's law
-
-		#Update input weight matrix
-		# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
-		#layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a.^2) * layer.w
-		layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a) * layer.w
-		# Second: First term (data-driven) of weight update
-		BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre,layer.w)
-		# TODO for second sparse layer?
-		#BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
-
-		#_normalize_inputweights!(layer.w) # explicit weight normalization/homeostasis
-
-		#Update thresholds
-		#BLAS.axpy!(layer.parameters.learningrate_thr,Float64.(layer.a .> layer.t) .- p, layer.t)
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
-	end
+		update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
+		update_ff_weights!(layer.parameters.learningrate_w, layer.a, layer.a_pre, layer.w)
+		update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
-	if norm(layer.a_pre) != 0. #don't do anything if no input is provided
-		BLAS.ger!(layer.parameters.learningrate_v,layer.a,layer.a,layer.v)
+	update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
+	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr, layer.v)
+	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr-layer.a, layer.v)
 
-		#BLAS.ger!(layer.parameters.learningrate_v,layer.a_tr,layer.a_tr,layer.v)
-		#BLAS.ger!(layer.parameters.learningrate_v, layer.a_tr-layer.a, layer.a_tr-layer.a, layer.v)
 
-		layer.v .+= -layer.parameters.learningrate_v*layer.parameters.p^2
-		for j in 1:size(layer.v)[1]
-			layer.v[j,j] = 0. #no self-inhibition
-		end
-		#TODO clamping needed here?
-		clamp!(layer.v,0.,Inf64) #Dale's law
-		#scale!((1-layer.parameters.learningrate_w*layer.a.^2),layer.w)
+	update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre - layer.a_tr_pre, layer.w)
+	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre, layer.w)
+	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr- layer.a, layer.a_pre - layer.a_tr_pre, layer.w)
+	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr,
+	#	(layer.a_pre-layer.a_tr_pre) .* (round.(layer.a_pre) + round.(layer.a_tr_s_pre) .!= 2), layer.w)
 
-		layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a_tr) * layer.w
-		#layer.w = Diagonal(1 .- layer.parameters.learningrate_w * layer.a_tr.^2) * layer.w
-		#scale!((1-layer.parameters.learningrate_w*(layer.a_tr-layer.a).^2),layer.w)
-		#scale!((1-layer.parameters.learningrate_w),layer.w)
 
-		BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre - layer.a_tr_pre,layer.w)
-
-		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre,layer.w)
-		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr-layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
-		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,
-		#	(layer.a_pre-layer.a_tr_pre) .* (round.(layer.a_pre) + round.(layer.a_tr_s_pre) .!= 2), layer.w)
-		#BLAS.ger!(layer.parameters.learningrate_w,layer.a_tr,layer.a_pre-layer.a_tr_pre-layer.a_tr_s_pre,layer.w)
-
-		#TODO threshold adaptation here? -> Yes if nonlinearity is nonlinear
-		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a_tr-layer.parameters.p,layer.t)
-
-		#BLAS.axpy!(layer.parameters.learningrate_thr,layer.a .- layer.parameters.p,layer.t)
-		BLAS.axpy!(layer.parameters.learningrate_thr,layer.a - layer.a_tr .- layer.parameters.p,layer.t)
-		#TODO Pre/Post-trace subtraction here?
-	end
+	update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
+	#update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a_tr, layer.t)
+	#update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a - layer.a_tr, layer.t)
 end
 
+@inline function update_layer_parameters!(layer::layer_sparse)
+	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
+		update_layer_parameters_lc!(layer)
+	end
+end
+# PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
+@inline function update_layer_parameters!(layer::layer_pool; lc_forward = true) #with false : reproduced Földiaks bars
+	if norm(layer.a_pre) != 0. #don't do anything if no input is provided
+		lc_forward ? update_layer_parameters_lc!(layer) : layer.parameters.updaterule(layer)
+	end
+end
 @inline function update_layer_parameters!(layer::layer_patchy)
-	for layer_patch in layer.layer_patches#[range]
+	for layer_patch in layer.layer_patches
 	 	update_layer_parameters!(layer_patch)
 	end
 end
 
-
-# PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
-@inline function update_layer_parameters!(layer::layer_pool; lc_forward = true) #false : reproduced Földiaks bars
-	lc_forward ? update_layer_parameters_lc!(layer) : layer.parameters.updaterule(layer)
-end
 
 @inline function lateral_competition!(w, a, lr)
     n, m = size(w)

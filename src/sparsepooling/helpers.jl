@@ -9,8 +9,8 @@
 	end
 end
 
-@inline function getsparsity(input::Array{Float64, 1})
-	length(findall(x -> (x == 0),input))/length(input)
+@inline function getsparsity(input::Array{Float64, 1}; thr = 0.)
+	length(findall(x -> (x <= thr),input))/length(input)
 end
 
 @inline function getsmallimg()

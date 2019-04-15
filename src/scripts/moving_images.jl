@@ -10,7 +10,7 @@ subtractmean!(smallimgstest)
 ind = 10000 # for training & evaluating classifier
 
 network = net(["input","sparse_patchy","pool_patchy"],
-            [size(smallimgs)[1],10,20],
+            [size(smallimgs)[1],10,10],
             [0,6,3],
             [0,1,2])
 

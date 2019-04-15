@@ -11,15 +11,19 @@ smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples = im
 subtractmean!(smallimgs)
 subtractmean!(smallimgstest)
 
-patch_size = 8
+## Play with lc_forward = false?!
+
+patch_size = 7
 network = net(["input","sparse_patchy","pool_patchy"],
-            [patch_size^2,10,20],
-            [0,6,3],
+            [patch_size^2,10,10],
+            [0,5,3],
             [0,1,1])
 
 ## Training
 intermediatestates = []
-learn_net_layerwise!(network,intermediatestates, [10^5,10^5],
+losses = learn_net_layerwise!(network,intermediatestates, [10^5, 10^1],
                     [getsmallimg,getsmallimg],
                     [getstaticimagepatch, getmovingimagepatch],
-                    cut_size = patch_size)
+                    cut_size = patch_size, eval_loss = true)
+
+# TODO: code function for saving and loading learned layers into big network with weight sharing

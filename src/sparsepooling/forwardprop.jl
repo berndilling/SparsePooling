@@ -34,11 +34,11 @@ end
 @inline function forwardprop_wlc!(layer)
 	layer.parameters.calculate_trace &&	calculatetrace!(layer)
 	#THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
-	#if norm(layer.a_pre) != 0.
-	BLAS.gemv!('N', 1., layer.w, layer.a_pre, 0., layer.u) # membrane potential = weighted sum over inputs
-	BLAS.axpy!(1., layer.b, layer.u) # add bias term
-	layer.parameters.activationfunction(layer) # apply activation function
-	#end
+	if norm(layer.a_pre) != 0.
+		BLAS.gemv!('N', 1., layer.w, layer.a_pre, 0., layer.u) # membrane potential = weighted sum over inputs
+		BLAS.axpy!(1., layer.b, layer.u) # add bias term
+		layer.parameters.activationfunction(layer) # apply activation function
+	end
 end
 
 # Forwardprop WITH lateral competition (lc)
@@ -59,7 +59,7 @@ end
 	layer.a .= 0.
 	if norm(layer.a_pre) != 0.
 		if layer.parameters.activationfunction == lin!
-			layer.u = inv(eye(size(layer.v)[1]) .+ layer.v) * layer.w * layer.a_pre
+			layer.u = inv(Matrix{Float64}(I, size(layer.v)[1], size(layer.v)[1]) .+ layer.v) * layer.w * layer.a_pre
 			layer.parameters.activationfunction(layer) #linear, just to assign values from u to a
 		else
 			scaling_factor = layer.parameters.epsilon/layer.parameters.dt
