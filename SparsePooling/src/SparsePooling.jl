@@ -1,10 +1,10 @@
-using ProgressMeter, LinearAlgebra, Statistics, JLD2, FileIO, HDF5#, JLD
 
-#includes all relevant "modules"
-#path to modules
-path = "./"
+module SparsePooling
+using Revise, ProgressMeter, Distributions, LinearAlgebra, Statistics, JLD2, FileIO, HDF5, MAT
 
-#CHANGING IMPORT ORDER MIGHT CAUSE PROBLEMS!
+#path to submodules
+path = "./sparsepooling/"
+
 include(string(path,"nonlins.jl"))
 include(string(path,"types.jl"))
 include(string(path,"helpers.jl"))
@@ -14,3 +14,5 @@ include(string(path,"parameterupdate.jl"))
 include(string(path,"learning.jl"))
 include(string(path,"bar_input_generator.jl"))
 include(string(path,"box_hierarchy_input_generator.jl"))
+
+end

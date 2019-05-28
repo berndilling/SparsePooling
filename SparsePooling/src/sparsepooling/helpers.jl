@@ -12,16 +12,28 @@ end
 @inline function getsparsity(input::Array{Float64, 1}; thr = 0.)
 	length(findall(x -> (x <= thr),input))/length(input)
 end
+export getsparsity
 
-@inline function getsmallimg()
-    global patternindex = rand(1:size(smallimgs)[2])
-    smallimgs[:, patternindex]
+# @inline function getsmallimg()
+#     global patternindex = rand(1:size(smallimgs)[2])
+#     smallimgs[:, patternindex]
+# end
+# export getsmallimg
+# @inline function getlabel()
+#     [labels[patternindex] == i for i in 0:9]
+# end
+# export getlabel
+@inline function getsmallimg(data::labelleddata)
+    data.currentsample = rand(1:data.nsamples)
+    data.data[:, data.currentsample]
 end
-@inline function getlabel()
-    [labels[patternindex] == i for i in 0:9]
+export getsmallimg
+@inline function getlabel(data::labelleddata)
+    [data.labels[data.currentsample] == i for i in 0:9]
 end
+export getlabel
 
-@inline function getsmallimg(iteration) #select images in fixed order
+@inline function getsmallimg(iteration::Int64) #select images in fixed order
 		if iteration > size(smallimgs)[2] iteration = (iteration % size(smallimgs)[2])+1 end
     smallimgs[:, iteration]
 end
@@ -33,6 +45,7 @@ end
 		path = "/home/illing/"
 	end
 end
+export getsavepath
 
 ###########################################################################
 # Classifier helpers
@@ -63,15 +76,15 @@ function _loss_crossentropy(net, target)
 	return -target'*log.(probs)
 end
 
-function geterrors!(net, imgs, labels; getwrongindices = false, noftest = size(imgs)[2])
+function geterrors!(net, data; getwrongindices = false, noftest = size(data.data)[2])
 	print("calculate classification errors...")
 	error = 0
 	if getwrongindices
 		wrongindices = []
 		@showprogress for i in 1:noftest
-			net.layers[1].a = imgs[:,i]
+			net.layers[1].a = data.data[:,i]
 			forwardprop!(net)
-			if findmax(net.layers[end].a[end])[2] != Int(labels[i] + 1)
+			if findmax(net.layers[end].a[end])[2] != Int(data.labels[i] + 1)
 				error += 1
 				push!(wrongindices,i)
 			end
@@ -79,13 +92,14 @@ function geterrors!(net, imgs, labels; getwrongindices = false, noftest = size(i
 		return error/noftest, wrongindices
 	else
 		@showprogress for i in 1:noftest
-			net.layers[1].a = imgs[:,i]
+			net.layers[1].a = data.data[:,i]
 			forwardprop!(net)
-			error += findmax(net.layers[end].a[end])[2] != Int(labels[i] + 1)
+			error += findmax(net.layers[end].a[end])[2] != Int(data.labels[i] + 1)
 		end
 		error/noftest
 	end
 end
+export geterrors!
 
 @inline function generatehiddenreps!(network::net, imgs;
 					ind = size(imgs)[2], normalize = true,
@@ -105,25 +119,27 @@ end
 	end
 	return reps
 end
+export generatehiddenreps!
 
-function traintopendclassifier!(network, imgs, imgstest, labels, labelstest;
+function traintopendclassifier!(network, datatrain, datatest;
 			iters = 10^6, ind = size(imgs)[2], indtest = size(imgstest)[2],
-			n_classes = 10)
+			n_classes = 10, inputfunction = getsmallimg)
 
 	class1 = net(["input","classifier"],
 				[length(network.layers[network.nr_layers].a),n_classes],
 				[0,0], [0,0])
 	i2 = []
-	learn_net_layerwise!(class1,i2,[iters],
+	learn_net_layerwise!(class1, datatrain,i2,[iters],
 	  [inputfunction for i in 1:class1.nr_layers-1],
 	  [getstatichiddenrep for i in 1:class1.nr_layers-1];
 	  LearningFromLayer = 2, LearningUntilLayer = 2)
 
-	error_train = geterrors!(class1, imgs, labels; noftest = ind)
-	error_test = geterrors!(class1, imgstest, labelstest; noftest = indtest)
+	error_train = geterrors!(class1, datatrain; noftest = ind)
+	error_test = geterrors!(class1, datatest; noftest = indtest)
 	print(string("\n Train Accuracy: ", 100 * (1 - error_train)," % \n"))
 	print(string("\n Test Accuracy: ", 100 * (1 - error_test)," % \n"))
 end
+export traintopendclassifier!
 
 ##################################################################################
 # Input helpers
@@ -138,13 +154,16 @@ end
 	end
 	return movingimg
 end
+export getmovingimage
 @inline function getstaticimage(img; cut_size = 0)
 	img_s = getimsize(img)
 	return reshape(img,img_s,img_s,1)
 end
+export getstaticimage
 @inline function getstatichiddenrep(imgs; cut_size = 0)
 	reshape(imgs,length(imgs),1,1)
 end
+export getstatichiddenrep
 
 @inline function getpatchparams(img, patch_size)
 	img_s = getimsize(img)
@@ -163,10 +182,12 @@ end
 	end
 	return movingpatch
 end
+export getmovingimagepatch
 @inline function getstaticimagepatch(img; cut_size = 8)
 	img_s, patchpos = getpatchparams(img, cut_size)
 	return reshape(reshape(img, img_s, img_s)[cutindices(patchpos, cut_size)],cut_size,cut_size,1)
 end
+export getstaticimagepatch
 
 ########################
 # Deprecated

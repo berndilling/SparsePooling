@@ -2,6 +2,10 @@
 #####################################################
 #Weight/Parameter update functions
 
+update_layer_parameters!(layer::classifier, data) = _update_layer_parameters!(layer, data)
+update_layer_parameters!(layer, data) = _update_layer_parameters!(layer)
+
+
 @inline function _normalize_inputweights!(weights)
 	for j in 1:size(weights)[1]
 		weights[j,:] *= 1. / norm(weights[j,:])
@@ -12,10 +16,11 @@ end
 ## Classifier
 ############################################################################
 
-function update_layer_parameters!(net::classifier; learningrate = 1. / length(net.a_pre), # 0.1 / ...
+
+function _update_layer_parameters!(net::classifier, data::labelleddata; learningrate = 1. / length(net.a_pre), # 0.1 / ...
 				   nonlinearity_diff = [relu_diff! for i in 1:net.nl],
 				   set_error_lossderivative = _seterror_mse!) # or _seterror_crossentropysoftmax!)
-   	target = getlabel()
+   	target = getlabel(data)
    	set_error_lossderivative(net, target)
 	for i in net.nl:-1:2
 		nonlinearity_diff[i](net.u[i], net.e[i])
@@ -79,20 +84,20 @@ end
 	#update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a - layer.a_tr, layer.t)
 end
 
-@inline function update_layer_parameters!(layer::layer_sparse)
+@inline function _update_layer_parameters!(layer::layer_sparse)
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
 		update_layer_parameters_lc!(layer)
 	end
 end
 # PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
-@inline function update_layer_parameters!(layer::layer_pool; lc_forward = true) #with false : reproduced Földiaks bars
+@inline function _update_layer_parameters!(layer::layer_pool; lc_forward = true) #with false : reproduced Földiaks bars
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided
 		lc_forward ? update_layer_parameters_lc!(layer) : layer.parameters.updaterule(layer)
 	end
 end
-@inline function update_layer_parameters!(layer::layer_patchy)
+@inline function _update_layer_parameters!(layer::layer_patchy)
 	for layer_patch in layer.layer_patches
-	 	update_layer_parameters!(layer_patch)
+	 	_update_layer_parameters!(layer_patch)
 	end
 end
 

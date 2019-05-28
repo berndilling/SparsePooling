@@ -54,6 +54,24 @@ function import_data(data::String)
     smallimgstest ./= data_max
   return smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples
 end
+export import_data
+
+using Knet
+include(Knet.dir("data", "cifar.jl"))
+include(Knet.dir("data", "mnist.jl"))
+function import_data_Knet(dataset::String)
+	if dataset == "CIFAR10"
+		smallimgs, labels, smallimgstest, labelstest = cifar10()
+	    smallimgs = reshape(smallimgs, 32^2 * 3, 50000)
+	    smallimgstest = reshape(smallimgstest, 32^2 * 3, 10000)
+	elseif dataset == "MNIST"
+		smallimgs, labels, smallimgstest, labelstest = mnist()
+	    smallimgs = reshape(smallimgs, 28^2, 60000)
+	    smallimgstest = reshape(smallimgstest, 28^2, 10000)
+	end
+	smallimgs, labels .- 1, smallimgstest, labelstest .- 1, size(smallimgs)[2], size(smallimgstest)[2]
+end
+export import_data_Knet
 
 function import_unlabelled_data(data::String)
   if Sys.isapple()
@@ -136,6 +154,7 @@ function subtractmean!(data)
                 BLAS.axpy!(-1., m, 1:d, data, i*d + 1: (i+1) * d)
         end
 end
+export subtractmean!
 function subtractmean(data)
         m = deepcopy(data)
         subtractmean!(m)

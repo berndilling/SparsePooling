@@ -132,6 +132,18 @@ mutable struct net{Tlayers}
 end
 
 ############################################################################
+## DATA
+
+mutable struct labelleddata{Tdata, Tlabels}
+	data::Tdata
+	labels::Tlabels
+	nsamples::Int64
+	currentsample::Int64
+end
+labelleddata(data, labels) = labelleddata(data, labels, length(labels), 0)
+export labelleddata
+
+############################################################################
 ## CONSTRUCTORS
 ############################################################################
 
@@ -273,3 +285,4 @@ function net(tl::Array{String, 1}, # tl: types of layers
 	end
 	net(nl, tl, sl, ks, str, layers)
 end
+export net

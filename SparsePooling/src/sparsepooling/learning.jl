@@ -11,7 +11,9 @@ end
 	get_reconstruction_loss(layer.layer_patches[1])
 end
 
-function learn_net_layerwise!(net::net,intermediatestates,
+function learn_net_layerwise!(net::net,
+	data,
+	intermediatestates,
 	iterations::Array{Int64, 1},
 	inputfunctions,
 	dynamicfunctions;
@@ -24,12 +26,12 @@ function learn_net_layerwise!(net::net,intermediatestates,
 		loss = []
 		print(string("\n Learning Layer Nr. ",k," (",typeof(net.layers[k]),")\n"))
 		@showprogress for i in 1:iterations[k - 1]
-			pattern = inputfunctions[k-1]()
+			pattern = inputfunctions[k-1](data)
 			dynamicpattern = dynamicfunctions[k-1](pattern; cut_size = cut_size)
 			for j in 1:size(dynamicpattern)[3]
 				net.layers[1].a = dynamicpattern[:,:,j][:]
 				forwardprop!(net; FPUntilLayer = k)
-				update_layer_parameters!(net.layers[k])
+				update_layer_parameters!(net.layers[k], data)
 			end
 			eval_loss && push!(loss, get_loss(net.layers[k]))
 		end
@@ -38,3 +40,4 @@ function learn_net_layerwise!(net::net,intermediatestates,
 	end
 	return losses
 end
+export learn_net_layerwise!
