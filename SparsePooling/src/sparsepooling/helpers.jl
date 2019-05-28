@@ -76,7 +76,7 @@ function _loss_crossentropy(net, target)
 	return -target'*log.(probs)
 end
 
-function geterrors!(net, data; getwrongindices = false, noftest = size(data.data)[2])
+function geterrors!(net, data; getwrongindices = false, noftest = data.nsamples)
 	print("calculate classification errors...")
 	error = 0
 	if getwrongindices
@@ -101,13 +101,13 @@ function geterrors!(net, data; getwrongindices = false, noftest = size(data.data
 end
 export geterrors!
 
-@inline function generatehiddenreps!(network::net, imgs;
-					ind = size(imgs)[2], normalize = true,
+@inline function generatehiddenreps!(network::net, data;
+					ind = data.nsamples, normalize = true,
 					subtractmean = false)
 	reps = zeros(length(network.layers[network.nr_layers].a),ind)
 	@info("calculate hidden reps")
 	@showprogress for i in 1:ind
-	    network.layers[1].a = imgs[:,i]
+	    network.layers[1].a = data.data[:,i]
 	    forwardprop!(network, FPUntilLayer = network.nr_layers)
 	    reps[:,i] = deepcopy(network.layers[network.nr_layers].a)
 	end
@@ -122,14 +122,14 @@ end
 export generatehiddenreps!
 
 function traintopendclassifier!(network, datatrain, datatest;
-			iters = 10^6, ind = size(imgs)[2], indtest = size(imgstest)[2],
+			iters = 10^6, ind = datatrain.nsamples, indtest = datatrain.nsamples,
 			n_classes = 10, inputfunction = getsmallimg)
 
 	class1 = net(["input","classifier"],
 				[length(network.layers[network.nr_layers].a),n_classes],
 				[0,0], [0,0])
 	i2 = []
-	learn_net_layerwise!(class1, datatrain,i2,[iters],
+	learn_net_layerwise!(class1, datatrain, i2, [iters],
 	  [inputfunction for i in 1:class1.nr_layers-1],
 	  [getstatichiddenrep for i in 1:class1.nr_layers-1];
 	  LearningFromLayer = 2, LearningUntilLayer = 2)

@@ -140,7 +140,7 @@ mutable struct labelleddata{Tdata, Tlabels}
 	nsamples::Int64
 	currentsample::Int64
 end
-labelleddata(data, labels) = labelleddata(data, labels, length(labels), 0)
+labelleddata(data, labels) = labelleddata(data, labels, size(data)[2], 0)
 export labelleddata
 
 ############################################################################

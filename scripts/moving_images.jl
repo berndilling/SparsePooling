@@ -22,7 +22,7 @@ network = net(["input","sparse_patchy","pool_patchy"],
 inputfunction = getsmallimg
 intermediatestates = []
 learn_net_layerwise!(network, data, intermediatestates,
-    [10^4,10^3],
+    [10^3,10^2],
     [inputfunction for i in 1:network.nr_layers],
     [getstaticimage, getmovingimage];
     LearningFromLayer = 2,
@@ -35,10 +35,10 @@ if network.layer_types[end] == "classifier"
     print(string("\n Train Accuracy: ", 100 * (1 - error_train)," % \n"))
     print(string("\n Test Accuracy: ", 100 * (1 - error_test)," % \n"))
 else ## Train top-end classifier
-    lasthiddenrepstrain = labelleddata(generatehiddenreps!(network, data.data;
-            ind = ind, normalize = true, subtractmean = false), data.labels)
-    lasthiddenrepstest = labelleddata(generatehiddenreps!(network, datatest.data;
-            ind = ind, normalize = true, subtractmean = false), datatest.labels)
+    lasthiddenrepstrain = labelleddata(generatehiddenreps!(network, data;
+            ind = ind, normalize = true, subtractmean = false), data.labels[1:ind])
+    lasthiddenrepstest = labelleddata(generatehiddenreps!(network, datatest;
+            ind = ind, normalize = true, subtractmean = false), datatest.labels[1:ind])
     traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest;
     			iters = 10^5, ind = ind, indtest = ind)
 end
