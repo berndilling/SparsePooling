@@ -115,38 +115,80 @@ function import_unlabelled_data(data::String)
 	return smallimgs, n_samples #n_testsamples = 0
 end
 
+# Docs:
+# https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/
+# The training set is composed of 5 instances of each category (instances 4, 6, 7, 8 and 9),
+# and the test set of the remaining 5 instances (instances 0, 1, 2, 3, and 5).
 function import_smallNORB(datasplit::String) # "train" or "test"
     path = "/Users/Bernd/Documents/PhD/Projects/natural_images/small_NORB/"
     (datasplit == "train") ? (file = h5open(string(path,"data_train.h5"))) :
         (file = h5open(string(path,"data_test.h5")))
     images_lt = permutedims(convert(Array{Float64},read(file,"images_lt")),[2,1,3])
     images_rt = permutedims(convert(Array{Float64},read(file,"images_rt")),[2,1,3])
-    category = convert(Array{Int64},read(file,"categories"))
-    instance = read(file,"instances")
-    elevation = convert(Array{Int64},read(file,"elevations"))
-    azimuth = convert(Array{Int64},read(file,"azimuths"))
-    lighting = convert(Array{Int64},read(file,"lightings"))
+    category_list = convert(Array{Int64},read(file,"categories"))
+    instance_list = read(file,"instances")
+    elevation_list = convert(Array{Int64},read(file,"elevations"))
+    azimuth_list = convert(Array{Int64},read(file,"azimuths"))
+    lighting_list = convert(Array{Int64},read(file,"lightings"))
 
-    return images_lt, images_rt, category, instance, elevation, azimuth,
-        lighting, length(category)
+    return images_lt, images_rt, category_list, instance_list, elevation_list,
+        azimuth_list, lighting_list, length(category_list)
 end
-function select_smallNORB(imgs::Array{Float64,3}, categories, instances,
-        elevations, azimuths, lightings;
+export import_smallNORB
+function select_smallNORB(imgs::Array{Float64,3}, category_list, instance_list,
+        elevation_list, azimuth_list, lighting_list;
         category = 0:4, instance = 0:9, elevation = 0:8,
         azimuth = 0:2:34, lighting= 0:5)
 
-     ind_boolians = [i in category for i in categories] .&
-                    [i in instance for i in instances] .&
-                    [i in elevation for i in elevations] .&
-                    [i in azimuth for i in azimuths] .&
-                    [i in lighting for i in lightings]
+     ind_boolians = [i in category for i in category_list] .&
+                    [i in instance for i in instance_list] .&
+                [i in elevation for i in elevation_list] .&
+                    [i in azimuth for i in azimuth_list] .&
+                    [i in lighting for i in lighting_list]
      indices = findall(ind_boolians)
      isempty(indices) && error("no images meet criteria!!!")
 
-     return imgs[:,:,indices]
+     return imgs[:,:,indices], indices
 end
+export select_smallNORB
+function get_sequence_smallNORB(imgs::Array{Float64,3}, category_list, instance_list,
+        elevation_list, azimuth_list, lighting_list; duration = 20, move = "rotate_horiz",
+        instances = [4, 6, 7, 8, 9]) # for train set ... change for test set
 
-#(By Johanni) subtract linewise (pixel-wise) mean
+        #TODO Build in given duration: something like concatenating sequences
+        # in reversed order (for smoothness) until duration is reached
+
+        if move == "rotate_horiz"
+            s_imgs, inds = select_smallNORB(imgs, category_list, instance_list,
+                    elevation_list, azimuth_list, lighting_list;
+                    category = rand(0:4), instance = rand(instances), elevation = rand(0:8),
+                    azimuth = 0:2:34, lighting= rand(0:5))
+            s_imgs[:,:,sortperm(azimuth_list[inds])]
+        elseif move == "rotate_vert"
+            s_imgs, inds = select_smallNORB(imgs, category_list, instance_list,
+                    elevation_list, azimuth_list, lighting_list;
+                    category = rand(0:4), instance = rand(instances), elevation = 0:8,
+                    azimuth = rand(0:2:34), lighting= rand(0:5))
+            s_imgs[:,:,sortperm(elevation_list[inds])]
+        elseif move == "changelighting"
+            s_imgs, inds = select_smallNORB(imgs, category_list, instance_list,
+                    elevation_list, azimuth_list, lighting_list;
+                    category = rand(0:4), instance = rand(instances), elevation = rand(0:8),
+                    azimuth = rand(0:2:34), lighting= 0:5)
+            s_imgs[:,:,sortperm(lighting_list[inds])]
+        elseif move == "translate"
+            s_imgs, inds = select_smallNORB(imgs, category_list, instance_list,
+                    elevation_list, azimuth_list, lighting_list;
+                    category = rand(0:4), instance = rand(instances), elevation = rand(0:8),
+                    azimuth = rand(0:2:34), lighting= rand(0:5))
+            getmovingimage(s_imgs[:]; duration = duration)
+        # elseif move == "zoom" .. downsample?
+
+        end
+end
+export get_sequence_smallNORB
+
+
 function subtractmean!(data)
         m = mean(data, dims=2)
         d, n = size(data)
@@ -176,3 +218,18 @@ end
 
 f_ZCA(f::SVD) = f.U * f.Vt
 f_PCA(f::SVD) = f.Vt
+
+using Statistics
+function downsample(data; factor = 3)
+    imgsize = size(data)
+    n_imgsize = Int(imgsize[1] / factor)
+    n_imgs = zeros(n_imgsize, n_imgsize, imgsize[3])
+    for p in 1:imgsize[3]
+        for i in 1:n_imgsize
+            for j in 1:n_imgsize
+                n_imgs[i, j, p] = mean(data[factor*(i-1)+1:factor*i, factor*(j-1)+1:factor*j, p])
+            end
+        end
+    end
+    n_imgs
+end
