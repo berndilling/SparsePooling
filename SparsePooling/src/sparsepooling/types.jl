@@ -134,14 +134,30 @@ end
 ############################################################################
 ## DATA
 
-mutable struct labelleddata{Tdata, Tlabels}
+mutable struct labelleddata{Tdata, Tclasses, Tlabels}
 	data::Tdata
+	classes::Tclasses
 	labels::Tlabels
 	nsamples::Int64
 	currentsample::Int64
 end
-labelleddata(data, labels) = labelleddata(data, labels, size(data)[2], 0)
+labelleddata(data, labels; classes = 0:9) = labelleddata(data, classes, labels, size(data)[2], 0)
 export labelleddata
+
+mutable struct NORBdata{Tdata, Tclasses, Tlabels, Tinstlist, Televlist, Tazlist, Tlightlist}
+	data::Tdata
+	classes::Tclasses
+    labels::Tlabels
+	instance_list::Tinstlist
+	elevation_list::Televlist
+    azimuth_list::Tazlist
+	lighting_list::Tlightlist
+	nsamples::Int64
+	currentsample::Int64
+end
+NORBdata(data, category_list, instance_list, elevation_list, azimuth_list, lighting_list; classes = 0:4) =
+	NORBdata(data, classes, category_list, instance_list, elevation_list, azimuth_list, lighting_list, size(data)[end], 0)
+export NORBdata
 
 ############################################################################
 ## CONSTRUCTORS

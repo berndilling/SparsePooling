@@ -14,22 +14,15 @@ end
 end
 export getsparsity
 
-# @inline function getsmallimg()
-#     global patternindex = rand(1:size(smallimgs)[2])
-#     smallimgs[:, patternindex]
-# end
-# export getsmallimg
-# @inline function getlabel()
-#     [labels[patternindex] == i for i in 0:9]
-# end
-# export getlabel
-@inline function getsmallimg(data::labelleddata)
+@inline assigninput(data::labelleddata, i) = data.data[:,i]
+@inline assigninput(data::NORBdata, i) = data.data[:,:,i][:]
+@inline function getsmallimg(data)
     data.currentsample = rand(1:data.nsamples)
-    data.data[:, data.currentsample]
+    assigninput(data, data.currentsample)
 end
 export getsmallimg
-@inline function getlabel(data::labelleddata)
-    [data.labels[data.currentsample] == i for i in 0:9]
+@inline function getlabel(data)
+    [data.labels[data.currentsample] == i for i in data.classes]
 end
 export getlabel
 
@@ -76,13 +69,13 @@ function _loss_crossentropy(net, target)
 	return -target'*log.(probs)
 end
 
-function geterrors!(net, data; getwrongindices = false, noftest = data.nsamples)
+@inline function geterrors!(net, data; getwrongindices = false, noftest = data.nsamples)
 	print("calculate classification errors...")
 	error = 0
 	if getwrongindices
 		wrongindices = []
 		@showprogress for i in 1:noftest
-			net.layers[1].a = data.data[:,i]
+			net.layers[1].a = assigninput(data, i)
 			forwardprop!(net)
 			if findmax(net.layers[end].a[end])[2] != Int(data.labels[i] + 1)
 				error += 1
@@ -92,7 +85,7 @@ function geterrors!(net, data; getwrongindices = false, noftest = data.nsamples)
 		return error/noftest, wrongindices
 	else
 		@showprogress for i in 1:noftest
-			net.layers[1].a = data.data[:,i]
+			net.layers[1].a = assigninput(data, i)
 			forwardprop!(net)
 			error += findmax(net.layers[end].a[end])[2] != Int(data.labels[i] + 1)
 		end
@@ -107,7 +100,7 @@ export geterrors!
 	reps = zeros(length(network.layers[network.nr_layers].a),ind)
 	@info("calculate hidden reps")
 	@showprogress for i in 1:ind
-	    network.layers[1].a = data.data[:,i]
+	    network.layers[1].a = assigninput(data, i)
 	    forwardprop!(network, FPUntilLayer = network.nr_layers)
 	    reps[:,i] = deepcopy(network.layers[network.nr_layers].a)
 	end
@@ -154,8 +147,11 @@ export traintopendclassifier!
 	end
 	return movingimg
 end
+@inline getmovingimage(data::labelleddata, img; cut_size = 0, duration = 20, speed = 1) =
+	getmovingimage(img; cut_size = cut_size, duration = duration, speed = speed)
 export getmovingimage
-@inline function getstaticimage(img; cut_size = 0)
+
+@inline function getstaticimage(data, img; cut_size = 0)
 	img_s = getimsize(img)
 	return reshape(img,img_s,img_s,1)
 end
@@ -164,6 +160,8 @@ export getstaticimage
 	reshape(imgs,length(imgs),1,1)
 end
 export getstatichiddenrep
+
+#TODO patchy input for NORB data type!!!
 
 @inline function getpatchparams(img, patch_size)
 	img_s = getimsize(img)
@@ -189,8 +187,83 @@ export getmovingimagepatch
 end
 export getstaticimagepatch
 
-########################
+### NORB
+
+function select_smallNORB(data::NORBdata;
+        category = 0:4, instance = 0:9, elevation = 0:8,
+        azimuth = 0:2:34, lighting= 0:5)
+
+     ind_boolians = [i in category for i in data.labels] .&
+                    [i in instance for i in data.instance_list] .&
+                	[i in elevation for i in data.elevation_list] .&
+                    [i in azimuth for i in data.azimuth_list] .&
+                    [i in lighting for i in data.lighting_list]
+     indices = findall(ind_boolians)
+     isempty(indices) && error("no images meet criteria!!!")
+
+     return data.data[:,:,indices], data.labels[indices], indices
+end
+export select_smallNORB
+function get_sequence_smallNORB(data::NORBdata; duration = 20,
+			move = rand(["rotate_horiz", "rotate_vert", "translate"]),
+        	instances = [4, 6, 7, 8, 9], max_trans_amplitude = 8) # for train set ... change for test set
+        if move == "rotate_horiz"
+            s_imgs, cats, inds = select_smallNORB(data;
+                    category = data.labels[data.currentsample],
+					instance = data.instance_list[data.currentsample],
+					elevation = data.elevation_list[data.currentsample],
+                    azimuth = 0:2:34,
+					lighting = data.lighting_list[data.currentsample])
+            seq = s_imgs[:,:,sortperm(data.azimuth_list[inds])]
+        elseif move == "rotate_vert"
+            s_imgs, cats, inds = select_smallNORB(data;
+                    category = data.labels[data.currentsample],
+					instance = data.instance_list[data.currentsample],
+					elevation = 0:8,
+                    azimuth = data.azimuth_list[data.currentsample],
+					lighting = data.lighting_list[data.currentsample])
+            seq = s_imgs[:,:,sortperm(data.elevation_list[inds])]
+        elseif move == "changelighting"
+            s_imgs, cats, inds = select_smallNORB(data;
+                    category = data.labels[data.currentsample],
+					instance = data.instance_list[data.currentsample],
+					elevation = data.elevation_list[data.currentsample],
+                    azimuth = data.azimuth_list[data.currentsample],
+					lighting = 0:5)
+            seq = s_imgs[:,:,sortperm(data.lighting_list[inds])]
+        elseif move == "translate"
+            s_imgs, cats, inds = select_smallNORB(data;
+                    category = data.labels[data.currentsample],
+					instance = data.instance_list[data.currentsample],
+					elevation = data.elevation_list[data.currentsample],
+					azimuth = data.azimuth_list[data.currentsample],
+					lighting = data.lighting_list[data.currentsample])
+            seq = getmovingimage(s_imgs[:]; duration = max_trans_amplitude)
+        # elseif move == "zoom" .. downsample?
+        end
+        seq_length = size(seq, 3)
+        if seq_length == duration
+            return seq
+        elseif seq_length > duration
+            return seq[:,:,1:duration]
+        else
+            for i in 2:div(duration, seq_length)+1
+                temp = (i % 2 == 1) ? seq : reverse(seq, dims = 3)
+                seq = cat(seq, temp, dims = 3)
+            end
+            return seq[:,:,1:duration]
+        end
+end
+
+#TODO patchy input for NORB data type!!!
+export get_sequence_smallNORB
+@inline function getmovingimage(data::NORBdata, img;  cut_size = 0, duration = 20)
+	get_sequence_smallNORB(data; duration = duration)
+end
+
+################################################################################
 # Deprecated
+################################################################################
 
 @inline function generatemovingpatches(patches, layer_pre, layer_post;
 	nr_presentations_per_patch = 30, number_of_patches = Int(5e4), speed = 1.)

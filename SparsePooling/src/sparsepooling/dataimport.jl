@@ -131,62 +131,11 @@ function import_smallNORB(datasplit::String) # "train" or "test"
     azimuth_list = convert(Array{Int64},read(file,"azimuths"))
     lighting_list = convert(Array{Int64},read(file,"lightings"))
 
-    return images_lt, images_rt, category_list, instance_list, elevation_list,
+    return images_lt ./ maximum(images_lt), images_rt ./maximum(images_rt),
+        category_list, instance_list, elevation_list,
         azimuth_list, lighting_list, length(category_list)
 end
 export import_smallNORB
-function select_smallNORB(imgs::Array{Float64,3}, category_list, instance_list,
-        elevation_list, azimuth_list, lighting_list;
-        category = 0:4, instance = 0:9, elevation = 0:8,
-        azimuth = 0:2:34, lighting= 0:5)
-
-     ind_boolians = [i in category for i in category_list] .&
-                    [i in instance for i in instance_list] .&
-                [i in elevation for i in elevation_list] .&
-                    [i in azimuth for i in azimuth_list] .&
-                    [i in lighting for i in lighting_list]
-     indices = findall(ind_boolians)
-     isempty(indices) && error("no images meet criteria!!!")
-
-     return imgs[:,:,indices], indices
-end
-export select_smallNORB
-function get_sequence_smallNORB(imgs::Array{Float64,3}, category_list, instance_list,
-        elevation_list, azimuth_list, lighting_list; duration = 20, move = "rotate_horiz",
-        instances = [4, 6, 7, 8, 9]) # for train set ... change for test set
-
-        #TODO Build in given duration: something like concatenating sequences
-        # in reversed order (for smoothness) until duration is reached
-
-        if move == "rotate_horiz"
-            s_imgs, inds = select_smallNORB(imgs, category_list, instance_list,
-                    elevation_list, azimuth_list, lighting_list;
-                    category = rand(0:4), instance = rand(instances), elevation = rand(0:8),
-                    azimuth = 0:2:34, lighting= rand(0:5))
-            s_imgs[:,:,sortperm(azimuth_list[inds])]
-        elseif move == "rotate_vert"
-            s_imgs, inds = select_smallNORB(imgs, category_list, instance_list,
-                    elevation_list, azimuth_list, lighting_list;
-                    category = rand(0:4), instance = rand(instances), elevation = 0:8,
-                    azimuth = rand(0:2:34), lighting= rand(0:5))
-            s_imgs[:,:,sortperm(elevation_list[inds])]
-        elseif move == "changelighting"
-            s_imgs, inds = select_smallNORB(imgs, category_list, instance_list,
-                    elevation_list, azimuth_list, lighting_list;
-                    category = rand(0:4), instance = rand(instances), elevation = rand(0:8),
-                    azimuth = rand(0:2:34), lighting= 0:5)
-            s_imgs[:,:,sortperm(lighting_list[inds])]
-        elseif move == "translate"
-            s_imgs, inds = select_smallNORB(imgs, category_list, instance_list,
-                    elevation_list, azimuth_list, lighting_list;
-                    category = rand(0:4), instance = rand(instances), elevation = rand(0:8),
-                    azimuth = rand(0:2:34), lighting= rand(0:5))
-            getmovingimage(s_imgs[:]; duration = duration)
-        # elseif move == "zoom" .. downsample?
-
-        end
-end
-export get_sequence_smallNORB
 
 
 function subtractmean!(data)
@@ -233,3 +182,16 @@ function downsample(data; factor = 3)
     end
     n_imgs
 end
+export downsample
+
+function crop(data; margin = 15)
+    imgsize = size(data)
+    n_imgsize = imgsize[1] - 2 * margin
+    (2 * margin >= imgsize[1]) && error("margin bigger than image!")
+    n_imgs = zeros(n_imgsize, n_imgsize, imgsize[3])
+    for i in 1:imgsize[3]
+        n_imgs[:,:,i] = data[margin+1:end-margin, margin+1:end-margin, i]
+    end
+    n_imgs
+end
+export crop

@@ -1,7 +1,6 @@
 using Pkg; Pkg.activate("./../SparsePooling/"); Pkg.instantiate()
 push!(LOAD_PATH, "./../SparsePooling/src/")
 using SparsePooling
-#include("./../SparsePooling/src/SparsePooling.jl")
 using PyPlot
 
 ## Load data

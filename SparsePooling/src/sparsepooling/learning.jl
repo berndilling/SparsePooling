@@ -27,7 +27,7 @@ function learn_net_layerwise!(net::net,
 		print(string("\n Learning Layer Nr. ",k," (",typeof(net.layers[k]),")\n"))
 		@showprogress for i in 1:iterations[k - 1]
 			pattern = inputfunctions[k-1](data)
-			dynamicpattern = dynamicfunctions[k-1](pattern; cut_size = cut_size)
+			dynamicpattern = dynamicfunctions[k-1](data, pattern; cut_size = cut_size)
 			for j in 1:size(dynamicpattern)[3]
 				net.layers[1].a = dynamicpattern[:,:,j][:]
 				forwardprop!(net; FPUntilLayer = k)
