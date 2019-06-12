@@ -114,17 +114,17 @@ export geterrors!
 end
 export generatehiddenreps!
 
-function traintopendclassifier!(network, datatrain, datatest;
-			iters = 10^6, ind = datatrain.nsamples, indtest = datatrain.nsamples,
-			n_classes = 10, inputfunction = getsmallimg)
+function traintopendclassifier!(network, datatrain, datatest; hidden_sizes = Int64[],
+			iters = 10^6, ind = datatrain.nsamples, indtest = datatest.nsamples,
+			n_classes = 10, inputfunction = getsmallimg, movingfunction = getstatichiddenrep)
 
 	class1 = net(["input","classifier"],
-				[length(network.layers[network.nr_layers].a),n_classes],
+				vcat(length(network.layers[network.nr_layers].a), hidden_sizes, n_classes),
 				[0,0], [0,0])
 	i2 = []
 	learn_net_layerwise!(class1, datatrain, i2, [iters],
 	  [inputfunction for i in 1:class1.nr_layers-1],
-	  [getstatichiddenrep for i in 1:class1.nr_layers-1];
+	  [movingfunction for i in 1:class1.nr_layers-1];
 	  LearningFromLayer = 2, LearningUntilLayer = 2)
 
 	error_train = geterrors!(class1, datatrain; noftest = ind)
@@ -156,7 +156,7 @@ export getmovingimage
 	return reshape(img,img_s,img_s,1)
 end
 export getstaticimage
-@inline function getstatichiddenrep(imgs; cut_size = 0)
+@inline function getstatichiddenrep(data, imgs; cut_size = 0)
 	reshape(imgs,length(imgs),1,1)
 end
 export getstatichiddenrep

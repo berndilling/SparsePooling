@@ -255,12 +255,19 @@ function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 			[relu! for i in 2:nl])
 end
 
-
 function addfullyconnectedlayer(layers, i, layertype, tl, sl)
 	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
-		layers = (layers... , layertype([layers[i-1].parameters.n_of_layer_patches * sl[i-1], sl[i]]))
+		if tl[i] == "classifier"
+			layers = (layers... , layertype(vcat(layers[i-1].parameters.n_of_layer_patches * sl[i-1], sl[i:end])))
+		else
+			layers = (layers... , layertype([layers[i-1].parameters.n_of_layer_patches * sl[i-1], sl[i]]))
+		end
 	else
-		layers = (layers... , layertype(sl[i-1:i]))
+		if tl[i] == "classifier"
+			layers = (layers... , layertype(sl[i-1:end]))
+		else
+			layers = (layers... , layertype(sl[i-1:i]))
+		end
 	end
 	return layers
 end
@@ -297,6 +304,7 @@ function net(tl::Array{String, 1}, # tl: types of layers
 			layers = addpatchylayer(layers, i, layer_pool_patchy, tl, sl, ks, str)
 		elseif tl[i] == "classifier"
 			layers = addfullyconnectedlayer(layers, i, classifier, tl, sl)
+			return net(nl, tl, sl, ks, str, layers)
 		end
 	end
 	net(nl, tl, sl, ks, str, layers)
