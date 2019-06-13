@@ -3,7 +3,7 @@ push!(LOAD_PATH, "./../SparsePooling/src/")
 using SparsePooling
 using PyPlot
 
-mode = "SP" # "SparsePooling" #"MLP" #
+mode =  "SparsePooling" #"MLP" #"SP" #
 
 images_lt, images_rt, category_list, instance_list, elevation_list,
     azimuth_list, lighting_list = import_smallNORB("train");
@@ -16,21 +16,24 @@ images_test = downsample(crop(images_lt_test; margin = 16); factor = 2);
 data = NORBdata(images, category_list, instance_list, elevation_list, azimuth_list, lighting_list)
 datatest = NORBdata(images_test, category_list_test, instance_list_test, elevation_list_test, azimuth_list_test, lighting_list_test)
 
+
+ind = data.nsamples # 5000 # 50000 # for training & evaluating classifier
+ind_t = datatest.nsamples # 5000 # 10000
+
+
 ## SparsePooling network
 if mode == "SparsePooling"
-    ind = 5000 # 50000 # for training & evaluating classifier
-    ind_t = 5000 # 10000
 
     network = net(["input","sparse_patchy","pool_patchy"],
-                [size(data.data)[1]^2,10,10],
-                [0,6,3],
-                [0,1,2])
+                [size(data.data)[1]^2,32,32],
+                [0,3,2], #0,6,3
+                [0,1,2]) #stride 1 in first layer works best so far
 
     ## Training
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^4,10^2],
+        [10^4,10^3],
         [inputfunction for i in 1:network.nr_layers],
         [getstaticimage, getmovingimage];
         LearningFromLayer = 2,
@@ -50,7 +53,7 @@ if mode == "SparsePooling"
 ## MLP control
 elseif mode == "MLP"
     traintopendclassifier!(net(["input"],[size(data.data)[1]^2],[0],[0]), data, datatest; hidden_sizes = [500],
-			iters = 10^5, ind = data.nsamples, indtest = datatest.nsamples,
+			iters = 10^6, ind = data.nsamples, indtest = datatest.nsamples,
 			n_classes = 5, inputfunction = getsmallimg, movingfunction = getstaticimage)
 elseif mode == "SP"
     traintopendclassifier!(net(["input"],[size(data.data)[1]^2],[0],[0]), data, datatest; hidden_sizes = Int64[],

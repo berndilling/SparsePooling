@@ -7,12 +7,14 @@ using Statistics: mean
 using Base.Iterators: partition
 using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
 #using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
-include("./../sparsepooling/dataimport.jl")
+using Pkg; Pkg.activate("./../SparsePooling/")#; Pkg.instantiate()
+push!(LOAD_PATH, "./../SparsePooling/src/")
+using SparsePooling
+#include("./../sparsepooling/dataimport.jl")
 
-data_set = "CIFAR10_gray" #"CIFAR10_gray" # "MNIST" #
-epochs = 20
+data_set = "NORB" # "CIFAR10_gray" #"CIFAR10_gray" # "MNIST" #
+epochs = 5 # 20
 batch_size = 128 # 500
-index = 10000 # for evaluating accuracy
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
 
 if data_set == "CIFAR10"
@@ -77,19 +79,40 @@ elseif data_set == "MNIST"
     valset = collect(59001:60000)
     valX = cat(float.(imgs[valset])..., dims = 4) |> gpu
     vallabels = labels[:, valset] |> gpu
+elseif data_set == "NORB"
+    images_lt, images_rt, category_list, instance_list, elevation_list,
+        azimuth_list, lighting_list = import_smallNORB("train");
+    images_lt_test, images_rt_test, category_list_test, instance_list_test, elevation_list_test,
+        azimuth_list_test, lighting_list_test = import_smallNORB("test");
+
+    images = downsample(crop(images_lt; margin = 16); factor = 2);
+    images_test = downsample(crop(images_lt_test; margin = 16); factor = 2);
+
+    imgs = [reshape(images[:,:,i],32,32,1) for i in 1:length(category_list)]
+    labels = onehotbatch([category_list[i] + 1 for i in 1:length(category_list)],1:5)
+    train = gpu.([(cat(imgs[i]..., dims = 4), labels[:,i]) for i in partition(1:length(category_list)-5000, batch_size)])
+    X_all = zeros(32,32,1,length(category_list))
+    for i in 1:length(category_list) X_all[:,:,:,i] = imgs[i] end
+
+    imgstest = [reshape(images_test[:,:,i],32,32,1) for i in 1:length(category_list_test)]
+    testlabels = onehotbatch([category_list_test[i] + 1 for i in 1:length(category_list_test)],1:5)
+    testX = zeros(32,32,1,length(category_list_test))
+    for i in 1:length(category_list_test) testX[:,:,:,i] = imgstest[i] end
+
+    valset = collect(length(category_list_test)-5000+1:length(category_list))
+    valX = cat(imgs[valset]..., dims = 4) |> gpu
+    vallabels = labels[:, valset] |> gpu
 end
 
 ######################################################################
 
 @info("Build CNN...")
 
-Simple_CNN() = Chain(
-    # First convolution, operating upon a 28x28 image
+Simple_CNN(; n_classes = 10) = Chain(
     Conv((3, 3), n_in_channel => 32, stride=(1, 1), relu),
     #BatchNorm(32),
     x -> maxpool(x, (2,2)),
 
-    # Second convolution, operating upon a 14x14 image
     Conv((3, 3), 32 => 64, stride=(1, 1), relu),
     #BatchNorm(64),
     x -> maxpool(x, (2,2)),
@@ -99,14 +122,12 @@ Simple_CNN() = Chain(
     #BatchNorm(32),
     #x -> maxpool(x, (2,2)),
 
-    # Reshape 3d tensor into a 2d one, at this point it should be (3, 3, 32, N)
-    # which is where we get the 288 in the `Dense` layer below:
     Dropout(0.25),
 
     x -> reshape(x, :, size(x, 4)),
     (data_set == "MNIST") ? Dense(1600, 128, relu) : Dense(2304, 128, relu),
     Dropout(0.5),
-    Dense(128, 10),
+    Dense(128, n_classes),
     softmax) |> gpu
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
@@ -148,13 +169,13 @@ vgg16() = Chain(
   Dense(4096, 10),
   softmax) |> gpu
 
-m = Simple_CNN()
+m = Simple_CNN(; n_classes = size(labels)[1])
 
 loss(x, y) = crossentropy(m(x), y)
-accuracy(x, y) = mean(onecold(m(x), 1:10) .== onecold(y, 1:10))
+accuracy(x, y; n_classes = 10) = mean(onecold(m(x), 1:n_classes) .== onecold(y, 1:n_classes))
 
 # Defining the callback and the optimizer
-evalcb = throttle(() -> @show(accuracy(valX, valY)), 10)
+#evalcb = throttle(() -> @show(accuracy(valX, valY)), 10)
 
 opt = ADAM()
 
@@ -163,12 +184,12 @@ for i in 1:epochs
     @info(string("Epoch nr. ",i," out of ",epochs))
     @time Flux.train!(loss, params(m), train, opt)
     GC.gc()
-    println("val acc: ", accuracy(valX, vallabels))
+    println("val acc: ", accuracy(valX, vallabels; n_classes = size(labels)[1]))
 end
 
 # Evaluate train and test accuracy
 @info("Evaluate accuracies...")
 GC.gc()
-println("acc train: ", accuracy(X_all, labels))
+println("acc train: ", accuracy(X_all, labels; n_classes = size(labels)[1]))
 GC.gc()
-println("acc test: ", accuracy(testX, testlabels))
+println("acc test: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
