@@ -14,7 +14,7 @@ ind = 50000 # for training & evaluating classifier
 ind_t = 10000
 
 network = net(["input","sparse_patchy","pool_patchy"],
-            [size(data.data)[1],20,10],
+            [size(data.data)[1],10,10],
             [0,6,3],
             [0,1,2])
 

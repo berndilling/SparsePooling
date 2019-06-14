@@ -172,11 +172,11 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 	zeros(ns))
 end
 
-function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2, # 1e-1, 5e-3, 5e-2
-		dt = 5e-2, epsilon = 1e-2, activationfunction = sigm!, OneOverMaxFiringRate = 1/50,
+function parameters_sparse(ns ; learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2, # 1e-1, 5e-3, 5e-2
+		dt = 1e-2, epsilon = 1e-2, activationfunction = sigm_m!, OneOverMaxFiringRate = 1/50,
 		calculate_trace = true, one_over_tau_a = 1e-2,
 		one_over_tau_a_s = 1.,
-		p = 1/10) #p = 1/12 average activation set to 5% (as in Zylberberg)
+		p = 1. / ns[2]) #p = 1/12 average activation set to 5% (as in Zylberberg)
 	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, activationfunction, OneOverMaxFiringRate,
 			calculate_trace, one_over_tau_a,
@@ -184,7 +184,7 @@ function parameters_sparse(; learningrate_v = 1e-1, learningrate_w = 5e-3, learn
 			p)
 end
 function layer_sparse(ns::Array{Int64, 1}; in_fan = ns[1]) #ns: number of neurons in previous and present layer
-	layer_sparse(parameters_sparse(), # default parameter init
+	layer_sparse(parameters_sparse(ns), # default parameter init
 			zeros(in_fan), #pre activation initialized with zeros
 			zeros(in_fan), #pre low-pass filtered activity initialized with zeros
 			zeros(ns[2]), #membrane potential initialized with zeros
@@ -193,7 +193,7 @@ function layer_sparse(ns::Array{Int64, 1}; in_fan = ns[1]) #ns: number of neuron
 			zeros(ns[2]),
 			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr.
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
-			1*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
+			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
 function get_n_of_layer_patches(in_size::Int64, patch_size::Int64, stride::Int64)
@@ -212,14 +212,14 @@ function layer_sparse_patchy(ns::Array{Int64, 1};
 	1.)
 end
 
-function parameters_pool(; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2,
+function parameters_pool(ns ; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2,
 		dt = 1e-1, epsilon = 1e-2, updaterule = GH_SFA_subtractrace_Sanger!,
-	activationfunction = sigm!, calculate_trace = true, one_over_tau_a = 2e-1, p = 1/10) # p = 1/2 # one_over_tau_a = 1e-2
+	activationfunction = sigm_m!, calculate_trace = true, one_over_tau_a = 2e-1, p = 1. / ns[2]) # p = 1/2 # one_over_tau_a = 1e-2
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
 end
 function layer_pool(ns::Array{Int64, 1}; in_fan = ns[1])
-	layer_pool(parameters_pool(), # default parameter init
+	layer_pool(parameters_pool(ns), # default parameter init
 			zeros(in_fan), #pre activation initialized with zeros
 			zeros(in_fan), #pre low-pass filtered activity initialized with zeros
 			zeros(in_fan),
@@ -228,7 +228,7 @@ function layer_pool(ns::Array{Int64, 1}; in_fan = ns[1])
 			zeros(ns[2]), #activation initialized with zeros
 			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr. # rand(ns[2], ns[1])/(10*sqrt(ns[1])),#
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
-			1*ones(ns[2]), #thresholds initialized with zeros
+			5*ones(ns[2]), #thresholds initialized with zeros
 			zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end

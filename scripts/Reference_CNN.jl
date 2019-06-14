@@ -125,9 +125,10 @@ Simple_CNN(; n_classes = 10) = Chain(
     Dropout(0.25),
 
     x -> reshape(x, :, size(x, 4)),
-    (data_set == "MNIST") ? Dense(1600, 128, relu) : Dense(2304, 128, relu),
-    Dropout(0.5),
-    Dense(128, n_classes),
+    #(data_set == "MNIST") ? Dense(1600, 128, relu) : Dense(2304, 128, relu),
+    #Dropout(0.5),
+    #Dense(128, n_classes),
+    (data_set == "MNIST") ? Dense(1600, n_classes) : Dense(2304, n_classes),
     softmax) |> gpu
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),

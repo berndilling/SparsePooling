@@ -131,7 +131,7 @@ function import_smallNORB(datasplit::String) # "train" or "test"
     azimuth_list = convert(Array{Int64},read(file,"azimuths"))
     lighting_list = convert(Array{Int64},read(file,"lightings"))
 
-    return images_lt ./ maximum(images_lt), images_rt ./maximum(images_rt),
+    return images_lt ./ maximum(images_lt), images_rt ./ maximum(images_rt),
         category_list, instance_list, elevation_list,
         azimuth_list, lighting_list, length(category_list)
 end
@@ -151,6 +151,7 @@ function subtractmean(data)
         subtractmean!(m)
         m
 end
+export subtractmean
 
 #scale data between [-1,1]
 function rescaledata!(data)
