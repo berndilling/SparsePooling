@@ -27,18 +27,18 @@ ind_t = datatest.nsamples # 5000 # 10000
 
 ## SparsePooling network
 if mode == "SparsePooling"
-    network = net(["input","sparse_patchy"], #,"pool_patchy"], # ,"sparse_patchy","pool_patchy"],
-                [size(data.data)[1]^2,10], #10], #10, 10
-                [0,6], #,2], #0,6,3
-                [0,2]) #,2]) #stride 1 in first layer works best so far
+    network = net(["input","sparse_patchy","pool_patchy","sparse_patchy"],
+                [size(data.data)[1]^2,10,10,20],
+                [0,6,3,4], #0,6,3
+                [0,2,1,2]) #stride 1 in first layer works best so far
 
     ## Training
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^4,10^3], # ,10^4,10^3],
+        [10^4,10^3,10^4,10^3],
         [inputfunction for i in 1:network.nr_layers],
-        [getstaticimage, getmovingimage], # , getstaticimage, getmovingimage];
+        [getstaticimage, getmovingimage,getstaticimage,getmovingimage];
         LearningFromLayer = 2,
         LearningUntilLayer = network.nr_layers)
 
