@@ -120,7 +120,7 @@ function traintopendclassifier!(network, datatrain, datatest; hidden_sizes = Int
 
 	class1 = net(["input","classifier"],
 				vcat(length(network.layers[network.nr_layers].a), hidden_sizes, n_classes),
-				[0,0], [0,0])
+				[0,0], [0,0], [0.,0.], [0.,0.])
 	i2 = []
 	learn_net_layerwise!(class1, datatrain, i2, [iters],
 	  [inputfunction for i in 1:class1.nr_layers-1],
@@ -131,6 +131,7 @@ function traintopendclassifier!(network, datatrain, datatest; hidden_sizes = Int
 	error_test = geterrors!(class1, datatest; noftest = indtest)
 	print(string("\n Train Accuracy: ", 100 * (1 - error_train)," % \n"))
 	print(string("\n Test Accuracy: ", 100 * (1 - error_test)," % \n"))
+	return error_train, error_test
 end
 export traintopendclassifier!
 
