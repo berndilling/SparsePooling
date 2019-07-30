@@ -124,7 +124,7 @@ setup = bbsetup(optimization_wrapper(simulation, fp,
                                                (2., 8.), (2.1, 7.), (-.1, 4.)],
                                               dimdigits = [0, -1,
                                                            1, -1, -1]),
-                MaxSteps = 10^3, TraceMode = :Silent);
+                MaxSteps = 10^3) #, TraceMode = :Silent);
 # dimdigits: 0 = only integer values are allowed (for discrete options),
 #           -1 = machine precision
 @time res = bboptimize(setup);

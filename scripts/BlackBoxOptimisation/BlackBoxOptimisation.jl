@@ -47,7 +47,7 @@ function trainandtest(data, datatest, ind, ind_t;
             ind = ind_t, normalize = true, subtractmean = false), datatest.labels[1:ind_t]; classes = 0:4)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
                 iters = 10^4, ind = ind, indtest = ind_t, n_classes = 5)
-    return 1 - error_test
+    return error_test
 end
 
 
@@ -59,7 +59,7 @@ function SparsePoolingSim(; nfilters1 = 5, nfilters2 = 5,
     fitness = trainandtest(data, datatest, ind, ind_t;
                                 nfilters1 = nfilters1, nfilters2 = nfilters2,
                                 ksize1 = ksize1, ksize2 = ksize2, p1 = p1, p2 = p2)
-    return fitness
+    return fitness # equals error (lower is better)
 end
 
 ###############################################################################
