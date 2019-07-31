@@ -74,6 +74,7 @@ end
 
 	update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre - layer.a_tr_pre, layer.w)
 	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre, layer.w)
+
 	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr- layer.a, layer.a_pre - layer.a_tr_pre, layer.w)
 	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr,
 	#	(layer.a_pre-layer.a_tr_pre) .* (round.(layer.a_pre) + round.(layer.a_tr_s_pre) .!= 2), layer.w)

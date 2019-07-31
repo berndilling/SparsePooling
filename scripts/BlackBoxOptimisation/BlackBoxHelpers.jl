@@ -83,8 +83,8 @@ function getNORB()
     datatest = NORBdata(images_test, category_list_test, instance_list_test, elevation_list_test, azimuth_list_test, lighting_list_test)
 
 
-    ind = 10^3 # data.nsamples # 5000 # 50000 # for training & evaluating classifier
-    ind_test = 10^3 # datatest.nsamples # 5000 # 10000
+    ind = 10^4 # data.nsamples # 5000 # 50000 # for training & evaluating classifier
+    ind_test = 10^4 # datatest.nsamples # 5000 # 10000
 
     return data, datatest, ind, ind_test
 end
