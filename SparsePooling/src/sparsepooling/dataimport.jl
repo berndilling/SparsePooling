@@ -120,7 +120,11 @@ end
 # The training set is composed of 5 instances of each category (instances 4, 6, 7, 8 and 9),
 # and the test set of the remaining 5 instances (instances 0, 1, 2, 3, and 5).
 function import_smallNORB(datasplit::String) # "train" or "test"
-    path = "/Users/Bernd/Documents/PhD/Projects/natural_images/small_NORB/"
+    if Sys.isapple()
+        path = "/Users/Bernd/Documents/PhD/Projects/natural_images/small_NORB/"
+    elseif Sys.islinux()
+        path = "/root/small_NORB/"
+    end
     (datasplit == "train") ? (file = h5open(string(path,"data_train.h5"))) :
         (file = h5open(string(path,"data_test.h5")))
     images_lt = permutedims(convert(Array{Float64},read(file,"images_lt")),[2,1,3])

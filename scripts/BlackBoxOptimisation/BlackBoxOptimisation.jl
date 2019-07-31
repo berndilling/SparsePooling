@@ -6,7 +6,7 @@ using Pkg; Pkg.add(PackageSpec(name = "BlackBoxOptim", rev = "master"))
 using BlackBoxOptim
 
 # max number of steps
-MaxSteps = 3
+MaxSteps = 5
 
 ###############################################################################
 ## Helper types and functions
@@ -46,7 +46,7 @@ function trainandtest(data, datatest, ind, ind_t;
     lasthiddenrepstest = labelleddata(generatehiddenreps!(network, datatest;
             ind = ind_t, normalize = true, subtractmean = false), datatest.labels[1:ind_t]; classes = 0:4)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
-                iters = 10^4, ind = ind, indtest = ind_t, n_classes = 5)
+                iters = 10^6, ind = ind, indtest = ind_t, n_classes = 5)
     return error_test
 end
 
@@ -70,13 +70,14 @@ fp = FitParameters([:nfilters1, :nfilters2,
                     :ksize1, :ksize2,
                     :p1, :p2])
 setup = bbsetup(optimization_wrapper(SparsePoolingSim, fp,
-                                     log_stepinterval = 2, # 10
+                                     log_stepinterval = 1,
                                      log_name = "test"),
                 SearchSpace = RectSearchSpace([(2., 10.), (2., 10.),
                                                (1., 10.), (1., 10.),
                                                (0., 1.), (0., 1.)],
                                               dimdigits = [0, 0, 0, 0, -1, -1]),
-               MaxSteps = 3) #MaxSteps); # , TraceMode = :Silent);
+               #MaxSteps = MaxSteps); # , TraceMode = :Silent);
+               MaxFuncEvals = MaxSteps);
 # dimdigits: 0 = only integer values are allowed (for discrete options),
 #           -1 = machine precision
 
