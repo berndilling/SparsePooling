@@ -50,7 +50,7 @@ end
 	forwardprop_lc!(layer)
 	#forwardprop_WTA!(layer)
 end
-@inline function forwardprop_lc!(layer::layer)
+@inline function forwardprop_lc!(layer::layer; max_iter = 50)
 	#if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
 	if norm(layer.a) != 0.
 		layer.parameters.calculate_trace &&	calculatetrace!(layer)
@@ -65,10 +65,12 @@ end
 			scaling_factor = layer.parameters.epsilon/layer.parameters.dt
 			voltage_incr = scaling_factor*norm(layer.u)+1 #+1 to make sure loop is entered
 			input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
-			while norm(voltage_incr) > scaling_factor * norm(layer.u) #for _ in 1:20 #
+			i = 0
+			while norm(voltage_incr) > scaling_factor * norm(layer.u) && i < max_iter
 				voltage_incr = input_without_recurrence - BLAS.gemv('N',layer.v,layer.a) - layer.u
 				BLAS.axpy!(layer.parameters.dt, voltage_incr, layer.u) # update membrane potential
 				layer.parameters.activationfunction(layer) # apply activation function
+				i += 1
 			end
 		end
 	end
