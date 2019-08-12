@@ -137,19 +137,34 @@ export traintopendclassifier!
 
 ##################################################################################
 # Input helpers
-@inline getdir() = rand([-1,1], 2)
+@inline function getdir()
+	dir = rand([-1,0,1], 2)  # select 1 of 8 possible directions
+	if norm(dir) == 0.
+		dir[rand([1,2])] = rand([-1,1]) # exclude zero shift
+	end
+	return dir
+end
 @inline getimsize(img) = Int(sqrt(size(img)[1]))
-@inline function getmovingimage(img; cut_size = 0, duration = 20, speed = 1)
+@inline function getmovingimage(img; dir = getdir(), cut_size = 0, duration = 20, speed = 1)
 	img_s = getimsize(img)
 	movingimg = zeros(img_s, img_s, duration)
-	dir = getdir() # select 1 of 8 possible directions
 	for i in 1:duration
 		movingimg[:,:,i] = circshift(reshape(img,img_s,img_s), i * speed .* dir)
 	end
 	return movingimg
 end
-@inline getmovingimage(data::labelleddata, img; cut_size = 0, duration = 20, speed = 1) =
-	getmovingimage(img; cut_size = cut_size, duration = duration, speed = speed)
+@inline function getmovingimage(data::labelleddata, img; cut_size = 0, duration = 20, max_amp = data.margin, speed = 1)
+	duration > max_amp && error("duration of sequence exceeds maximum possible shift (margin) of images...")
+	dir_initial_shift = getdir()
+	initial_shift = dir_initial_shift .* rand(0:max_amp)
+	img_s = getimsize(img)
+	img = circshift(reshape(img,img_s,img_s), initial_shift)[:]
+	dir = getdir()
+	while norm(dir_initial_shift .+ dir) > sqrt(2)
+		dir = getdir()
+	end
+	getmovingimage(img; dir = dir, cut_size = cut_size, duration = duration, speed = speed)
+end
 export getmovingimage
 
 @inline function getstaticimage(data, img; cut_size = 0)
@@ -171,10 +186,9 @@ end
 @inline cutindices(patchpos, patch_size) =
 	CartesianIndices((patchpos[1]:patchpos[1]+patch_size-1, patchpos[2]:patchpos[2]+patch_size-1))
 
-@inline function getmovingimagepatch(img; cut_size = 8, duration = 20, speed = 1)
+@inline function getmovingimagepatch(img; dir = getdir(), cut_size = 8, duration = 20, speed = 1)
 	img_s, patchpos = getpatchparams(img, cut_size)
 	movingpatch = zeros(cut_size, cut_size, duration)
-	dir = getdir()
 	for i in 1:duration
 		movingpatch[:,:,i] =
 			circshift(reshape(img,img_s,img_s), i * speed .* dir)[cutindices(patchpos, cut_size)]

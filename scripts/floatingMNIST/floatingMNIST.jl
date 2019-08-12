@@ -1,7 +1,10 @@
 # Script for data-augmentation of MNIST to enlarged and shifted digits
 # and for making movies of moving MNIST digts
 
-using HDF5, GR
+using HDF5, JLD2, FileIO, GR, ProgressMeter, LinearAlgebra
+path = "./../../SparsePooling/src/sparsepooling"
+include("$path/types.jl")
+include("$path/helpers.jl")
 
 function getMNIST(; path = "/Users/illing/")
     file = h5open(string(path,"mnist.mat"))
@@ -33,19 +36,66 @@ function zeropad(smallimgs; targetsize = 32)
 	return reshape(imgs, targetsize^2, n_imgs)
 end
 
-## TODO Here comes the getimage and getmovingimage functions that allow for
-# sequences without periodic boundary conditions
-# Attention: should use the data structure of the SparsePooling framework!
+# functions for creating datasets for saving (for CNN reference)
+function createshifteddataset(; targetsize = 50, margin = div(50 - 28, 2) + 3,
+								duration_per_pattern = 1)
+	smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
+		getMNIST();
+	newimgstrain = zeros(targetsize^2, duration_per_pattern * n_trainsamples)
+	newimgstest = zeros(targetsize^2, duration_per_pattern * n_testsamples)
+	newlabelstrain = zeros(duration_per_pattern * n_trainsamples)
+	newlabelstest = zeros(duration_per_pattern * n_testsamples)
 
-# TODO Think about how to store static augmented dataset for reference CNN training
+	for (oldimgs, oldlabels, newimgs, newlabels, old_n_samples) in
+		[(smallimgs, labels, newimgstrain, newlabelstrain, n_trainsamples),
+		(smallimgstest, labelstest, newimgstest, newlabelstest, n_testsamples)]
 
-###
+		imgs = zeropad(oldimgs; targetsize = targetsize)
+		#imgstest = zeropad(smallimgstest; targetsize = targetsize)
+
+		data = labelleddata(imgs, labels, margin)
+		#floatMNISTdatatest = labelleddata(imgstest, labelstest, margin)
+
+		for i in 1:old_n_samples
+			indices = (i-1)*duration_per_pattern+1:i*duration_per_pattern
+			newimgs[:, indices] =
+				getmovingimage(data, data.data[:, i]; duration = duration_per_pattern)[:]
+			newlabels[indices] .= oldlabels[i]
+		end
+	end
+	save(string(pwd(),"/MNISTshifted.jld2"), "trainingimages", newimgstrain,
+								"traininglabels", newlabelstrain,
+								"testimages", newimgstest,
+								"testlabels", newlabelstest)
+end
+
+### Testing
 
 targetsize = 50
+margin = div(50 - 28, 2) + 3
+duration_per_pattern = margin
 
-smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
-	getMNIST();
+createshifteddataset(; targetsize = targetsize, margin = margin,
+								duration_per_pattern = 1)
 
-imgs = zeropad(smallimgs; targetsize = targetsize)
-
-GR.imshow(reshape(imgs[:,1],targetsize,targetsize)')
+#
+# smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
+# 	getMNIST();
+#
+# imgs = zeropad(smallimgs; targetsize = targetsize)
+# imgstest = zeropad(smallimgstest; targetsize = targetsize)
+#
+# floatMNISTdatatrain = labelleddata(imgs, labels, margin)
+# floatMNISTdatatest = labelleddata(imgstest, labelstest, margin)
+#
+# for i in 1:50
+# 	movimg = getmovingimage(floatMNISTdatatrain,
+# 							floatMNISTdatatrain.data[:,rand(1:n_trainsamples)];
+# 							duration = duration_per_pattern)
+#
+# 	for i in 1:duration_per_pattern
+# 	  imshow(movimg[:,:,i]')
+# 	  sleep(0.1)
+# 	end
+# 	sleep(0.5)
+# end
