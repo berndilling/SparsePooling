@@ -83,8 +83,21 @@ function getNORB()
     datatest = NORBdata(images_test, category_list_test, instance_list_test, elevation_list_test, azimuth_list_test, lighting_list_test)
 
 
-    ind = 10^4 # data.nsamples # 5000 # 50000 # for training & evaluating classifier
-    ind_test = 10^4 # datatest.nsamples # 5000 # 10000
+    ind = data.nsamples # 5000 # 50000 # for training & evaluating classifier
+    ind_test = datatest.nsamples # 5000 # 10000
 
     return data, datatest, ind, ind_test
+end
+
+include("./../floatingMNIST/floatingMNIST.jl")
+function getPaddedMNIST(; targetsize = 50, margin = div(targetsize - 28, 2) + 3)
+    smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
+		getMNIST();
+	imgs = zeropad(smallimgs; targetsize = targetsize)
+	imgstest = zeropad(smallimgstest; targetsize = targetsize)
+
+	data = labelleddata(imgs, labels, margin)
+	datatest = labelleddata(imgstest, labelstest, margin)
+
+    return data, datatest, n_trainsamples, n_testsamples
 end

@@ -7,6 +7,7 @@
 		outp[i] = max(0, inp[i])
 	end
 end
+
 @inline function relu_diff!(ax, error)
 	for i in 1:length(ax)
 		error[i] *= ax[i] > 0
@@ -32,7 +33,7 @@ end
 		layer.a[i] = deepcopy(layer.u[i])
 	end
 end
-
+export lin!
 @inline function sigm!(inp, outp)
 	for i in 1:length(inp)
 		outp[i] = 1. / (1. + exp(-inp[i]))
@@ -49,11 +50,13 @@ end
 		layer.a[i] = 1. / (1. + exp(- λ * (layer.u[i]-layer.t[i])))
 	end
 end
+export sigm!
 @inline function sigm_m!(layer; λ = 33.) #10
 	for i in 1:length(layer.u)
 		layer.a[i] = 1. / (1. + exp(- λ * (layer.u[i]-layer.t[i])))
 	end
 end
+#export sigm_m!
 @inline function sigm_s!(layer; λ = 100.) #10
 	for i in 1:length(layer.u)
 		layer.a[i] = 1. / (1. + exp(- λ * (layer.u[i]-layer.t[i])))
@@ -65,13 +68,13 @@ end
 		layer.a[i] = Float64(layer.u[i] > layer.t[i])# heavyside
 	end
 end
-
+export heavyside!
 @inline function pwl!(layer)
 	for i in 1:length(layer.u)
 		layer.a[i] = clamp(layer.u[i]-layer.t[i],0.,1.) #piece-wise linear
 	end
 end
-
+export pwl!
 @inline function ReSQRT!(layer)
 	for i in 1:length(layer.u)
 		layer.a[i] = sqrt(clamp(layer.u[i]-layer.t[i],0.,Inf64)) #thresholded square root

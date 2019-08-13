@@ -1,10 +1,11 @@
 # Script for data-augmentation of MNIST to enlarged and shifted digits
 # and for making movies of moving MNIST digts
 
-using HDF5, JLD2, FileIO, GR, ProgressMeter, LinearAlgebra
-path = "./../../SparsePooling/src/sparsepooling"
-include("$path/types.jl")
-include("$path/helpers.jl")
+using HDF5
+# using JLD2, FileIO, ProgressMeter, LinearAlgebra #, GR
+#path = "./../../SparsePooling/src/sparsepooling"
+#include("$path/types.jl")
+#include("$path/helpers.jl")
 
 function getMNIST(; path = "/Users/illing/")
     file = h5open(string(path,"mnist.mat"))
@@ -37,7 +38,7 @@ function zeropad(smallimgs; targetsize = 32)
 end
 
 # functions for creating datasets for saving (for CNN reference)
-function createshifteddataset(; targetsize = 50, margin = div(50 - 28, 2) + 3,
+function augmentdata(; zero_pad = true, shift = true, targetsize = 50, margin = div(targetsize - 28, 2) + 3,
 								duration_per_pattern = 1)
 	smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
 		getMNIST();
@@ -50,11 +51,10 @@ function createshifteddataset(; targetsize = 50, margin = div(50 - 28, 2) + 3,
 		[(smallimgs, labels, newimgstrain, newlabelstrain, n_trainsamples),
 		(smallimgstest, labelstest, newimgstest, newlabelstest, n_testsamples)]
 
-		imgs = zeropad(oldimgs; targetsize = targetsize)
-		#imgstest = zeropad(smallimgstest; targetsize = targetsize)
-
+		if zero_pad
+			imgs = zeropad(oldimgs; targetsize = targetsize)
+		end
 		data = labelleddata(imgs, labels, margin)
-		#floatMNISTdatatest = labelleddata(imgstest, labelstest, margin)
 
 		for i in 1:old_n_samples
 			indices = (i-1)*duration_per_pattern+1:i*duration_per_pattern
@@ -71,12 +71,12 @@ end
 
 ### Testing
 
-targetsize = 50
-margin = div(50 - 28, 2) + 3
-duration_per_pattern = margin
+#targetsize = 50
+#margin = div(50 - 28, 2) + 3
+#duration_per_pattern = margin
 
-createshifteddataset(; targetsize = targetsize, margin = margin,
-								duration_per_pattern = 1)
+#createshifteddataset(; targetsize = targetsize, margin = margin,
+#								duration_per_pattern = 1)
 
 #
 # smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =

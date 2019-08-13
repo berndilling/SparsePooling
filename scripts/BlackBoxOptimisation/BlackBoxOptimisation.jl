@@ -59,7 +59,7 @@ function SparsePoolingSim(; nfilters1 = 5, nfilters2 = 5,
                             str1 = 2, str2 = 2,
                             tau2 = 5, p1 = 0.1, p2 = 0.1)
     # load data
-    data, datatest, ind, ind_t = getNORB()
+    data, datatest, ind, ind_t = getPaddedMNIST() # getNORB() #
     # train model
     fitness = trainandtest(data, datatest, ind, ind_t;
                                 nfilters1 = nfilters1, nfilters2 = nfilters2,

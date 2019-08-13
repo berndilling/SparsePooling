@@ -153,7 +153,7 @@ end
 	end
 	return movingimg
 end
-@inline function getmovingimage(data::labelleddata, img; cut_size = 0, duration = 20, max_amp = data.margin, speed = 1)
+@inline function getmovingimage(data::labelleddata, img; cut_size = 0, duration = data.margin, max_amp = data.margin, speed = 1)
 	duration > max_amp && error("duration of sequence exceeds maximum possible shift (margin) of images...")
 	dir_initial_shift = getdir()
 	initial_shift = dir_initial_shift .* rand(0:max_amp)
