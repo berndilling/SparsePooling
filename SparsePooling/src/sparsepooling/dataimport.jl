@@ -74,7 +74,7 @@ function zeropad(smallimgs; targetsize = 32)
 	for i in 1:n_imgs
 		imgs[margin:margin+insize-1, margin:margin+insize-1, i] = smallimgs[:, :, i]
 	end
-	return reshape(imgs, targetsize^2, n_imgs)
+	return imgs
 end
 export zeropad
 
@@ -221,7 +221,12 @@ end
 export import_smallNORB
 
 
-function getMNIST(; path = "/Users/illing/")
+function getMNIST()
+    if Sys.isapple()
+        path = "/Users/Bernd/Documents/PhD/Projects/"
+    elseif Sys.islinux()
+        path = "/root/"
+    end
     file = h5open(string(path,"mnist.mat"))
     smallimgs = read(file, "trainingimages")
     labels = read(file, "traininglabels")
@@ -255,7 +260,6 @@ function getNORB()
     data = NORBdata(images, category_list, instance_list, elevation_list, azimuth_list, lighting_list)
     datatest = NORBdata(images_test, category_list_test, instance_list_test, elevation_list_test, azimuth_list_test, lighting_list_test)
 
-
     ind = data.nsamples # 5000 # 50000 # for training & evaluating classifier
     ind_test = datatest.nsamples # 5000 # 10000
 
@@ -266,12 +270,19 @@ export getNORB
 function getPaddedMNIST(; targetsize = 50, margin = div(targetsize - 28, 2) + 3)
     smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
 		getMNIST();
-	imgs = zeropad(smallimgs; targetsize = targetsize)
-	imgstest = zeropad(smallimgstest; targetsize = targetsize)
 
-	data = labelleddata(imgs, labels, margin)
-	datatest = labelleddata(imgstest, labelstest, margin)
+    smallimgs = subtractmean(smallimgs)
+    smallimgstest = subtractmean(smallimgstest)
 
-    return data, datatest, n_trainsamples, n_testsamples
+	imgs = reshape(zeropad(smallimgs; targetsize = targetsize), targetsize^2, n_trainsamples)
+	imgstest = reshape(zeropad(smallimgstest; targetsize = targetsize), targetsize^2, n_testsamples)
+
+	data = labelleddata(imgs, labels; margin = margin)
+	datatest = labelleddata(imgstest, labelstest; margin = margin)
+
+    ind = data.nsamples
+    ind_test = datatest.nsamples
+
+    return data, datatest, ind, ind_test
 end
 export getPaddedMNIST

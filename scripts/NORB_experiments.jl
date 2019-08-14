@@ -1,3 +1,7 @@
+
+# !!!Careful !!!
+# This is partly deprecated and should be updated using BlackBoxOptimisation.jl
+
 using Pkg; Pkg.activate("./../SparsePooling/")#; Pkg.instantiate()
 push!(LOAD_PATH, "./../SparsePooling/src/")
 using SparsePooling

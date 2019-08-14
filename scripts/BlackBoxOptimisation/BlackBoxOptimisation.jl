@@ -21,6 +21,8 @@ include("BlackBoxHelpers.jl")
 
 # layer wise training + classifier training + testing
 # returns scalar fitness (i.e. test error)
+getindim(data::labelleddata) = size(data.data)[1]
+getindim(data::NORBdata) = size(data.data)[1]^2
 function trainandtest(data, datatest, ind, ind_t;
                             nfilters1 = 5, nfilters2 = 5,
                             ksize1 = 5, ksize2 = 5,
@@ -28,7 +30,7 @@ function trainandtest(data, datatest, ind, ind_t;
                             tau2 = 5.,
                             p1 = 0.1, p2 = 0.1)
     network = net(["input","sparse_patchy","pool_patchy"],
-                [size(data.data)[1]^2,Int(nfilters1), Int(nfilters2)],
+                [getindim(data),Int(nfilters1), Int(nfilters2)],
                 [0,Int(ksize1),Int(ksize2)], # kernel sizes
                 [0,Int(str1),Int(str2)], #s strides: stride 1 in first layer works best so far
                 [100.,100.,tau2], # time scales tau for SFA (ignored for non SFA layers)
@@ -38,18 +40,22 @@ function trainandtest(data, datatest, ind, ind_t;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^4, 5*10^2],
+        [10^3, 10^2],
         [inputfunction for i in 1:network.nr_layers],
         [getstaticimage, getmovingimage];
         LearningFromLayer = 2,
         LearningUntilLayer = network.nr_layers)
 
     lasthiddenrepstrain = labelleddata(generatehiddenreps!(network, data;
-            ind = ind, normalize = true, subtractmean = false), data.labels[1:ind]; classes = 0:4)
+                                            ind = ind, normalize = true,
+                                            subtractmean = false),
+                                        data.labels[1:ind]; classes = data.classes)
     lasthiddenrepstest = labelleddata(generatehiddenreps!(network, datatest;
-            ind = ind_t, normalize = true, subtractmean = false), datatest.labels[1:ind_t]; classes = 0:4)
+                                            ind = ind_t, normalize = true,
+                                            subtractmean = false),
+                                        datatest.labels[1:ind_t]; classes = data.classes)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
-                iters = 10^6, ind = ind, indtest = ind_t, n_classes = 5)
+                iters = 10^4, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_test
 end
 
