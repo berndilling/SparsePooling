@@ -6,36 +6,8 @@ using HDF5
 #path = "./../../SparsePooling/src/sparsepooling"
 #include("$path/types.jl")
 #include("$path/helpers.jl")
+#include("$path/dataimport.jl")
 
-function getMNIST(; path = "/Users/illing/")
-    file = h5open(string(path,"mnist.mat"))
-    smallimgs = read(file, "trainingimages")
-    labels = read(file, "traininglabels")
-    smallimgstest = read(file, "testimages");
-    labelstest =  read(file, "testlabels");
-    close(file)
-
-    n_trainsamples = size(smallimgs)[2]
-	n_testsamples = size(smallimgstest)[2]
-
-    data_max = maximum([maximum(abs.(smallimgs)),maximum(abs.(smallimgstest))])
-    smallimgs ./= data_max
-    smallimgstest ./= data_max
-  return smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples
-end
-
-function zeropad(smallimgs; targetsize = 32)
-	n_imgs = size(smallimgs)[2]
-	insize = Int(sqrt(size(smallimgs)[1]))
-	smallimgs = reshape(smallimgs, insize, insize, n_imgs)
-	imgs = zeros(targetsize, targetsize, n_imgs)
-
-	margin = Int(floor((targetsize - insize) / 2))
-	for i in 1:n_imgs
-		imgs[margin:margin+insize-1, margin:margin+insize-1, i] = smallimgs[:, :, i]
-	end
-	return reshape(imgs, targetsize^2, n_imgs)
-end
 
 # functions for creating datasets for saving (for CNN reference)
 function augmentdata(; zero_pad = true, shift = true, targetsize = 50, margin = div(targetsize - 28, 2) + 3,
