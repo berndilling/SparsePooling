@@ -43,8 +43,8 @@ end
 
 ## Testing
 
-targetsize = 50
-margin = div(50 - 28, 2) + 3
+targetsize = 40
+margin = div(targetsize - 28, 2) + 2
 duration_per_pattern = margin
 
 augmentdata(; targetsize = targetsize, margin = margin,
