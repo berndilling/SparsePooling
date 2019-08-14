@@ -40,7 +40,7 @@ function trainandtest(data, datatest, ind, ind_t;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^3, 10^2],
+        [10^4, 10^3],
         [inputfunction for i in 1:network.nr_layers],
         [getstaticimage, getmovingimage];
         LearningFromLayer = 2,
@@ -55,7 +55,7 @@ function trainandtest(data, datatest, ind, ind_t;
                                             subtractmean = false),
                                         datatest.labels[1:ind_t]; classes = data.classes)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
-                iters = 10^4, ind = ind, indtest = ind_t, n_classes = length(data.classes))
+                iters = 10^6, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_test
 end
 
