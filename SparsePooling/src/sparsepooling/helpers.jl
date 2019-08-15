@@ -35,7 +35,7 @@ end
 	if is_apple()
 		path = "/Users/Bernd/Documents/PhD/Projects/SparsePooling/"
 	elseif is_linux()
-		path = "/home/illing/"
+		path = "/root/SparsePooling/"
 	end
 end
 export getsavepath
@@ -69,7 +69,7 @@ function _loss_crossentropy(net, target)
 	return -target'*log.(probs)
 end
 
-@inline function geterrors!(net, data; getwrongindices = false, noftest = data.nsamples)
+function geterrors!(net, data; getwrongindices = false, noftest = data.nsamples)
 	print("calculate classification errors...")
 	error = 0
 	if getwrongindices
@@ -94,7 +94,19 @@ end
 end
 export geterrors!
 
-@inline function generatehiddenreps!(network::net, data;
+using Random
+function ShiftPaddedMNIST!(data)
+	myRNG = MersenneTwister(1234)
+	ds = size(data.data)[1]
+	for i in 1:n_data
+		data.data[:,i] = reshape(getmovingimage(data, data.data[:,i];
+									duration = 1, max_amp = data.margin, speed = 1, RNG = myRNG),
+								ds, data.n_samples)
+	end
+end
+export ShiftPaddedMNIST!
+
+function generatehiddenreps!(network::net, data;
 					ind = data.nsamples, normalize = true,
 					subtractmean = false)
 	reps = zeros(length(network.layers[network.nr_layers].a),ind)
@@ -137,10 +149,10 @@ export traintopendclassifier!
 
 ##################################################################################
 # Input helpers
-@inline function getdir()
-	dir = rand([-1,0,1], 2)  # select 1 of 8 possible directions
+@inline function getdir(; RNG = Random.GLOBAL_RNG)
+	dir = rand(RNG, [-1,0,1], 2)  # select 1 of 8 possible directions
 	if norm(dir) == 0.
-		dir[rand([1,2])] = rand([-1,1]) # exclude zero shift
+		dir[rand(RNG, [1,2])] = rand(RNG, [-1,1]) # exclude zero shift
 	end
 	return dir
 end
@@ -153,10 +165,10 @@ end
 	end
 	return movingimg
 end
-@inline function getmovingimage(data::labelleddata, img; cut_size = 0, duration = data.margin, max_amp = data.margin, speed = 1)
+@inline function getmovingimage(data::labelleddata, img; cut_size = 0, duration = data.margin, max_amp = data.margin, speed = 1, RNG = Random.GLOBAL_RNG)
 	duration > max_amp && error("duration of sequence exceeds maximum possible shift (margin) of images...")
 	dir_initial_shift = getdir()
-	initial_shift = dir_initial_shift .* rand(0:max_amp)
+	initial_shift = dir_initial_shift .* rand(RNG, 0:max_amp)
 	img_s = getimsize(img)
 	img = circshift(reshape(img,img_s,img_s), initial_shift)[:]
 	dir = getdir()

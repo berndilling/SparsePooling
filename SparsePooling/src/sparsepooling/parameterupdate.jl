@@ -40,17 +40,28 @@ end
 # Update rule for sparse coding algorithm: meant for both, sparse and pooling layers
 #Algorithm for parameter update in sparse coding as proposed by Zylberberg et al PLoS Comp Bio 2011
 # Parameters in this paper (lr_v,lr_w,lr_thr)=(0.1,0.001,0.01) (started with higher rates and then decreased)
-@inline function update_recurrent_weights!(lr, p, post, v)
-	BLAS.ger!(lr, post, post, v)
-	@. v += - lr * p^2
+@inline function _postprocess_recurrent_weights(v)
 	for j in 1:size(v)[1]
 		v[j,j] = 0. #no self-inhibition
 	end
 	clamp!(v, 0., Inf64) # Dale's Law
 end
+@inline function update_recurrent_weights!(lr, p::Float64, post, v)
+	BLAS.ger!(lr, post, post, v)
+	@. v += - lr * p^2
+	_postprocess_recurrent_weights(v)
+end
+# TODO implement long timescale trace for pooling layer to subract running average!
+@inline function update_recurrent_weights!(lr, post::Array{Float64, 1}, post_tr, v)
+	BLAS.ger!(lr, post .- post_tr, post .- post_tr, v)
+	temp = Diagonal(1 .- lr * post .^ 2) * v # Careful this could break symmetry!
+	@. v = temp
+	_postprocess_recurrent_weights(v)
+end
 @inline function update_ff_weights!(lr, post, pre, w)
 	# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
-	temp = Diagonal(1 .- lr * post) * w
+	#temp = Diagonal(1 .- lr * post) * w
+	temp = Diagonal(1 .- lr * post .^ 2) * w
 	@. w = temp
 	# Second: First term (data-driven) of weight update
 	BLAS.ger!(lr, post, pre, w)
