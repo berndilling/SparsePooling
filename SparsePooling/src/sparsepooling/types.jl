@@ -159,6 +159,9 @@ end
 NORBdata(data, category_list, instance_list, elevation_list, azimuth_list, lighting_list; classes = 0:4) =
 	NORBdata(data, classes, category_list, instance_list, elevation_list, azimuth_list, lighting_list, size(data)[end], 0)
 export NORBdata
+getindim(data::labelleddata) = size(data.data)[1]
+getindim(data::NORBdata) = size(data.data)[1]^2
+export getindim
 
 ############################################################################
 ## CONSTRUCTORS
