@@ -98,10 +98,10 @@ using Random
 function ShiftPaddedMNIST!(data)
 	myRNG = MersenneTwister(1234)
 	ds = size(data.data)[1]
-	for i in 1:n_data
+	for i in 1:data.nsamples
 		data.data[:,i] = reshape(getmovingimage(data, data.data[:,i];
 									duration = 1, max_amp = data.margin, speed = 1, RNG = myRNG),
-								ds, data.n_samples)
+								ds)
 	end
 end
 export ShiftPaddedMNIST!
@@ -167,13 +167,13 @@ end
 end
 @inline function getmovingimage(data::labelleddata, img; cut_size = 0, duration = data.margin, max_amp = data.margin, speed = 1, RNG = Random.GLOBAL_RNG)
 	duration > max_amp && error("duration of sequence exceeds maximum possible shift (margin) of images...")
-	dir_initial_shift = getdir()
+	dir_initial_shift = getdir(; RNG = RNG)
 	initial_shift = dir_initial_shift .* rand(RNG, 0:max_amp)
 	img_s = getimsize(img)
 	img = circshift(reshape(img,img_s,img_s), initial_shift)[:]
-	dir = getdir()
+	dir = getdir(; RNG = RNG)
 	while norm(dir_initial_shift .+ dir) > sqrt(2)
-		dir = getdir()
+		dir = getdir(; RNG = RNG)
 	end
 	getmovingimage(img; dir = dir, cut_size = cut_size, duration = duration, speed = speed)
 end
