@@ -280,8 +280,8 @@ function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 2)
 	data = labelleddata(imgs, labels; margin = margin)
 	datatest = labelleddata(imgstest, labelstest; margin = margin)
 
-    ind = 10000#data.nsamples
-    ind_test = 10000#datatest.nsamples
+    ind = data.nsamples
+    ind_test = datatest.nsamples
 
     return data, datatest, ind, ind_test
 end

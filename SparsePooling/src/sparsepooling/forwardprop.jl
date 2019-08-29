@@ -18,14 +18,20 @@ end
 @inline function _calculatetrace!(one_over_τ, a, a_tr)
 	a_tr = (1 - one_over_τ) .* a_tr + one_over_τ .* a
 end
-@inline function calculatetrace!(layer)
+@inline function _calculatetrace_tr_a_and_a_tr_l!(layer)
+	_calculatetrace!(layer.parameters.one_over_tau_a, layer.a, layer.a_tr)
+	_calculatetrace!(layer.parameters.one_over_tau_a_l, layer.a, layer.a_tr_l)
+end
+@inline function calculatetrace!(layer::layer_input)
 	_calculatetrace!(layer.parameters.one_over_tau_a, layer.a, layer.a_tr)
 end
 @inline function calculatetrace!(layer::layer_sparse)
-	_calculatetrace!(layer.parameters.one_over_tau_a, layer.a, layer.a_tr)
+	_calculatetrace_tr_a_and_a_tr_l!(layer)
 	_calculatetrace!(layer.parameters.one_over_tau_a_s, layer.a, layer.a_tr_s)
 end
-
+@inline function calculatetrace!(layer)
+	_calculatetrace_tr_a_and_a_tr_l!(layer)
+end
 
 #Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
 #ATTENTION: FOR PCA/SFA nonlinearity should be linear!

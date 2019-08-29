@@ -51,17 +51,18 @@ end
 	@. v += - lr * p^2
 	_postprocess_recurrent_weights(v)
 end
-# TODO implement long timescale trace for pooling layer to subract running average!
-@inline function update_recurrent_weights!(lr, post::Array{Float64, 1}, post_tr, v)
-	BLAS.ger!(lr, post .- post_tr, post .- post_tr, v)
-	temp = Diagonal(1 .- lr * post .^ 2) * v # Careful this could break symmetry!
-	@. v = temp
+@inline function update_recurrent_weights!(lr, post_tr_l::Array{Float64, 1}, post, v)
+	BLAS.ger!(lr, post .- post_tr_l, post .- post_tr_l, v)
+	#temp = Diagonal(1 .- lr * post_tr_l .^ 2) * v # Careful this could break symmetry!
+	#@. v = temp
+	weightdecay = lr * post_tr_l * post_tr_l' .* v
+	@. v += weightdecay
 	_postprocess_recurrent_weights(v)
 end
-@inline function update_ff_weights!(lr, post, pre, w)
+@inline function update_ff_weights!(lr, post, pre, w; power = 4)
 	# First: second term of weight update: weight decay with OLD WEIGHTS à la Oja which comes out of learning rule
 	#temp = Diagonal(1 .- lr * post) * w
-	temp = Diagonal(1 .- lr * post .^ 2) * w
+	temp = Diagonal(1 .- lr * post .^ power) * w
 	@. w = temp
 	# Second: First term (data-driven) of weight update
 	BLAS.ger!(lr, post, pre, w)
@@ -74,6 +75,7 @@ end
 end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
 		update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
+		#update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
 		update_ff_weights!(layer.parameters.learningrate_w, layer.a, layer.a_pre, layer.w)
 		update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
 end

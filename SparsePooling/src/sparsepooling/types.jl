@@ -28,6 +28,7 @@ mutable struct parameters_sparse
 	calculate_trace::Bool
 	one_over_tau_a::Float64 # time constant for low pass filtered activity "trace"
 	one_over_tau_a_s::Float64
+	one_over_tau_a_l::Float64
 	p::Float64 #average activation/"firing rate"
 end
 
@@ -38,7 +39,8 @@ mutable struct layer_sparse <: layer
 	u::Array{Float64, 1} #membrane potential
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
 	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
-	a_tr_s::Array{Float64, 1}
+	a_tr_s::Array{Float64, 1} #short trace for time scale separation
+	a_tr_l::Array{Float64, 1} #long trace (running average) for decorrelation learning rule
 	w::Array{Float64, 2} #synaptic weight matrix in format TOxFROM
 	v::Array{Float64, 2} #recurrent/lateral inhibition weight matrix
 	t::Array{Float64, 1} #thresholds
@@ -71,6 +73,7 @@ mutable struct parameters_pool
 	activationfunction::Function
 	calculate_trace::Bool
 	one_over_tau_a ::Float64
+	one_over_tau_a_l ::Float64
 	p::Float64
 end
 
@@ -82,6 +85,7 @@ mutable struct layer_pool <: layer
 	u::Array{Float64, 1} #membrane potential
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
 	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
+	a_tr_l::Array{Float64, 1} #long trace (running average) for decorrelation learning rule
 	w::Array{Float64, 2} #synaptic weight matrix in format TOxFROM
 	v::Array{Float64, 2} #recurrent/lateral inhibition weight matrix
 	t::Array{Float64, 1} #thresholds
@@ -178,11 +182,11 @@ end
 
 function parameters_sparse(ns; learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2, # 1e-1, 5e-3, 5e-2
 		dt = 1e-2, epsilon = 1e-2, activationfunction = SparsePooling.sigm_m!, OneOverMaxFiringRate = 1/50, # sigm_m!
-		calculate_trace = true, one_over_tau_a = 1e-2, one_over_tau_a_s = 1.,
+		calculate_trace = true, one_over_tau_a = 1e-2, one_over_tau_a_s = 1., one_over_tau_a_l = 1e-2,
 		p = 1. / ns[2]) #p = 1/12 average activation set to 5% (as in Zylberberg)
 	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, activationfunction, OneOverMaxFiringRate,
-			calculate_trace, one_over_tau_a, one_over_tau_a_s, p)
+			calculate_trace, one_over_tau_a, one_over_tau_a_s, one_over_tau_a_l, p)
 end
 function layer_sparse(ns::Array{Int64, 1}; in_fan = ns[1], one_over_tau_a = 1e-2, p = 1. / ns[2]) #ns: number of neurons in previous and present layer
 	layer_sparse(parameters_sparse(ns; one_over_tau_a = one_over_tau_a, p = p), # default parameter init
@@ -191,7 +195,8 @@ function layer_sparse(ns::Array{Int64, 1}; in_fan = ns[1], one_over_tau_a = 1e-2
 			zeros(ns[2]), #membrane potential initialized with zeros
 			zeros(ns[2]), #activation initialized with zeros
 			zeros(ns[2]), #low-pass filtered activity initialized with zeros
-			zeros(ns[2]),
+			zeros(ns[2]), #a_tr_s
+			zeros(ns[2]), #a_tr_l
 			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr.
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
@@ -216,18 +221,19 @@ end
 
 function parameters_pool(ns; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2,
 		dt = 1e-2, epsilon = 1e-2, updaterule = SparsePooling.GH_SFA_subtractrace_Sanger!,
-	activationfunction = SparsePooling.sigm_m!, calculate_trace = true, one_over_tau_a = 2e-1, p = 1. / ns[2]) # sigm_m!, p = 1/2 # one_over_tau_a = 1e-2
+	activationfunction = SparsePooling.sigm_m!, calculate_trace = true, one_over_tau_a = 2e-1, one_over_tau_a_l = 1e-2,  p = 1. / ns[2]) # sigm_m!, p = 1/2 # one_over_tau_a = 1e-2
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
-			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, p)
+			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, one_over_tau_a_l, p)
 end
 function layer_pool(ns::Array{Int64, 1}; in_fan = ns[1], one_over_tau_a = 2e-1, p = 1. / ns[2])
 	layer_pool(parameters_pool(ns; one_over_tau_a = one_over_tau_a, p = p), # default parameter init
 			zeros(in_fan), #pre activation initialized with zeros
 			zeros(in_fan), #pre low-pass filtered activity initialized with zeros
-			zeros(in_fan),
+			zeros(in_fan), #pre a_tr_s
 			zeros(ns[2]), #membrane potential initialized with zeros
-			zeros(ns[2]), #low-pass filtered activity initialized with zeros
 			zeros(ns[2]), #activation initialized with zeros
+			zeros(ns[2]), #low-pass filtered activity initialized with zeros
+			zeros(ns[2]), #a_tr_l
 			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr. # rand(ns[2], ns[1])/(10*sqrt(ns[1])),#
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			5*ones(ns[2]), #thresholds initialized with zeros
