@@ -15,15 +15,12 @@ using LinearAlgebra
 end
 
 # update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
-@inline function _calculatetrace!(one_over_τ, a, a_tr)
-	a_tr = (1 - one_over_τ) .* a_tr + one_over_τ .* a
-end
 @inline function calculatetrace!(layer)
-	_calculatetrace!(layer.parameters.one_over_tau_a, layer.a, layer.a_tr)
+	layer.a_tr = (1-layer.parameters.one_over_tau_a) .* layer.a_tr + layer.parameters.one_over_tau_a .* layer.a
 end
 @inline function calculatetrace!(layer::layer_sparse)
-	_calculatetrace!(layer.parameters.one_over_tau_a, layer.a, layer.a_tr)
-	_calculatetrace!(layer.parameters.one_over_tau_a_s, layer.a, layer.a_tr_s)
+	layer.a_tr = (1-layer.parameters.one_over_tau_a)*layer.a_tr + layer.parameters.one_over_tau_a*layer.a
+	layer.a_tr_s = (1-layer.parameters.one_over_tau_a_s)*layer.a_tr_s + layer.parameters.one_over_tau_a_s*layer.a
 end
 
 

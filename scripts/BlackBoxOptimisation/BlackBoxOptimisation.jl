@@ -6,7 +6,7 @@ using Pkg; Pkg.add(PackageSpec(name = "BlackBoxOptim", rev = "master"))
 using BlackBoxOptim
 
 # max number of steps
-MaxSteps = 2
+MaxSteps = 100
 log_name = "SP_SC_SFA"
 
 ###############################################################################
@@ -21,6 +21,8 @@ include("BlackBoxHelpers.jl")
 
 # layer wise training + classifier training + testing
 # returns scalar fitness (i.e. test error)
+getindim(data::labelleddata) = size(data.data)[1]
+getindim(data::NORBdata) = size(data.data)[1]^2
 function trainandtest(data, datatest, ind, ind_t;
                             nfilters1 = 5, nfilters2 = 5,
                             ksize1 = 5, ksize2 = 5,
@@ -51,7 +53,7 @@ function trainandtest(data, datatest, ind, ind_t;
     lasthiddenrepstest = labelleddata(generatehiddenreps!(network, datatest;
                                             ind = ind_t, normalize = true,
                                             subtractmean = false),
-                                        datatest.labels[1:ind_t]; classes = datatest.classes)
+                                        datatest.labels[1:ind_t]; classes = data.classes)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
                 iters = 10^6, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_test
@@ -85,11 +87,11 @@ fp = FitParameters([:nfilters1, :nfilters2,
 setup = bbsetup(optimization_wrapper(SparsePoolingSim, fp,
                                      log_stepinterval = 1,
                                      log_name = log_name),
-                SearchSpace = RectSearchSpace([(4., 20.), (4., 20.),
+                SearchSpace = RectSearchSpace([(2., 20.), (2., 20.),
                                                (2., 10.), (1., 3.),
                                                (1., 2.), (1., 2.),
-                                               (1.,20.), # default duration of seq. is 20
-                                               (0.01, .5), (0.01, .5)],
+                                               (1.,10.), # default duration of seq. is 20
+                                               (0.01, 1.), (0.01, 1.)],
                                               dimdigits = [0, 0,
                                                            0, 0,
                                                            0, 0,
