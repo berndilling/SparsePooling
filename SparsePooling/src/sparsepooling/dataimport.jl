@@ -267,7 +267,7 @@ function getNORB()
 end
 export getNORB
 
-function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 2)
+function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3)
     smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
 		getMNIST();
 

@@ -94,6 +94,18 @@ end
 end
 export geterrors!
 
+using Random
+function ShiftPaddedMNIST!(data)
+	myRNG = MersenneTwister(1234)
+	ds = size(data.data)[1]
+	for i in 1:data.nsamples
+		data.data[:,i] = reshape(getmovingimage(data, data.data[:,i];
+									duration = 1, max_amp = data.margin,
+									speed = 1, RNG = myRNG), ds)
+	end
+end
+export ShiftPaddedMNIST!
+
 @inline function generatehiddenreps!(network::net, data;
 					ind = data.nsamples, normalize = true,
 					subtractmean = false)
@@ -137,13 +149,15 @@ export traintopendclassifier!
 
 ##################################################################################
 # Input helpers
-@inline function getdir()
-	dir = rand([-1,0,1], 2)  # select 1 of 8 possible directions
+@inline function getdir(; RNG = Random.GLOBAL_RNG)
+	dir = rand(RNG, [-1,0,1], 2)  # select 1 of 8 possible directions
 	if norm(dir) == 0.
-		dir[rand([1,2])] = rand([-1,1]) # exclude zero shift
+		dir[rand(RNG, [1,2])] = rand(RNG, [-1,1]) # exclude zero shift
 	end
 	return dir
 end
+
+
 @inline getimsize(img) = Int(sqrt(size(img)[1]))
 @inline function getmovingimage(img; dir = getdir(), cut_size = 0, duration = 20, speed = 1)
 	img_s = getimsize(img)
@@ -153,15 +167,17 @@ end
 	end
 	return movingimg
 end
-@inline function getmovingimage(data::labelleddata, img; cut_size = 0, duration = data.margin, max_amp = data.margin, speed = 1)
+@inline function getmovingimage(data::labelleddata, img;
+									cut_size = 0, duration = data.margin,
+									max_amp = data.margin, speed = 1, RNG = Random.GLOBAL_RNG)
 	duration > max_amp && error("duration of sequence exceeds maximum possible shift (margin) of images...")
-	dir_initial_shift = getdir()
-	initial_shift = dir_initial_shift .* rand(0:max_amp)
+	dir_initial_shift = getdir(; RNG = RNG)
+	initial_shift = dir_initial_shift .* rand(RNG, 0:max_amp)
 	img_s = getimsize(img)
 	img = circshift(reshape(img,img_s,img_s), initial_shift)[:]
-	dir = getdir()
+	dir = getdir(; RNG = RNG)
 	while norm(dir_initial_shift .+ dir) > sqrt(2)
-		dir = getdir()
+		dir = getdir(; RNG = RNG)
 	end
 	getmovingimage(img; dir = dir, cut_size = cut_size, duration = duration, speed = speed)
 end
@@ -172,6 +188,10 @@ export getmovingimage
 	return reshape(img,img_s,img_s,1)
 end
 export getstaticimage
+@inline function getstaticimagefloatingMNIST(data, img; cut_size = 0)
+	return getmovingimage(data, img; duration = 1)
+end
+export getstaticimagefloatingMNIST
 @inline function getstatichiddenrep(data, imgs; cut_size = 0)
 	reshape(imgs,length(imgs),1,1)
 end
