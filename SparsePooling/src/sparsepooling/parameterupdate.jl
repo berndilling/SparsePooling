@@ -55,7 +55,7 @@ end
 	BLAS.ger!(lr, post .- post_tr_l, post .- post_tr_l, v)
 	#temp = Diagonal(1 .- lr * post_tr_l .^ 2) * v # Careful this could break symmetry!
 	#@. v = temp
-	weightdecay = lr * post_tr_l * post_tr_l' .* v
+	weightdecay = - lr * post_tr_l * post_tr_l' .* v
 	@. v += weightdecay
 	_postprocess_recurrent_weights(v)
 end
@@ -74,13 +74,14 @@ end
 	#BLAS.axpy!(layer.parameters.learningrate_thr,Float64.(layer.a .> layer.t) .- p, layer.t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
-		update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
-		#update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
+		#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
+		update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
 		update_ff_weights!(layer.parameters.learningrate_w, layer.a, layer.a_pre, layer.w)
 		update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
-	update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
+	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
+	update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr, layer.v)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr-layer.a, layer.v)
 

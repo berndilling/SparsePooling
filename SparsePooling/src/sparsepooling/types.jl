@@ -181,7 +181,7 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 end
 
 function parameters_sparse(ns; learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2, # 1e-1, 5e-3, 5e-2
-		dt = 1e-2, epsilon = 1e-2, activationfunction = SparsePooling.sigm_m!, OneOverMaxFiringRate = 1/50, # sigm_m!
+		dt = 1e-2, epsilon = 1e-2, activationfunction = SparsePooling.relu!, OneOverMaxFiringRate = 1/50, # sigm_m!
 		calculate_trace = true, one_over_tau_a = 1e-2, one_over_tau_a_s = 1., one_over_tau_a_l = 1e-2,
 		p = 1. / ns[2]) #p = 1/12 average activation set to 5% (as in Zylberberg)
 	parameters_sparse(learningrate_v, learningrate_w, learningrate_thr,
@@ -221,7 +221,7 @@ end
 
 function parameters_pool(ns; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2,
 		dt = 1e-2, epsilon = 1e-2, updaterule = SparsePooling.GH_SFA_subtractrace_Sanger!,
-	activationfunction = SparsePooling.sigm_m!, calculate_trace = true, one_over_tau_a = 2e-1, one_over_tau_a_l = 1e-2,  p = 1. / ns[2]) # sigm_m!, p = 1/2 # one_over_tau_a = 1e-2
+	activationfunction = SparsePooling.relu!, calculate_trace = true, one_over_tau_a = 2e-1, one_over_tau_a_l = 1e-2,  p = 1. / ns[2]) # sigm_m!, p = 1/2 # one_over_tau_a = 1e-2
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, one_over_tau_a_l, p)
 end

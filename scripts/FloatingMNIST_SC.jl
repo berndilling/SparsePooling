@@ -8,11 +8,11 @@ using BlackBoxOptim
 # layer wise training + classifier training + testing
 # returns scalar fitness (i.e. test error)
 function trainandtest(data, datatest, ind, ind_t;
-                            nfilters1 = 5, nfilters2 = 5,
-                            ksize1 = 5, ksize2 = 5,
-                            str1 = 2, str2 = 2,
+                            nfilters1 = 5,
+                            ksize1 = 5,
+                            str1 = 2,
                             tau2 = 5.,
-                            p1 = 0.1, p2 = 0.1)
+                            p1 = 0.1)
     network = net(["input","sparse_patchy"],
                 [getindim(data),Int(nfilters1)],
                 [0,Int(ksize1)], # kernel sizes
@@ -53,7 +53,7 @@ function SparsePoolingSim(; nfilters1 = 10,
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
     # train model
-    error_train, error_test, network, data = trainandtest(data, datatest, 1000, 1000; #ind, ind_t;
+    error_train, error_test, network, data = trainandtest(data, datatest, 10000, 10000; #ind, ind_t;
                                 nfilters1 = nfilters1,
                                 ksize1 = ksize1,
                                 str1 = str1,

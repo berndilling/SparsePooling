@@ -9,10 +9,10 @@ using BlackBoxOptim
 # returns scalar fitness (i.e. test error)
 function trainandtest(data, datatest, ind, ind_t;
                             nfilters1 = 5, nfilters2 = 5,
-                            ksize1 = 5, ksize2 = 5,
-                            str1 = 2, str2 = 2,
+                            ksize1 = 5, ksize2 = 2,
+                            str1 = 2, str2 = 1,
                             tau2 = 5.,
-                            p1 = 0.1, p2 = 0.1)
+                            p1 = 0.1, p2 = 0.5)
     network = net(["input","sparse_patchy","pool_patchy"],
                 [getindim(data),Int(nfilters1), Int(nfilters2)],
                 [0,Int(ksize1),Int(ksize2)], # kernel sizes
@@ -27,7 +27,7 @@ function trainandtest(data, datatest, ind, ind_t;
         [10^4, 10^3],
         [inputfunction for i in 1:network.nr_layers],
         # TODO use getstaticimagefloatingMNIST
-        [getstaticimage, getmovingimage];
+        [getstaticimagefloatingMNIST, getmovingimage];
         LearningFromLayer = 2,
         LearningUntilLayer = network.nr_layers)
 
@@ -43,12 +43,12 @@ function trainandtest(data, datatest, ind, ind_t;
                                             subtractmean = false),
                                         datatest.labels[1:ind_t]; classes = datatest.classes)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
-                iters = 10^6, ind = ind, indtest = ind_t, n_classes = length(data.classes))
+                iters = 10^5, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_train, error_test, network, data
 end
 function SparsePoolingSim(; nfilters1 = 10, nfilters2 = 10,
                             ksize1 = 8, ksize2 = 3,
-                            str1 = 2, str2 = 2,
+                            str1 = 2, str2 = 1,
                             tau2 = 5, p1 = 0.1, p2 = 0.1)
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
