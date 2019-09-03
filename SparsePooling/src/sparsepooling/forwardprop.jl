@@ -16,7 +16,7 @@ end
 
 # update low-pass filtered activity (before updating activity since current step should not be included, see Robinson&Rolls paper)
 @inline function _calculatetrace!(one_over_τ, a, a_tr)
-	a_tr = (1 - one_over_τ) .* a_tr + one_over_τ .* a
+	@. a_tr = (1 - one_over_τ) * a_tr + one_over_τ * a
 end
 @inline function _calculatetrace_tr_a_and_a_tr_l!(layer)
 	_calculatetrace!(layer.parameters.one_over_tau_a, layer.a, layer.a_tr)
@@ -61,7 +61,7 @@ end
 end
 @inline function forwardprop_lc!(layer::layer; max_iter = 50)
 	#if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
-	if norm(layer.a) != 0.
+	if norm(layer.a) != 0. # Careful with timeconstants! 
 		layer.parameters.calculate_trace &&	calculatetrace!(layer)
 	end
 	layer.u .= 0.

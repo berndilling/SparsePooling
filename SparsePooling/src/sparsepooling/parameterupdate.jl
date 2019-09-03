@@ -70,14 +70,14 @@ end
 	#BLAS.ger!(layer.parameters.learningrate_w,layer.a,layer.a_pre-layer.a_tr_pre,layer.w)
 end
 @inline function update_thresholds!(lr, p, post, t)
-	BLAS.axpy!(lr, post .- p, t)
-	#BLAS.axpy!(layer.parameters.learningrate_thr,Float64.(layer.a .> layer.t) .- p, layer.t)
+	#BLAS.axpy!(lr, post .- p, t)
+	BLAS.axpy!(lr, Float64.(post .> 1e-4) .- p, t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
-		#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
-		update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
-		update_ff_weights!(layer.parameters.learningrate_w, layer.a, layer.a_pre, layer.w)
-		update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
+	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
+	update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
+	update_ff_weights!(layer.parameters.learningrate_w, layer.a, layer.a_pre, layer.w)
+	update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
@@ -86,8 +86,8 @@ end
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr-layer.a, layer.v)
 
 
-	update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre - layer.a_tr_pre, layer.w)
-	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre, layer.w)
+	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre - layer.a_tr_pre, layer.w)
+	update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre, layer.w)
 
 	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr- layer.a, layer.a_pre - layer.a_tr_pre, layer.w)
 	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr,
@@ -95,7 +95,7 @@ end
 
 
 	update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
-	#update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a_tr, layer.t)
+	#update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a_tr_l, layer.t)
 	#update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a - layer.a_tr, layer.t)
 end
 
