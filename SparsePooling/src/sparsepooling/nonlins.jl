@@ -16,7 +16,13 @@ end
 
 @inline function relu!(layer)
 	for i in 1:length(layer.u)
-		layer.a[i] = clamp(layer.u[i]-layer.t[i],0.,Inf64) #thresholded, linear rectifier
+		layer.a[i] = clamp(layer.u[i]-layer.t[i], 0., Inf64) #thresholded, linear rectifier
+	end
+end
+
+@inline function powerrelu!(layer; power = 40)
+	for i in 1:length(layer.u)
+		layer.a[i] = clamp(layer.u[i], 0., Inf64) ^ power
 	end
 end
 

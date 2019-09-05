@@ -101,7 +101,8 @@ end
 
 @inline function _update_layer_parameters!(layer::layer_sparse)
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
-		update_layer_parameters_lc!(layer)
+		#update_layer_parameters_lc!(layer)
+		update_layer_parameters_Hopfield!(layer)
 	end
 end
 # PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
@@ -116,6 +117,24 @@ end
 	end
 end
 
+@inline function getweightupdate_Hopfield(layer, ranking, rank, m, Δ)
+	if rank == 1
+		factor = 1
+	elseif rank == m
+		factor = -Δ
+	end
+	# layer.parameters.learningrate_w
+	return 1e-3 .* factor .*
+				(layer.a_pre .- layer.u[ranking[1]] .* layer.w[ranking[1], :])
+end
+@inline function update_layer_parameters_Hopfield!(layer::layer_sparse; m = 2, Δ = 0.2) # Grinberg, Hopfield 2019
+	ranking = reverse(sortperm(layer.u))
+	layer.w[ranking[1], :] .+= getweightupdate_Hopfield(layer, ranking, 1, m, Δ)
+	layer.w[ranking[m], :] .+= getweightupdate_Hopfield(layer, ranking, m, m, Δ)
+end
+# TODO for layer_pool?!
+
+###
 
 @inline function lateral_competition!(w, a, lr)
     n, m = size(w)

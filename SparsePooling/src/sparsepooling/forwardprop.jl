@@ -56,12 +56,13 @@ end
 # time constant tau of DEQ equals: tau = 1
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
 @inline function forwardprop!(layer::layer_sparse)
-	forwardprop_lc!(layer)
+	#forwardprop_lc!(layer)
 	#forwardprop_WTA!(layer)
+	forwardprop_Hopfield!(layer)
 end
 @inline function forwardprop_lc!(layer::layer; max_iter = 50)
 	#if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
-	if norm(layer.a) != 0. # Careful with timeconstants! 
+	if norm(layer.a) != 0. # Careful with timeconstants!
 		layer.parameters.calculate_trace &&	calculatetrace!(layer)
 	end
 	layer.u .= 0.
@@ -93,13 +94,23 @@ end
 	layer.u .= 0.
 	layer.a .= 0.
 	if norm(layer.a_pre) != 0.
-		input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
+		input_without_recurrence = BLAS.gemv('N', layer.w, layer.a_pre)
 		maxinput = findmax(input_without_recurrence)
 		#(maxinput[1] >= layer.t[maxinput[2]]) && (layer.a[maxinput[2]] = 1.)
 		layer.a[maxinput[2]] = 1.
 	end
 end
 
+@inline function forwardprop_Hopfield!(layer) # Grinberg, Hopfield 2019
+	if norm(layer.a) != 0.
+		layer.parameters.calculate_trace &&	calculatetrace!(layer)
+	end
+	if norm(layer.a_pre) != 0.
+		layer.a_pre = layer.a_pre ./ norm(layer.a_pre)
+	end
+	layer.u = BLAS.gemv('N', layer.w, layer.a_pre)
+	powerrelu!(layer; power = 1)
+end
 
 @inline function forwardprop!(layer::layer_patchy; normalize = false)
 	len = length(layer.layer_patches[1].a)

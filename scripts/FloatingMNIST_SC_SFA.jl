@@ -24,7 +24,7 @@ function trainandtest(data, datatest, ind, ind_t;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [3*10^4, 10^3],
+        [3*10^4, 3*10^3],
         [inputfunction for i in 1:network.nr_layers],
         # TODO use getstaticimagefloatingMNIST
         [getstaticimagefloatingMNIST, getmovingimage];
@@ -46,10 +46,10 @@ function trainandtest(data, datatest, ind, ind_t;
                 iters = 10^6, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_train, error_test, network, data
 end
-function SparsePoolingSim(; nfilters1 = 10, nfilters2 = 10,
-                            ksize1 = 8, ksize2 = 2,
+function SparsePoolingSim(; nfilters1 = 10, nfilters2 = 20,
+                            ksize1 = 8, ksize2 = 3,
                             str1 = 2, str2 = 1,
-                            tau2 = 5, p1 = 0.2, p2 = 0.2)
+                            tau2 = 5, p1 = 0.2, p2 = 0.4)
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
     # train model
