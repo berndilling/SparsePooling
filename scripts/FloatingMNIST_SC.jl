@@ -24,7 +24,7 @@ function trainandtest(data, datatest, ind, ind_t;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^6],
+        [10^5],
         [inputfunction for i in 1:network.nr_layers],
         # TODO use getstaticimagefloatingMNIST
         [getstaticimagefloatingMNIST];

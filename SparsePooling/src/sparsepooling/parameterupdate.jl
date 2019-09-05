@@ -125,7 +125,7 @@ end
 	end
 	# layer.parameters.learningrate_w
 	return 1e-3 .* factor .*
-				(layer.a_pre .- layer.u[ranking[1]] .* layer.w[ranking[1], :])
+				(layer.a_pre .- layer.u[ranking[rank]] .* layer.w[ranking[rank], :])
 end
 @inline function update_layer_parameters_Hopfield!(layer::layer_sparse; m = 2, Δ = 0.2) # Grinberg, Hopfield 2019
 	ranking = reverse(sortperm(layer.u))
