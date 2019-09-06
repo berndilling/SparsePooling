@@ -56,9 +56,9 @@ end
 # time constant tau of DEQ equals: tau = 1
 # dt is measured in units of: tau = 1 and it should be: dt << tau = 1
 @inline function forwardprop!(layer::layer_sparse)
-	#forwardprop_lc!(layer)
+	forwardprop_lc!(layer)
 	#forwardprop_WTA!(layer)
-	forwardprop_Hopfield!(layer)
+	#forwardprop_Hopfield!(layer)
 end
 @inline function forwardprop_lc!(layer::layer; max_iter = 50)
 	#if (norm(layer.a_pre) != 0.) && (norm(layer.a) != 0.) # IS THIS BIO-PLAUSIBLE???
@@ -109,7 +109,7 @@ end
 		layer.a_pre = layer.a_pre ./ norm(layer.a_pre)
 	end
 	layer.u = BLAS.gemv('N', layer.w, layer.a_pre)
-	powerrelu!(layer; power = 1)
+	powerrelu!(layer; power = 10)
 end
 
 @inline function forwardprop!(layer::layer_patchy; normalize = false)

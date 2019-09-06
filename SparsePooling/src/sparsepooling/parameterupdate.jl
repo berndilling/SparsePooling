@@ -6,9 +6,10 @@ update_layer_parameters!(layer::classifier, data) = _update_layer_parameters!(la
 update_layer_parameters!(layer, data) = _update_layer_parameters!(layer)
 
 
-@inline function _normalize_inputweights!(weights)
+@inline function _normalizeweights!(weights)
 	for j in 1:size(weights)[1]
-		weights[j,:] *= 1. / norm(weights[j,:])
+		factor = norm(weights[j,:])
+		weights[j,:] .*= 1. / factor
 	end
 end
 
@@ -101,8 +102,8 @@ end
 
 @inline function _update_layer_parameters!(layer::layer_sparse)
 	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
-		#update_layer_parameters_lc!(layer)
-		update_layer_parameters_Hopfield!(layer)
+		update_layer_parameters_lc!(layer)
+		#update_layer_parameters_Hopfield!(layer)
 	end
 end
 # PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
@@ -117,20 +118,24 @@ end
 	end
 end
 
-@inline function getweightupdate_Hopfield(layer, ranking, rank, m, Δ)
-	if rank == 1
-		factor = 1
-	elseif rank == m
-		factor = -Δ
+@inline function _getweightupdate_Hopfield(layer, ranking, rank, k, m, Δ)
+	if rank <= k
+		factor = 1 / rank
+	elseif rank <= m
+		factor = - Δ
+	else
+		factor = 0.
 	end
 	# layer.parameters.learningrate_w
 	return 1e-3 .* factor .*
-				(layer.a_pre .- layer.u[ranking[rank]] .* layer.w[ranking[rank], :])
+				(layer.a_pre) # .- layer.u[ranking[rank]] .* layer.w[ranking[rank], :])
 end
-@inline function update_layer_parameters_Hopfield!(layer::layer_sparse; m = 2, Δ = 0.2) # Grinberg, Hopfield 2019
+@inline function update_layer_parameters_Hopfield!(layer::layer_sparse; k = 1, m = 2, Δ = 0.1, normalize = true) # Grinberg, Hopfield 2019
 	ranking = reverse(sortperm(layer.u))
-	layer.w[ranking[1], :] .+= getweightupdate_Hopfield(layer, ranking, 1, m, Δ)
-	layer.w[ranking[m], :] .+= getweightupdate_Hopfield(layer, ranking, m, m, Δ)
+	for i in 1:m # Careful this might be different than original paper for m > 2
+		layer.w[ranking[i], :] .+= _getweightupdate_Hopfield(layer, ranking, i, k, m, Δ)
+	end
+	normalize && _normalizeweights!(layer.w)
 end
 # TODO for layer_pool?!
 

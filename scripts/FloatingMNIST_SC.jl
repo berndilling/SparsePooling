@@ -49,7 +49,7 @@ end
 function SparsePoolingSim(; nfilters1 = 10,
                             ksize1 = 8,
                             str1 = 2,
-                            p1 = 0.2)
+                            p1 = 0.4)
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
     # train model
