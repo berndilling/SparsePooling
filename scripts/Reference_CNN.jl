@@ -7,15 +7,29 @@ using Statistics: mean
 using Base.Iterators: partition
 using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
 #using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
-using Pkg; Pkg.activate("./../SparsePooling/")#; Pkg.instantiate()
+
+using Pkg; Pkg.activate("./../SparsePooling/"); Pkg.instantiate()
 push!(LOAD_PATH, "./../SparsePooling/src/")
 using SparsePooling
 #include("./../sparsepooling/dataimport.jl")
 
-data_set = "NORB" # "CIFAR10_gray" #"CIFAR10_gray" # "MNIST" #
+data_set = "MNIST"# "floatingMNIST" # "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB"
 epochs = 5 # 20
 batch_size = 128 # 500
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
+
+function getonechanneldataset(X, Y, batchsize, imsize)
+    dataset = []
+    mb_idxs = partition(1:size(X)[end], batchsize)
+    for idxs in mb_idxs
+        if length(size(Y)) == 1
+            push!(dataset, (reshape(X[:,idxs], imsize, imsize, 1, length(idxs)), Y[idxs]))
+        else
+            push!(dataset, (reshape(X[:,idxs], imsize, imsize, 1, length(idxs)), Y[:,idxs]))
+        end
+    end
+    return dataset
+end
 
 if data_set == "CIFAR10"
     @info("Loading data set: CIFAR10 (color)")
@@ -79,6 +93,22 @@ elseif data_set == "MNIST"
     valset = collect(59001:60000)
     valX = cat(float.(imgs[valset])..., dims = 4) |> gpu
     vallabels = labels[:, valset] |> gpu
+elseif data_set == "floatingMNIST"
+    @info("Loading data set: floatingMNIST")
+
+    data = load("./floatingMNIST/MNISTshifted.jld2")
+    X_all = data["trainingimages"]
+    labels = gpu.(onehotbatch(data["traininglabels"], 0:9))
+    testX = data["testimages"]
+    testlabels = gpu.(onehotbatch(data["testlabels"], 0:9))
+
+    train = getonechanneldataset(X_all[:,1:50000], labels[:,1:50000], batch_size, 40) |> gpu
+
+    X_all = reshape(X_all, 40, 40, 1, 60000) |> gpu
+    testX = reshape(testX, 40, 40, 1, 10000) |> gpu
+    valset = collect(59001:60000)
+    valX = reshape(X_all[:, :, :, valset], 40, 40, 1, length(valset)) |> gpu
+    vallabels = labels[:, valset] |> gpu
 elseif data_set == "NORB"
     images_lt, images_rt, category_list, instance_list, elevation_list,
         azimuth_list, lighting_list = import_smallNORB("train");
@@ -118,17 +148,24 @@ Simple_CNN(; n_classes = 10) = Chain(
     x -> maxpool(x, (2,2)),
 
     # Third convolution, operating upon a 7x7 image
-    #Conv((3, 3), 32 => 32, pad=(1,1), stride=(1, 1), relu),
+    Conv((3, 3), 64 => 128, pad=(1,1), stride=(1, 1), relu),
     #BatchNorm(32),
-    #x -> maxpool(x, (2,2)),
+    x -> maxpool(x, (2,2)),
 
-    Dropout(0.25),
+    #Dropout(0.25),
 
     x -> reshape(x, :, size(x, 4)),
     #(data_set == "MNIST") ? Dense(1600, 128, relu) : Dense(2304, 128, relu),
     #Dropout(0.5),
     #Dense(128, n_classes),
-    (data_set == "MNIST") ? Dense(1600, n_classes) : Dense(2304, n_classes),
+
+    if data_set == "MNIST"
+        Dense(512, n_classes)
+    elseif data_set == "floatingMNIST"
+        Dense(2048, n_classes)
+    else
+        Dense(2304, n_classes)
+    end,
     softmax) |> gpu
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
@@ -172,20 +209,20 @@ vgg16() = Chain(
 
 m = Simple_CNN(; n_classes = size(labels)[1])
 
-loss(x, y) = crossentropy(m(x), y)
+loss(x, y) = Flux.crossentropy(m(x), y)
 accuracy(x, y; n_classes = 10) = mean(onecold(m(x), 1:n_classes) .== onecold(y, 1:n_classes))
 
 # Defining the callback and the optimizer
-#evalcb = throttle(() -> @show(accuracy(valX, valY)), 10)
+evalcb = throttle(() -> @show(accuracy(valX, vallabels)), 5)
 
 opt = ADAM()
 
 @info("Train CNN...")
 for i in 1:epochs
     @info(string("Epoch nr. ",i," out of ",epochs))
-    @time Flux.train!(loss, params(m), train, opt)
+    @time Flux.train!(loss, params(m), train, opt; cb = evalcb)
     GC.gc()
-    println("val acc: ", accuracy(valX, vallabels; n_classes = size(labels)[1]))
+    println("test acc: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
 end
 
 # Evaluate train and test accuracy
