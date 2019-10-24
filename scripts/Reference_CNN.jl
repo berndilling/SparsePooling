@@ -1,17 +1,21 @@
+using Pkg; Pkg.activate("./../SparsePooling/"); Pkg.instantiate()
+push!(LOAD_PATH, "./../SparsePooling/src/")
+using SparsePooling
+#include("./../sparsepooling/dataimport.jl")
+
 using Flux, Flux.Data.MNIST, Statistics
 using Flux: onehotbatch, onecold, crossentropy, throttle
 using Base.Iterators: repeated, partition
-using Metalhead
+#using Metalhead
 using Images: channelview
 using Statistics: mean
 using Base.Iterators: partition
 using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
 #using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-using Pkg; Pkg.activate("./../SparsePooling/"); Pkg.instantiate()
-push!(LOAD_PATH, "./../SparsePooling/src/")
-using SparsePooling
-#include("./../sparsepooling/dataimport.jl")
+use_gpu = false # helper to easily switch between gpu/cpu
+
+todevice(x) = use_gpu ? gpu(x) : x
 
 data_set = "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #"floatingMNIST" #
 epochs = 10 # 20
@@ -38,26 +42,26 @@ if data_set == "CIFAR10"
     X = trainimgs(CIFAR10)
     imgs = [getarray(X[i].img) for i in 1:50000]
     labels = onehotbatch([X[i].ground_truth.class for i in 1:50000],1:10)
-    train = gpu.([(cat(imgs[i]..., dims = 4), labels[:,i]) for i in partition(1:49000, batch_size)]) |> gpu
+    train = [(cat(imgs[i]..., dims = 4), labels[:,i]) for i in partition(1:49000, batch_size)] |> todevice
     X_all = zeros(32,32,3,50000)
     for i in 1:50000 X_all[:,:,:,i] = imgs[i] end
 
     X_test = valimgs(CIFAR10)
     testimgs = [getarray(X_test[i].img) for i in 1:10000]
-    testlabels = onehotbatch([X_test[i].ground_truth.class for i in 1:10000], 1:10) |> gpu
+    testlabels = onehotbatch([X_test[i].ground_truth.class for i in 1:10000], 1:10) |> todevice
     testX = zeros(32,32,3,10000)
     for i in 1:10000 testX[:,:,:,i] = testimgs[i] end
 
     valset = collect(49001:50000)
-    valX = cat(imgs[valset]..., dims = 4) |> gpu
-    vallabels = labels[:, valset] |> gpu
+    valX = cat(imgs[valset]..., dims = 4) |> todevice
+    vallabels = labels[:, valset] |> todevice
 elseif data_set == "CIFAR10_gray"
     @info("Loading data set: CIFAR10 (grayscale)")
     smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples = import_data("CIFAR10")
 
     imgs = [reshape(smallimgs[:,i],32,32,1) for i in 1:50000]
     labels = onehotbatch([labels[i] + 1 for i in 1:50000],1:10)
-    train = gpu.([(cat(imgs[i]..., dims = 4), labels[:,i]) for i in partition(1:49000, batch_size)])
+    train = [(cat(imgs[i]..., dims = 4), labels[:,i]) for i in partition(1:49000, batch_size)] |> todevice
     X_all = zeros(32,32,1,50000)
     for i in 1:50000 X_all[:,:,:,i] = imgs[i] end
 
@@ -67,48 +71,48 @@ elseif data_set == "CIFAR10_gray"
     for i in 1:10000 testX[:,:,:,i] = imgstest[i] end
 
     valset = collect(49001:50000)
-    valX = cat(imgs[valset]..., dims = 4) |> gpu
-    vallabels = labels[:, valset] |> gpu
+    valX = cat(imgs[valset]..., dims = 4) |> todevice
+    vallabels = labels[:, valset] |> todevice
 elseif data_set == "MNIST"
     @info("Loading data set: MNIST")
     imgs = MNIST.images(:train)
     imgstest = MNIST.images(:test)
-    labels = gpu.(onehotbatch(MNIST.labels(:train), 0:9))
-    labelstest = gpu.(onehotbatch(MNIST.labels(:test), 0:9))
+    labels = onehotbatch(MNIST.labels(:train), 0:9) |> todevice
+    labelstest = onehotbatch(MNIST.labels(:test), 0:9) |> todevice
 
-    train = gpu.([(cat(float.(imgs[i])..., dims = 4), labels[:,i])
-             for i in partition(1:50000, batch_size)])
+    train = [(cat(float.(imgs[i])..., dims = 4), labels[:,i])
+             for i in partition(1:50000, batch_size)] |> todevice
 
     # Prepare test set (first 1,000 images) & for on-line testing
     X_all_temp = zeros(28,28,1,60000)
     for i in 1:60000 X_all_temp[:,:,:,i] = imgs[i] end
-    X_all = X_all_temp |> gpu
-    labels = labels[:,1:end] |> gpu
+    X_all = X_all_temp |> todevice
+    labels = labels[:,1:end] |> todevice
 
     testX_temp = zeros(28,28,1,10000)
     for i in 1:10000 testX_temp[:,:,:,i] = imgstest[i] end
-    testX = testX_temp |> gpu
-    testlabels = labelstest[:,1:end] |> gpu
+    testX = testX_temp |> todevice
+    testlabels = labelstest[:,1:end] |> todevice
 
     valset = collect(59001:60000)
-    valX = cat(float.(imgs[valset])..., dims = 4) |> gpu
-    vallabels = labels[:, valset] |> gpu
+    valX = cat(float.(imgs[valset])..., dims = 4) |> todevice
+    vallabels = labels[:, valset] |> todevice
 elseif data_set == "floatingMNIST"
     @info("Loading data set: floatingMNIST")
 
     data = load("./floatingMNIST/MNISTshifted.jld2")
     X_all = data["trainingimages"]
-    labels = gpu.(onehotbatch(data["traininglabels"], 0:9))
+    labels = onehotbatch(data["traininglabels"], 0:9) |> todevice
     testX = data["testimages"]
-    testlabels = gpu.(onehotbatch(data["testlabels"], 0:9))
+    testlabels = onehotbatch(data["testlabels"], 0:9) |> todevice
 
-    train = getonechanneldataset(X_all[:,1:50000], labels[:,1:50000], batch_size, 40) |> gpu
+    train = getonechanneldataset(X_all[:,1:50000], labels[:,1:50000], batch_size, 40) |> todevice
 
-    X_all = reshape(X_all, 40, 40, 1, 60000) |> gpu
-    testX = reshape(testX, 40, 40, 1, 10000) |> gpu
+    X_all = reshape(X_all, 40, 40, 1, 60000) |> todevice
+    testX = reshape(testX, 40, 40, 1, 10000) |> todevice
     valset = collect(59001:60000)
-    valX = reshape(X_all[:, :, :, valset], 40, 40, 1, length(valset)) |> gpu
-    vallabels = labels[:, valset] |> gpu
+    valX = reshape(X_all[:, :, :, valset], 40, 40, 1, length(valset)) |> todevice
+    vallabels = labels[:, valset] |> todevice
 elseif data_set == "NORB"
     images_lt, images_rt, category_list, instance_list, elevation_list,
         azimuth_list, lighting_list = import_smallNORB("train");
@@ -120,7 +124,7 @@ elseif data_set == "NORB"
 
     imgs = [reshape(images[:,:,i],32,32,1) for i in 1:length(category_list)]
     labels = onehotbatch([category_list[i] + 1 for i in 1:length(category_list)],1:5)
-    train = gpu.([(cat(imgs[i]..., dims = 4), labels[:,i]) for i in partition(1:length(category_list)-5000, batch_size)])
+    train = [(cat(imgs[i]..., dims = 4), labels[:,i]) for i in partition(1:length(category_list)-5000, batch_size)] |> todevice
     X_all = zeros(32,32,1,length(category_list))
     for i in 1:length(category_list) X_all[:,:,:,i] = imgs[i] end
 
@@ -130,8 +134,8 @@ elseif data_set == "NORB"
     for i in 1:length(category_list_test) testX[:,:,:,i] = imgstest[i] end
 
     valset = collect(length(category_list_test)-5000+1:length(category_list))
-    valX = cat(imgs[valset]..., dims = 4) |> gpu
-    vallabels = labels[:, valset] |> gpu
+    valX = cat(imgs[valset]..., dims = 4) |> todevice
+    vallabels = labels[:, valset] |> todevice
 end
 
 ######################################################################
@@ -140,22 +144,22 @@ end
 Simple_Perceptron(; n_classes = 10, imsize = 28) = Chain(
     x -> reshape(x, :, size(x)[end]),
     Dense(imsize ^ 2, n_classes),
-    softmax) |> gpu
+    softmax) |> todevice
 Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
     x -> reshape(x, :, size(x)[end]),
     Dense(imsize ^ 2, nhidden, relu),
     Dense(nhidden, n_classes),
-    softmax) |> gpu
+    softmax) |> todevice
 Simple_CNN(; n_classes = 10) = Chain(
     Conv((3, 3), n_in_channel => 32, stride=(1, 1), relu),
     # BatchNorm(32),
-    x -> maxpool(x, (2,2)),
+    MaxPool((2,2)),
     Conv((3, 3), 32 => 64, stride=(1, 1), relu),
     # BatchNorm(64),
-    x -> maxpool(x, (2,2)),
+    MaxPool((2,2)),
     Conv((3, 3), 64 => 128, pad=(1,1), stride=(1, 1), relu),
     # BatchNorm(128),
-    x -> maxpool(x, (2,2)),
+    MaxPool((2,2)),
     #Dropout(0.25),
     x -> reshape(x, :, size(x, 4)),
     if data_set == "MNIST"
@@ -165,7 +169,7 @@ Simple_CNN(; n_classes = 10) = Chain(
     else
         Dense(2304, n_classes)
     end,
-    softmax) |> gpu
+    softmax) |> todevice
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
   BatchNorm(64),
@@ -204,10 +208,10 @@ vgg16() = Chain(
   Dense(4096, 4096, relu),
   Dropout(0.5),
   Dense(4096, 10),
-  softmax) |> gpu
+  softmax) |> todevice
 
-m = Simple_Perceptron(; imsize = size(X_all, 1))
-#Simple_MLP(; imsize = size(X_all, 1)) # Simple_CNN()
+m = Simple_CNN() # Simple_Perceptron(; imsize = size(X_all, 1))
+#Simple_MLP(; imsize = size(X_all, 1)) #
 
 loss(x, y) = Flux.crossentropy(m(x), y)
 accuracy(x, y; n_classes = 10) = mean(onecold(m(x), 1:n_classes) .== onecold(y, 1:n_classes))

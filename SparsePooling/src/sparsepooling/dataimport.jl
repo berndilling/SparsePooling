@@ -135,22 +135,22 @@ function import_data(data::String)
 end
 export import_data
 
-using Knet
-include(Knet.dir("data", "cifar.jl"))
-include(Knet.dir("data", "mnist.jl"))
-function import_data_Knet(dataset::String)
-	if dataset == "CIFAR10"
-		smallimgs, labels, smallimgstest, labelstest = cifar10()
-	    smallimgs = reshape(smallimgs, 32^2 * 3, 50000)
-	    smallimgstest = reshape(smallimgstest, 32^2 * 3, 10000)
-	elseif dataset == "MNIST"
-		smallimgs, labels, smallimgstest, labelstest = mnist()
-	    smallimgs = reshape(smallimgs, 28^2, 60000)
-	    smallimgstest = reshape(smallimgstest, 28^2, 10000)
-	end
-	smallimgs, labels .- 1, smallimgstest, labelstest .- 1, size(smallimgs)[2], size(smallimgstest)[2]
-end
-export import_data_Knet
+# using Knet
+# include(Knet.dir("data", "cifar.jl"))
+# include(Knet.dir("data", "mnist.jl"))
+# function import_data_Knet(dataset::String)
+# 	if dataset == "CIFAR10"
+# 		smallimgs, labels, smallimgstest, labelstest = cifar10()
+# 	    smallimgs = reshape(smallimgs, 32^2 * 3, 50000)
+# 	    smallimgstest = reshape(smallimgstest, 32^2 * 3, 10000)
+# 	elseif dataset == "MNIST"
+# 		smallimgs, labels, smallimgstest, labelstest = mnist()
+# 	    smallimgs = reshape(smallimgs, 28^2, 60000)
+# 	    smallimgstest = reshape(smallimgstest, 28^2, 10000)
+# 	end
+# 	smallimgs, labels .- 1, smallimgstest, labelstest .- 1, size(smallimgs)[2], size(smallimgstest)[2]
+# end
+# export import_data_Knet
 
 function import_unlabelled_data(data::String)
   if Sys.isapple()
@@ -267,12 +267,32 @@ function getNORB()
 end
 export getNORB
 
-function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3)
+using StatsBase
+function reduceMNIST(imgs, labels; nclasses = 10, nperclass = 20)
+    Random.seed!(1234)
+    reducedimgs = zeros(size(imgs, 1), nclasses * nperclass)
+    reducedlabels = zeros(nclasses * nperclass)
+    for class in 0:9
+		classinds = findall(labels .== class)
+		reducedclassinds = sample(classinds, nperclass, replace = false)
+		reducedimgs[:, class*nperclass+1:(class+1)*nperclass] = imgs[:, reducedclassinds]
+        reducedlabels[class*nperclass+1:(class+1)*nperclass] = labels[reducedclassinds]
+    end
+    return reducedimgs, reducedlabels, nclasses * nperclass
+end
+export reduceMNIST
+
+function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3, reduce = false)
     smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
 		getMNIST();
 
     #smallimgs = subtractmean(smallimgs)
     #smallimgstest = subtractmean(smallimgstest)
+
+    if reduce
+        smallimgs, labels, n_trainsamples = reduceMNIST(smallimgs, labels)
+        smallimgstest, labelstest, n_testsamples = reduceMNIST(smallimgstest, labelstest)
+    end
 
 	imgs = reshape(zeropad(smallimgs; targetsize = targetsize), targetsize^2, n_trainsamples)
 	imgstest = reshape(zeropad(smallimgstest; targetsize = targetsize), targetsize^2, n_testsamples)
