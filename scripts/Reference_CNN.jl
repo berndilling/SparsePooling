@@ -13,8 +13,8 @@ push!(LOAD_PATH, "./../SparsePooling/src/")
 using SparsePooling
 #include("./../sparsepooling/dataimport.jl")
 
-data_set = "MNIST"# "floatingMNIST" # "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB"
-epochs = 5 # 20
+data_set = "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #"floatingMNIST" #
+epochs = 10 # 20
 batch_size = 128 # 500
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
 
@@ -136,29 +136,28 @@ end
 
 ######################################################################
 
-@info("Build CNN...")
-
+@info("Build CNN/MLP...")
+Simple_Perceptron(; n_classes = 10, imsize = 28) = Chain(
+    x -> reshape(x, :, size(x)[end]),
+    Dense(imsize ^ 2, n_classes),
+    softmax) |> gpu
+Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
+    x -> reshape(x, :, size(x)[end]),
+    Dense(imsize ^ 2, nhidden, relu),
+    Dense(nhidden, n_classes),
+    softmax) |> gpu
 Simple_CNN(; n_classes = 10) = Chain(
     Conv((3, 3), n_in_channel => 32, stride=(1, 1), relu),
-    #BatchNorm(32),
+    # BatchNorm(32),
     x -> maxpool(x, (2,2)),
-
     Conv((3, 3), 32 => 64, stride=(1, 1), relu),
-    #BatchNorm(64),
+    # BatchNorm(64),
     x -> maxpool(x, (2,2)),
-
-    # Third convolution, operating upon a 7x7 image
     Conv((3, 3), 64 => 128, pad=(1,1), stride=(1, 1), relu),
-    #BatchNorm(32),
+    # BatchNorm(128),
     x -> maxpool(x, (2,2)),
-
     #Dropout(0.25),
-
     x -> reshape(x, :, size(x, 4)),
-    #(data_set == "MNIST") ? Dense(1600, 128, relu) : Dense(2304, 128, relu),
-    #Dropout(0.5),
-    #Dense(128, n_classes),
-
     if data_set == "MNIST"
         Dense(512, n_classes)
     elseif data_set == "floatingMNIST"
@@ -207,20 +206,23 @@ vgg16() = Chain(
   Dense(4096, 10),
   softmax) |> gpu
 
-m = Simple_CNN(; n_classes = size(labels)[1])
+m = Simple_Perceptron(; imsize = size(X_all, 1))
+#Simple_MLP(; imsize = size(X_all, 1)) # Simple_CNN()
 
 loss(x, y) = Flux.crossentropy(m(x), y)
 accuracy(x, y; n_classes = 10) = mean(onecold(m(x), 1:n_classes) .== onecold(y, 1:n_classes))
 
-# Defining the callback and the optimizer
 evalcb = throttle(() -> @show(accuracy(valX, vallabels)), 5)
 
 opt = ADAM()
 
-@info("Train CNN...")
+# if only last layer should be learned, e.g. for RP: trainableparams =  params(m[end-1])
+trainableparams = params(m) #params(m[end - 1]) #
+
+@info("Train CNN/MLP...")
 for i in 1:epochs
     @info(string("Epoch nr. ",i," out of ",epochs))
-    @time Flux.train!(loss, params(m), train, opt; cb = evalcb)
+    @time Flux.train!(loss, trainableparams, train, opt; cb = evalcb)
     GC.gc()
     println("test acc: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
 end

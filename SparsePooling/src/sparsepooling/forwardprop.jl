@@ -138,7 +138,6 @@ end
 	end
 end
 
-
 ###########################################################################
 # For broadcasting and distributing input on patches (patch-connectivity is realized here!)
 
