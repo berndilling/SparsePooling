@@ -48,7 +48,7 @@ function _shiftimage(img, amplitude)
 	img_s = Int(sqrt(size(img, 1)))
 	circshift(reshape(img,img_s,img_s), amplitude)[:]
 end
-function createreducedpaddedandshifteddata(; zero_pad = true, targetsize = 40, nclasses = 10, nperclass = 20, margin = div(targetsize - 28, 2) + 3)
+function createreducedpaddedandshifteddata(; targetsize = 40, nclasses = 10, nperclass = 20, margin = div(targetsize - 28, 2) + 3)
 	smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
 		getMNIST();
 	smallimgs, labels, n_trainsamples = reduceMNIST(smallimgs, labels; nclasses = nclasses, nperclass = nperclass)
@@ -84,7 +84,7 @@ function createreducedpaddedandshifteddata(; zero_pad = true, targetsize = 40, n
 	# shuffle order (even though this should be done by input function, e.g. getsmallimg)
 	shuffledinds = sample(1:size(newimgstrain, 2), size(newimgstrain, 2); replace = false)
 	newlabelstrain = newlabelstrain[shuffledinds]
-	newimgstrain = [:, shuffledinds]
+	newimgstrain = newimgstrain[:, shuffledinds]
 
 	# save dataset
 	save(string(pwd(),"/MNISTreducedshifted.jld2"), "trainingimages", newimgstrain,
