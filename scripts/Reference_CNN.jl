@@ -11,9 +11,10 @@ using Images: channelview
 using Statistics: mean
 using Base.Iterators: partition
 using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
-#using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-use_gpu = false # helper to easily switch between gpu/cpu
+use_gpu = true # helper to easily switch between gpu/cpu
+todevice(x) = use_gpu ? gpu(x) : x
+use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
 todevice(x) = use_gpu ? gpu(x) : x
 
