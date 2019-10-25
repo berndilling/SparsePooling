@@ -16,10 +16,8 @@ use_gpu = true # helper to easily switch between gpu/cpu
 todevice(x) = use_gpu ? gpu(x) : x
 use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-todevice(x) = use_gpu ? gpu(x) : x
-
-data_set = "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #"floatingMNIST" #
-epochs = 10 # 20
+data_set = "floatingreducedMNIST" # "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #"floatingMNIST" #
+epochs = 10
 batch_size = 128 # 500
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
 
@@ -36,6 +34,8 @@ function getonechanneldataset(X, Y, batchsize, imsize)
     return dataset
 end
 
+# ATTENTION: Only tested for MNIST & floating/reduced MNIST!
+# TODO: Callback gives OutOfMemoryError for floatingMNIST! -> fix that!
 if data_set == "CIFAR10"
     @info("Loading data set: CIFAR10 (color)")
     getarray(X) = Float64.(permutedims(channelview(X), (2, 3, 1)))
@@ -74,46 +74,6 @@ elseif data_set == "CIFAR10_gray"
     valset = collect(49001:50000)
     valX = cat(imgs[valset]..., dims = 4) |> todevice
     vallabels = labels[:, valset] |> todevice
-elseif data_set == "MNIST"
-    @info("Loading data set: MNIST")
-    imgs = MNIST.images(:train)
-    imgstest = MNIST.images(:test)
-    labels = onehotbatch(MNIST.labels(:train), 0:9) |> todevice
-    labelstest = onehotbatch(MNIST.labels(:test), 0:9) |> todevice
-
-    train = [(cat(float.(imgs[i])..., dims = 4), labels[:,i])
-             for i in partition(1:50000, batch_size)] |> todevice
-
-    # Prepare test set (first 1,000 images) & for on-line testing
-    X_all_temp = zeros(28,28,1,60000)
-    for i in 1:60000 X_all_temp[:,:,:,i] = imgs[i] end
-    X_all = X_all_temp |> todevice
-    labels = labels[:,1:end] |> todevice
-
-    testX_temp = zeros(28,28,1,10000)
-    for i in 1:10000 testX_temp[:,:,:,i] = imgstest[i] end
-    testX = testX_temp |> todevice
-    testlabels = labelstest[:,1:end] |> todevice
-
-    valset = collect(59001:60000)
-    valX = cat(float.(imgs[valset])..., dims = 4) |> todevice
-    vallabels = labels[:, valset] |> todevice
-elseif data_set == "floatingMNIST"
-    @info("Loading data set: floatingMNIST")
-
-    data = load("./floatingMNIST/MNISTshifted.jld2")
-    X_all = data["trainingimages"]
-    labels = onehotbatch(data["traininglabels"], 0:9) |> todevice
-    testX = data["testimages"]
-    testlabels = onehotbatch(data["testlabels"], 0:9) |> todevice
-
-    train = getonechanneldataset(X_all[:,1:50000], labels[:,1:50000], batch_size, 40) |> todevice
-
-    X_all = reshape(X_all, 40, 40, 1, 60000) |> todevice
-    testX = reshape(testX, 40, 40, 1, 10000) |> todevice
-    valset = collect(59001:60000)
-    valX = reshape(X_all[:, :, :, valset], 40, 40, 1, length(valset)) |> todevice
-    vallabels = labels[:, valset] |> todevice
 elseif data_set == "NORB"
     images_lt, images_rt, category_list, instance_list, elevation_list,
         azimuth_list, lighting_list = import_smallNORB("train");
@@ -136,6 +96,50 @@ elseif data_set == "NORB"
 
     valset = collect(length(category_list_test)-5000+1:length(category_list))
     valX = cat(imgs[valset]..., dims = 4) |> todevice
+    vallabels = labels[:, valset] |> todevice
+elseif data_set == "MNIST"
+    @info("Loading data set: MNIST")
+    imgs = MNIST.images(:train)
+    labels = onehotbatch(MNIST.labels(:train), 0:9)
+
+    train = [(cat(float.(imgs[i])..., dims = 4), labels[:,i])
+             for i in partition(1:50000, batch_size)]
+    train = todevice.(train)
+
+    X_all_temp = zeros(28,28,1,60000)
+    for i in 1:60000 X_all_temp[:,:,:,i] = imgs[i] end
+    X_all = X_all_temp
+    labels = labels[:,1:end]
+
+    imgstest = MNIST.images(:test)
+    testX_temp = zeros(28,28,1,10000)
+    for i in 1:10000 testX_temp[:,:,:,i] = imgstest[i] end
+    testX = testX_temp #|> todevice
+    testlabels = onehotbatch(MNIST.labels(:test), 0:9)
+
+    valset = collect(59001:60000)
+    valX = cat(float.(imgs[valset])..., dims = 4) |> todevice
+    vallabels = labels[:, valset] |> todevice
+elseif data_set == "floatingMNIST" || data_set == "floatingreducedMNIST"
+    if data_set == "floatingMNIST"
+        @info("Loading data set: floatingMNIST")
+        data = load("./floatingMNIST/MNISTshifted.jld2")
+    elseif data_set == "floatingreducedMNIST"
+        @info("Loading data set: floatingreducedMNIST")
+        data = load("./floatingMNIST/MNISTreducedshifted.jld2")
+    end
+    X_all = data["trainingimages"]
+    labels = onehotbatch(data["traininglabels"], 0:9)
+    testX = data["testimages"]
+    testlabels = onehotbatch(data["testlabels"], 0:9)
+
+    train = getonechanneldataset(X_all[:,1:end-10000], labels[:,1:end-10000], batch_size, 40)
+    train = todevice.(train)
+
+    X_all = reshape(X_all, 40, 40, 1, size(X_all)[end])
+    testX = reshape(testX, 40, 40, 1, size(testX)[end])
+    valset = collect(size(X_all)[end]-9999:size(X_all)[end])
+    valX = reshape(X_all[:, :, :, valset], 40, 40, 1, length(valset)) |> todevice
     vallabels = labels[:, valset] |> todevice
 end
 
@@ -165,7 +169,7 @@ Simple_CNN(; n_classes = 10) = Chain(
     x -> reshape(x, :, size(x, 4)),
     if data_set == "MNIST"
         Dense(512, n_classes)
-    elseif data_set == "floatingMNIST"
+    elseif data_set == "floatingMNIST" || data_set == "floatingreducedMNIST"
         Dense(2048, n_classes)
     else
         Dense(2304, n_classes)
@@ -211,14 +215,13 @@ vgg16() = Chain(
   Dense(4096, 10),
   softmax) |> todevice
 
-m = Simple_CNN() # Simple_Perceptron(; imsize = size(X_all, 1))
-#Simple_MLP(; imsize = size(X_all, 1)) #
+m = Simple_CNN()
+# Simple_MLP(; imsize = size(X_all, 1))
+# Simple_Perceptron(; imsize = size(X_all, 1))
 
 loss(x, y) = Flux.crossentropy(m(x), y)
-accuracy(x, y; n_classes = 10) = mean(onecold(m(x), 1:n_classes) .== onecold(y, 1:n_classes))
-
-evalcb = throttle(() -> @show(accuracy(valX, vallabels)), 5)
-
+evalcb = throttle(() -> @show(loss(valX, vallabels)), 2)
+accuracy(x, y; n_classes = 10) = mean(onecold(cpu(m)(x), 1:n_classes) .== onecold(y, 1:n_classes))
 opt = ADAM()
 
 # if only last layer should be learned, e.g. for RP: trainableparams =  params(m[end-1])
@@ -228,13 +231,10 @@ trainableparams = params(m) #params(m[end - 1]) #
 for i in 1:epochs
     @info(string("Epoch nr. ",i," out of ",epochs))
     @time Flux.train!(loss, trainableparams, train, opt; cb = evalcb)
-    GC.gc()
-    println("test acc: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
+    println("acc validation: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
 end
 
 # Evaluate train and test accuracy
 @info("Evaluate accuracies...")
-GC.gc()
 println("acc train: ", accuracy(X_all, labels; n_classes = size(labels)[1]))
-GC.gc()
 println("acc test: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
