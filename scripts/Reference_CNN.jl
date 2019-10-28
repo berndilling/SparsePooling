@@ -11,14 +11,15 @@ using Images: channelview
 using Statistics: mean
 using Base.Iterators: partition
 using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
-using BSON
+using BSON: @save
 
 use_gpu = true # helper to easily switch between gpu/cpu
 todevice(x) = use_gpu ? gpu(x) : x
 use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-data_set = "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #"floatingMNIST" #"floatingreducedMNIST" #
-epochs = 10
+nettype = "MLP" #"CNN" #"SP"
+data_set = "floatingMNIST" #"floatingreducedMNIST" #"MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #
+epochs = 20
 batch_size = 128 # 500
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
 
@@ -159,16 +160,16 @@ Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
 Simple_CNN(; n_classes = 10, stride = 1) = Chain(
     Conv((3, 3), n_in_channel => 32, stride=(stride, stride), relu),
     # BatchNorm(32),
-    MaxPool((2,2)),
+    MaxPool((2,2)), # default: stride = pool window
     Conv((3, 3), 32 => 64, stride=(stride, stride), relu),
     # BatchNorm(64),
     MaxPool((2,2)),
     Conv((3, 3), 64 => 128, stride=(stride, stride), relu), # , pad=(1,1)
     # BatchNorm(128),
     MaxPool((2,2)),
-    #Dropout(0.25),
     x -> reshape(x, :, size(x, 4)),
-    x -> Dense(length(x), n_classes)(x),
+    # Dropout(0.25),
+    Dense(1152, n_classes),
     softmax) |> todevice
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
@@ -210,10 +211,13 @@ vgg16() = Chain(
   Dense(4096, 10),
   softmax) |> todevice
 
-m = Simple_CNN()
-# Simple_MLP(; imsize = size(X_all, 1))
-# Simple_MLP(; imsize = size(X_all, 1))
-# Simple_Perceptron(; imsize = size(X_all, 1))
+if nettype == "CNN"
+    m = Simple_CNN()
+elseif nettype == "MLP"
+    m = Simple_MLP(; imsize = size(X_all, 1))
+elseif nettype == "SP"
+    m = Simple_Perceptron(; imsize = size(X_all, 1))
+end
 
 loss(x, y) = Flux.crossentropy(m(x), y)
 evalcb = throttle(() -> @show(loss(valX, vallabels)), 2)
@@ -234,3 +238,6 @@ end
 @info("Evaluate accuracies...")
 println("acc train: ", accuracy(X_all, labels; n_classes = size(labels)[1]))
 println("acc test: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
+
+referencenetwork = cpu(m)
+@save string("./floatingMNIST/Reference_", nettype, "_", data_set,".bson") referencenetwork

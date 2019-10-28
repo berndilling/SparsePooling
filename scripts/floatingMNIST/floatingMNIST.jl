@@ -99,7 +99,7 @@ margin = div(targetsize - 28, 2) + 3
 
 #createpaddedandshifteddata(; targetsize = targetsize, margin = margin, duration_per_pattern = 1)
 
-createreducedpaddedandshifteddata(; targetsize = targetsize, nperclass = 60, margin = margin)
+createreducedpaddedandshifteddata(; targetsize = targetsize, nperclass = 100, margin = margin)
 
 #########################################################################
 ## Further testing
