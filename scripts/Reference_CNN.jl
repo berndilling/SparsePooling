@@ -11,12 +11,13 @@ using Images: channelview
 using Statistics: mean
 using Base.Iterators: partition
 using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
+using BSON
 
 use_gpu = true # helper to easily switch between gpu/cpu
 todevice(x) = use_gpu ? gpu(x) : x
 use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-data_set = "floatingreducedMNIST" # "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #"floatingMNIST" #
+data_set = "MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #"floatingMNIST" #"floatingreducedMNIST" #
 epochs = 10
 batch_size = 128 # 500
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
@@ -155,25 +156,19 @@ Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
     Dense(imsize ^ 2, nhidden, relu),
     Dense(nhidden, n_classes),
     softmax) |> todevice
-Simple_CNN(; n_classes = 10) = Chain(
-    Conv((3, 3), n_in_channel => 32, stride=(1, 1), relu),
+Simple_CNN(; n_classes = 10, stride = 1) = Chain(
+    Conv((3, 3), n_in_channel => 32, stride=(stride, stride), relu),
     # BatchNorm(32),
     MaxPool((2,2)),
-    Conv((3, 3), 32 => 64, stride=(1, 1), relu),
+    Conv((3, 3), 32 => 64, stride=(stride, stride), relu),
     # BatchNorm(64),
     MaxPool((2,2)),
-    Conv((3, 3), 64 => 128, pad=(1,1), stride=(1, 1), relu),
+    Conv((3, 3), 64 => 128, stride=(stride, stride), relu), # , pad=(1,1)
     # BatchNorm(128),
     MaxPool((2,2)),
     #Dropout(0.25),
     x -> reshape(x, :, size(x, 4)),
-    if data_set == "MNIST"
-        Dense(512, n_classes)
-    elseif data_set == "floatingMNIST" || data_set == "floatingreducedMNIST"
-        Dense(2048, n_classes)
-    else
-        Dense(2304, n_classes)
-    end,
+    x -> Dense(length(x), n_classes)(x),
     softmax) |> todevice
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
@@ -217,6 +212,7 @@ vgg16() = Chain(
 
 m = Simple_CNN()
 # Simple_MLP(; imsize = size(X_all, 1))
+# Simple_MLP(; imsize = size(X_all, 1))
 # Simple_Perceptron(; imsize = size(X_all, 1))
 
 loss(x, y) = Flux.crossentropy(m(x), y)
@@ -230,7 +226,7 @@ trainableparams = params(m) #params(m[end - 1]) #
 @info("Train CNN/MLP...")
 for i in 1:epochs
     @info(string("Epoch nr. ",i," out of ",epochs))
-    @time Flux.train!(loss, trainableparams, train, opt; cb = evalcb)
+    @time Flux.train!(loss, trainableparams, train, opt)#; cb = evalcb)
     println("acc validation: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
 end
 
