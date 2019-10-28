@@ -17,7 +17,7 @@ use_gpu = true # helper to easily switch between gpu/cpu
 todevice(x) = use_gpu ? gpu(x) : x
 use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-nettype = "MLP" #"CNN" #"SP"
+nettype = "SP"#"RP" # "MLP" #"CNN" #
 data_set = "floatingMNIST" #"floatingreducedMNIST" #"MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #
 epochs = 20
 batch_size = 128 # 500
@@ -213,7 +213,7 @@ vgg16() = Chain(
 
 if nettype == "CNN"
     m = Simple_CNN()
-elseif nettype == "MLP"
+elseif nettype == "MLP" || nettype == "RP"
     m = Simple_MLP(; imsize = size(X_all, 1))
 elseif nettype == "SP"
     m = Simple_Perceptron(; imsize = size(X_all, 1))
@@ -225,7 +225,7 @@ accuracy(x, y; n_classes = 10) = mean(onecold(cpu(m)(x), 1:n_classes) .== onecol
 opt = ADAM()
 
 # if only last layer should be learned, e.g. for RP: trainableparams =  params(m[end-1])
-trainableparams = params(m) #params(m[end - 1]) #
+trainableparams = (nettype == "RP") ? params(m[end - 1]) : params(m)
 
 @info("Train CNN/MLP...")
 for i in 1:epochs

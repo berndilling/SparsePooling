@@ -17,27 +17,19 @@ function _shiftimage(img, amplitude, nettype)
 	img_s = Int(sqrt(size(img, 1)))
     if nettype == "CNN"
 	    reshape(circshift(reshape(img,img_s,img_s), amplitude), img_s, img_s, 1, 1)
-    elseif nettype == "MLP"
+    else
         reshape(circshift(reshape(img,img_s,img_s), amplitude), img_s ^ 2, 1)
     end
 end
 
 function getcorrelatesperimage(m, l, img, nettype; margin = 9)
-    if l == 1
-        rep = deepcopy(m[1:l](_shiftimage(img, [0, 0], nettype)))
-    else
-        rep = deepcopy(m[1:l](_shiftimage(img, [0, 0], nettype)).data)
-    end
+    rep = deepcopy(m[1:l](_shiftimage(img, [0, 0], nettype)).data)
     correlates = []
     for x in -margin:margin
         #for y in -margin:margin
         y = 0
-        if l == 1
-            rep_shifted = deepcopy(m[1:l](_shiftimage(img, [x, y], nettype)))
-        else
             rep_shifted = deepcopy(m[1:l](_shiftimage(img, [x, y], nettype)).data)
-        end
-        push!(correlates, dot(rep, rep_shifted) / dot(rep, rep))
+            push!(correlates, dot(rep, rep_shifted) / dot(rep, rep))
         #end
     end
     return correlates
@@ -60,7 +52,7 @@ function averageoversamples(correlates)
     return avrg_correlates
 end
 
-function invariancetest(m, layer, imgs, nettype; margin = 9)
+function getaveragedcorrelates(m, layer, imgs, nettype; margin = 9)
     correlates = getcorrelates(m, layer, imgs, nettype)
     averageoversamples(correlates)
 end
@@ -72,13 +64,16 @@ function main(nettype; margin = 9)
     xlabel("shift (pixels)")
     ylabel("correlation")
     title(string("Correlates for network type ", nettype))
-    for layer in length(m):-1:1
-        avrg_correlates = invariancetest(m, layer, testimgs, nettype; margin = 9)
-        plot(collect(-margin:margin), avrg_correlates, label = string("layer ", layer))
+    lowestlayer = (nettype == "CNN") ? 1 : 2
+    for layer in length(m):-1:lowestlayer
+        avrg_correlates = getaveragedcorrelates(m, layer, testimgs, nettype; margin = 9)
+        plot(collect(-margin:margin), avrg_correlates, label = string("layer ", (nettype == "CNN") ? layer : layer - 1))
     end
     legend()
     savefig(string("invariancetest_", nettype,".pdf"))
 end
 
-main("MLP")
-#main("CNN")
+#main("SP")
+#main("RP")
+#main("MLP")
+main("CNN")
