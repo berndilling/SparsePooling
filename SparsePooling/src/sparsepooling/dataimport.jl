@@ -286,8 +286,8 @@ function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3,
     smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
 		getMNIST();
 
-    #smallimgs = subtractmean(smallimgs)
-    #smallimgstest = subtractmean(smallimgstest)
+    smallimgs = subtractmean(smallimgs)
+    smallimgstest = subtractmean(smallimgstest)
 
     if reduce
         smallimgs, labels, n_trainsamples = reduceMNIST(smallimgs, labels)

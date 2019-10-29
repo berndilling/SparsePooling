@@ -15,7 +15,7 @@ end
 
 function _shiftimage(img, amplitude, nettype)
 	img_s = Int(sqrt(size(img, 1)))
-    if nettype == "CNN"
+    if nettype[1:2] == "CN"
 	    reshape(circshift(reshape(img,img_s,img_s), amplitude), img_s, img_s, 1, 1)
     else
         reshape(circshift(reshape(img,img_s,img_s), amplitude), img_s ^ 2, 1)
@@ -35,7 +35,7 @@ function getcorrelatesperimage(m, l, img, nettype; margin = 9)
     return correlates
 end
 
-function getcorrelates(m, l, imgs, nettype; margin = 9, nofsamples = 1000)#size(imgs)[end])
+function getcorrelates(m, l, imgs, nettype; margin = 9, nofsamples = 1000) # size(imgs)[end])
     correlates = zeros(2 * margin + 1, nofsamples)
     print(string("\n calculate correlates for layer ", l, "\n"))
     @showprogress for i in 1:nofsamples
@@ -64,16 +64,20 @@ function main(nettype; margin = 9)
     xlabel("shift (pixels)")
     ylabel("correlation")
     title(string("Correlates for network type ", nettype))
-    lowestlayer = (nettype == "CNN") ? 1 : 2
+    lowestlayer = (nettype[1:2] == "CN") ? 1 : 2
     for layer in length(m):-1:lowestlayer
         avrg_correlates = getaveragedcorrelates(m, layer, testimgs, nettype; margin = 9)
-        plot(collect(-margin:margin), avrg_correlates, label = string("layer ", (nettype == "CNN") ? layer : layer - 1))
+        plot(collect(-margin:margin), avrg_correlates, label = string((nettype[1:2] == "CN") ? layer : layer - 1," ",string(m[layer])[1:minimum([end,50])]))
     end
-    legend()
+    legend(fontsize = 5, loc="upper left", bbox_to_anchor=(0., -0.2))
+    tight_layout()
+
     savefig(string("invariancetest_", nettype,".pdf"))
 end
 
-#main("SP")
-#main("RP")
-#main("MLP")
+main("SP")
+main("RP")
+main("MLP")
 main("CNN")
+main("CNN_convpool")
+main("CNN_nopool")

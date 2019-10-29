@@ -17,10 +17,10 @@ use_gpu = true # helper to easily switch between gpu/cpu
 todevice(x) = use_gpu ? gpu(x) : x
 use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-nettype = "SP"#"RP" # "MLP" #"CNN" #
+nettype = "CNN" #"SP"#"RP" #"MLP" #"SP" #
 data_set = "floatingMNIST" #"floatingreducedMNIST" #"MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #
 epochs = 20
-batch_size = 128 # 500
+batch_size = 512 # 500
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
 
 function getonechanneldataset(X, Y, batchsize, imsize)
@@ -158,18 +158,18 @@ Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
     Dense(nhidden, n_classes),
     softmax) |> todevice
 Simple_CNN(; n_classes = 10, stride = 1) = Chain(
-    Conv((3, 3), n_in_channel => 32, stride=(stride, stride), relu),
+    Conv((3, 3), n_in_channel => 32, stride = (stride, stride), relu),
     # BatchNorm(32),
-    MaxPool((2,2)), # default: stride = pool window
-    Conv((3, 3), 32 => 64, stride=(stride, stride), relu),
+    MaxPool((2,2), stride = (1, 1)), # default: stride = pool window
+    Conv((3, 3), 32 => 64, stride = (stride, stride), relu),
     # BatchNorm(64),
-    MaxPool((2,2)),
-    Conv((3, 3), 64 => 128, stride=(stride, stride), relu), # , pad=(1,1)
+    MaxPool((2,2), stride = (1, 1)),
+    Conv((3, 3), 64 => 128, stride = (stride, stride), relu), # , pad=(1,1)
     # BatchNorm(128),
-    MaxPool((2,2)),
+    MaxPool((2,2), stride = (1, 1)),
     x -> reshape(x, :, size(x, 4)),
     # Dropout(0.25),
-    Dense(1152, n_classes),
+    Dense(1152, n_classes), 
     softmax) |> todevice
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
@@ -240,4 +240,4 @@ println("acc train: ", accuracy(X_all, labels; n_classes = size(labels)[1]))
 println("acc test: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
 
 referencenetwork = cpu(m)
-@save string("./floatingMNIST/Reference_", nettype, "_", data_set,".bson") referencenetwork
+@save string("./floatingMNIST/Reference_", nettype, "_", data_set, ".bson") referencenetwork
