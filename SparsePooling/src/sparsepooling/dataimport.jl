@@ -240,7 +240,11 @@ function getMNIST()
     data_max = maximum([maximum(abs.(smallimgs)),maximum(abs.(smallimgstest))])
     smallimgs ./= data_max
     smallimgstest ./= data_max
-  return smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples
+
+    smallimgs = subtractmean(smallimgs)
+    smallimgstest = subtractmean(smallimgstest)
+
+    return smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples
 end
 export getMNIST
 
@@ -285,9 +289,6 @@ export reduceMNIST
 function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3, reduce = false)
     smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
 		getMNIST();
-
-    smallimgs = subtractmean(smallimgs)
-    smallimgstest = subtractmean(smallimgstest)
 
     if reduce
         smallimgs, labels, n_trainsamples = reduceMNIST(smallimgs, labels)

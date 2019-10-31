@@ -35,6 +35,9 @@ end
 mutable struct layer_sparse <: layer
 	parameters::parameters_sparse
 	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
+
+	# TODO restructure that into 3 d array (ksize, ksize, nfilters)
+
 	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
 	u::Array{Float64, 1} #membrane potential
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
