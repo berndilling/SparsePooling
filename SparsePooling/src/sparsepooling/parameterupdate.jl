@@ -77,22 +77,25 @@ end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
 	update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
-	update_ff_weights!(layer.parameters.learningrate_w, layer.a, layer.a_pre, layer.w)
+	update_ff_weights!(layer.parameters.learningrate_w, layer.a, layer.a_pre[:], layer.w)
 	update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
+
+	#TODO disable if max pooling is enabled
+	
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
 	update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr, layer.v)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr-layer.a, layer.v)
 
 
-	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre - layer.a_tr_pre, layer.w)
-	update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre, layer.w)
+	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre[:] - layer.a_tr_pre[:], layer.w)
+	update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre[:], layer.w)
 
-	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr- layer.a, layer.a_pre - layer.a_tr_pre, layer.w)
+	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr- layer.a, layer.a_pre[:] - layer.a_tr_pre[:], layer.w)
 	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr,
-	#	(layer.a_pre-layer.a_tr_pre) .* (round.(layer.a_pre) + round.(layer.a_tr_s_pre) .!= 2), layer.w)
+	#	(layer.a_pre[:]-layer.a_tr_pre[:]) .* (round.(layer.a_pre[:]) + round.(layer.a_tr_s_pre) .!= 2), layer.w)
 
 
 	update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
@@ -101,14 +104,14 @@ end
 end
 
 @inline function _update_layer_parameters!(layer::layer_sparse)
-	if norm(layer.a_pre) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
+	if norm(layer.a_pre[:]) != 0. #don't do anything if no input is provided (otherwise thresholds are off)
 		update_layer_parameters_lc!(layer)
 		#update_layer_parameters_Hopfield!(layer)
 	end
 end
 # PAY ATTENTION: lc_forward has to be consistent with the one in forwardprop!
 @inline function _update_layer_parameters!(layer::layer_pool; lc_forward = true) #with false : reproduced Földiaks bars
-	if norm(layer.a_pre) != 0. #don't do anything if no input is provided
+	if norm(layer.a_pre[:]) != 0. #don't do anything if no input is provided
 		lc_forward ? update_layer_parameters_lc!(layer) : layer.parameters.updaterule(layer)
 	end
 end
@@ -128,7 +131,7 @@ end
 	end
 	# layer.parameters.learningrate_w
 	return 1e-3 .* factor .*
-				(layer.a_pre) # .- layer.u[ranking[rank]] .* layer.w[ranking[rank], :])
+				(layer.a_pre[:]) # .- layer.u[ranking[rank]] .* layer.w[ranking[rank], :])
 end
 @inline function update_layer_parameters_Hopfield!(layer::layer_sparse; k = 1, m = 2, Δ = 0.1, normalize = true) # Grinberg, Hopfield 2019
 	ranking = reverse(sortperm(layer.u))
@@ -157,28 +160,28 @@ end
 	# First: Second term of update rule: "weight-decay" prop. to OLD WEIGHTS
 	scale!((1-layer.parameters.learningrate*layer.a.^2),layer.w)
 	# Second: First term (data-driven) of weight update
-	BLAS.ger!(layer.parameters.learningrate,layer.a,layer.a_pre,layer.w)
+	BLAS.ger!(layer.parameters.learningrate,layer.a,layer.a_pre[:],layer.w)
 end
 @inline function GH_PCA_Sanger!(layer::layer_pool)
 	# First: Second term of update rule: "weight-decay" prop. to old weights + lateral competition!
 	lateral_competition!(layer.w, layer.a, layer.parameters.learningrate)
 	# Second: First term (data-driven) of weight update
-	BLAS.ger!(layer.parameters.learningrate,layer.a,layer.a_pre,layer.w)
+	BLAS.ger!(layer.parameters.learningrate,layer.a,layer.a_pre[:],layer.w)
 end
 @inline function GH_SFA_Oja!(layer::layer_pool)
 	scale!((1-layer.parameters.learningrate*layer.a_tr.^2),layer.w)
-	BLAS.ger!(layer.parameters.learningrate,layer.a_tr,layer.a_pre,layer.w)
+	BLAS.ger!(layer.parameters.learningrate,layer.a_tr,layer.a_pre[:],layer.w)
 end
 @inline function GH_SFA_Sanger!(layer::layer_pool)
 	lateral_competition!(layer.w, layer.a_tr, layer.parameters.learningrate)
-	BLAS.ger!(layer.parameters.learningrate,layer.a_tr,layer.a_pre,layer.w)
+	BLAS.ger!(layer.parameters.learningrate,layer.a_tr,layer.a_pre[:],layer.w)
 end
 # TODO implement subtraction of pre-synaptic trace to avoid permanently active neurons!
 @inline function GH_SFA_subtractrace_Oja!(layer::layer_pool)
 	scale!((1-layer.parameters.learningrate*layer.a_tr.^2),layer.w)
-	BLAS.ger!(layer.parameters.learningrate,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
+	BLAS.ger!(layer.parameters.learningrate,layer.a_tr,layer.a_pre[:]-layer.a_tr_pre[:],layer.w)
 end
 @inline function GH_SFA_subtractrace_Sanger!(layer::layer_pool)
 	lateral_competition!(layer.w, layer.a_tr, layer.parameters.learningrate)
-	BLAS.ger!(layer.parameters.learningrate,layer.a_tr,layer.a_pre-layer.a_tr_pre,layer.w)
+	BLAS.ger!(layer.parameters.learningrate,layer.a_tr,layer.a_pre[:]-layer.a_tr_pre[:],layer.w)
 end

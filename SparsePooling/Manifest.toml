@@ -64,7 +64,7 @@ version = "0.5.7"
 
 [[BlackBoxOptim]]
 deps = ["CPUTime", "Compat", "Distributed", "Distributions", "LinearAlgebra", "Printf", "Random", "SpatialIndexing", "StatsBase"]
-git-tree-sha1 = "f97e2fa48dcae91d1d5a95b0c3400712d4103da5"
+git-tree-sha1 = "6d94153148b8df2e852004cd53c66bc55b65dcb6"
 repo-rev = "master"
 repo-url = "https://github.com/robertfeldt/BlackBoxOptim.jl.git"
 uuid = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
@@ -106,9 +106,9 @@ version = "1.0.0"
 
 [[CSTParser]]
 deps = ["Tokenize"]
-git-tree-sha1 = "c69698c3d4a7255bc1b4bc2afc09f59db910243b"
+git-tree-sha1 = "99dda94f5af21a4565dc2b97edf6a95485f116c3"
 uuid = "00ebfdb7-1f24-5e51-bd34-a7502290713f"
-version = "0.6.2"
+version = "1.0.0"
 
 [[CUDAapi]]
 deps = ["Libdl", "Logging", "Test"]
@@ -219,9 +219,9 @@ version = "1.1.0"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "6ffb2c3f04458e21abc5d7fdd8a1ffbe71e399d1"
+git-tree-sha1 = "1fe8fad5fc84686dcbc674aa255bc867a64f8132"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.17.4"
+version = "0.17.5"
 
 [[Dates]]
 deps = ["Printf"]
@@ -299,10 +299,10 @@ uuid = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 version = "0.8.1"
 
 [[ForwardDiff]]
-deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "InteractiveUtils", "LinearAlgebra", "NaNMath", "Random", "SparseArrays", "SpecialFunctions", "StaticArrays", "Test"]
-git-tree-sha1 = "4c4d727f1b7e0092134fabfab6396b8945c1ea5b"
+deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "NaNMath", "Random", "SpecialFunctions", "StaticArrays"]
+git-tree-sha1 = "e2c81741a8be50de143ecddee942396894f47750"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.3"
+version = "0.10.4"
 
 [[GPUArrays]]
 deps = ["Adapt", "FFTW", "FillArrays", "LinearAlgebra", "Printf", "Random", "Serialization", "StaticArrays", "Test"]
@@ -406,9 +406,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[Interpolations]]
 deps = ["AxisAlgorithms", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
-git-tree-sha1 = "02bc6d52471df58d4bbd0edf11a18b264ab86b88"
+git-tree-sha1 = "b55fc7d44f5be845aceb86a359fa072bb12fdc28"
 uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-version = "0.12.3"
+version = "0.12.4"
 
 [[IntervalSets]]
 deps = ["Dates", "Statistics"]

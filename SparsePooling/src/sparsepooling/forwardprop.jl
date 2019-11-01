@@ -36,6 +36,15 @@ end
 #Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
 #ATTENTION: FOR PCA/SFA nonlinearity should be linear!
 #PAY ATTENTION: lc_forward has to be consistent with the one in parameterupdate!
+
+# TODO implement max/mean pooling here!
+@inline function forwardprop_maxpool!(layer::layer_pool)
+	(size(layer.a_pre, 3) != length(layer.a)) && error("Number of filters must stay the same for max pooling (change number of neurons per patch)")
+	for i in size(layer.a_pre, 3)
+		layer.a[i] = maximum(layer.a_pre[:, :, i])
+	end
+end
+
 @inline function forwardprop!(layer::layer_pool; lc_forward = true) #true
 	lc_forward ? forwardprop_lc!(layer) : #forwardprop_WTA!(layer) : #
 		forwardprop_wlc!(layer)
@@ -151,7 +160,7 @@ end
 		layer.parameters.stride
 end
 # input layer -> patchy layer
-@inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
+@inline function copyinput!(dest::Array{Float64, 3}, src::Array{Float64, 1},
 							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64)
 	# copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
 	# 		reshape(src, isize, isize),
@@ -161,11 +170,11 @@ end
 			CartesianIndices((getindx4(i, str, psize), getindx4(j, str, psize), 1)))
 end
 # patchy layer -> patchy layer
-@inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
+@inline function copyinput!(dest::Array{Float64, 3}, src::Array{Float64, 1},
 							i1::Int64, j1::Int64, n_neurons_per_pop::Int64, p_size::Int64)
 	#copyto!(dest, getindx3(i1, j1, p_size, n_neurons_per_pop), src, 1:length(src))
 	copyto!(dest, CartesianIndices((i1:i1, j1:j1, 1:length(src))),
-			reshape(src, length(src), 1, 1), CartesianIndices((1:length(src), 1:1, 1:1)))
+			reshape(src, 1, 1, length(src)), CartesianIndices((1:1, 1:1, 1:length(src))))
 end
 # input layer -> patchy layer
 @inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)

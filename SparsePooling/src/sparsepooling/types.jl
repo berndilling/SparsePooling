@@ -63,6 +63,7 @@ mutable struct layer_sparse_patchy <: layer_patchy
 	a_max::Float64 #max activation of whole layer (for normalization)
 end
 
+# TODO add max pooling option
 mutable struct parameters_pool
 	learningrate::Float64
 	learningrate_v::Float64 # learning rate for lateral inhibition
@@ -259,7 +260,8 @@ end
 function layer_pool_patchy(ns::Array{Int64, 1};
 		patch_size = 10, n_in_channel = ns[1], stride = 1, in_size = 32,
 		n_of_layer_patches = get_n_of_layer_patches(in_size, patch_size, stride),
-		one_over_tau_a = 2e-1, p = 1. / ns[2])
+		one_over_tau_a = 2e-1, p = 1. / ns[2],
+		weight_sharing = false)
 	in_fan = patch_size ^ 2 * n_in_channel
 	layer = layer_pool_patchy(parameters_pool_patchy(n_of_layer_patches, patch_size, stride, in_size, in_fan, weight_sharing),
 	[layer_pool(ns; ksize = patch_size, n_in_channel = n_in_channel, one_over_tau_a = one_over_tau_a, p = p) for i in 1:n_of_layer_patches],
@@ -302,7 +304,7 @@ function addfullyconnectedlayer!(layers, i, layertype, tl, sl, taus, ps)
 end
 function addpatchylayer!(layers, i, layertype, tl, sl, ks, str, taus, ps)
 	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
-		in_size = in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches))
+		in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches))
 		n_in_channel = sl[i-1]
 	elseif tl[i-1] == "input"
 		in_size = Int(sqrt(length(layers[i-1].a)))
@@ -310,7 +312,7 @@ function addpatchylayer!(layers, i, layertype, tl, sl, ks, str, taus, ps)
 	end
 	layers = (layers... , layertype(sl[i-1:i];
 				patch_size = ks[i], n_in_channel = n_in_channel, stride = str[i],
-				in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches)),
+				in_size = in_size,
 				one_over_tau_a = 1. / taus[i], p = ps[i]))
 	return layers
 end
