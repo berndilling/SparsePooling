@@ -6,7 +6,7 @@ using LinearAlgebra
 
 #for classifier
 @inline function forwardprop!(net::classifier)
-	net.a[1] = deepcopy(net.a_pre)
+	net.a[1] = deepcopy(net.a_pre[:])
 	for i in 1:net.nl
 		BLAS.gemv!('N', 1., net.w[i], net.a[i], 0., net.u[i])
 		BLAS.axpy!(1., net.b[i], net.u[i])
@@ -43,9 +43,9 @@ end
 @inline function forwardprop_wlc!(layer)
 	layer.parameters.calculate_trace &&	calculatetrace!(layer)
 	#THIS IS PROBABLY WRONG SINCE IT DESTROYS TIME SCALE
-	if norm(layer.a_pre) != 0.
-		BLAS.gemv!('N', 1., layer.w, layer.a_pre, 0., layer.u) # membrane potential = weighted sum over inputs
-		BLAS.axpy!(1., layer.b, layer.u) # add bias term
+	if norm(layer.a_pre[:]) != 0.
+		BLAS.gemv!('N', 1., layer.w, layer.a_pre[:], 0., layer.u) # membrane potential = weighted sum over inputs
+		# BLAS.axpy!(1., layer.b, layer.u) # add bias term (...zero anyway)
 		layer.parameters.activationfunction(layer) # apply activation function
 	end
 end
@@ -67,14 +67,14 @@ end
 	end
 	layer.u .= 0.
 	layer.a .= 0.
-	if norm(layer.a_pre) != 0.
+	if norm(layer.a_pre[:]) != 0.
 		if layer.parameters.activationfunction == lin!
-			layer.u = inv(Matrix{Float64}(I, size(layer.v)[1], size(layer.v)[1]) .+ layer.v) * layer.w * layer.a_pre
+			layer.u = inv(Matrix{Float64}(I, size(layer.v)[1], size(layer.v)[1]) .+ layer.v) * layer.w * layer.a_pre[:]
 			layer.parameters.activationfunction(layer) #linear, just to assign values from u to a
 		else
 			scaling_factor = layer.parameters.epsilon/layer.parameters.dt
 			voltage_incr = scaling_factor*norm(layer.u)+1 #+1 to make sure loop is entered
-			input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre)
+			input_without_recurrence = BLAS.gemv('N',layer.w,layer.a_pre[:])
 			i = 0
 			while norm(voltage_incr) > scaling_factor * norm(layer.u) && i < max_iter
 				voltage_incr = input_without_recurrence - BLAS.gemv('N',layer.v,layer.a) - layer.u
@@ -93,8 +93,8 @@ end
 	end
 	layer.u .= 0.
 	layer.a .= 0.
-	if norm(layer.a_pre) != 0.
-		input_without_recurrence = BLAS.gemv('N', layer.w, layer.a_pre)
+	if norm(layer.a_pre[:]) != 0.
+		input_without_recurrence = BLAS.gemv('N', layer.w, layer.a_pre[:])
 		maxinput = findmax(input_without_recurrence)
 		#(maxinput[1] >= layer.t[maxinput[2]]) && (layer.a[maxinput[2]] = 1.)
 		layer.a[maxinput[2]] = 1.
@@ -105,10 +105,10 @@ end
 	if norm(layer.a) != 0.
 		layer.parameters.calculate_trace &&	calculatetrace!(layer)
 	end
-	if norm(layer.a_pre) != 0.
-		layer.a_pre = layer.a_pre ./ norm(layer.a_pre)
+	if norm(layer.a_pre[:]) != 0.
+		layer.a_pre = layer.a_pre ./ norm(layer.a_pre[:])
 	end
-	layer.u = BLAS.gemv('N', layer.w, layer.a_pre)
+	layer.u = BLAS.gemv('N', layer.w, layer.a_pre[:])
 	powerrelu!(layer; power = 10)
 end
 
@@ -153,16 +153,21 @@ end
 # input layer -> patchy layer
 @inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
 							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64)
-	copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
-			reshape(src, isize, isize),
-			CartesianIndices((getindx4(i, str, psize), getindx4(j, str, psize))))
+	# copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
+	# 		reshape(src, isize, isize),
+	# 		CartesianIndices((getindx4(i, str, psize), getindx4(j, str, psize))))
+	copyto!(reshape(dest, psize, psize, 1), CartesianIndices((1:psize, 1:psize, 1:1)),
+			reshape(src, isize, isize, 1),
+			CartesianIndices((getindx4(i, str, psize), getindx4(j, str, psize), 1)))
 end
 # patchy layer -> patchy layer
 @inline function copyinput!(dest::Array{Float64, 1}, src::Array{Float64, 1},
 							i1::Int64, j1::Int64, n_neurons_per_pop::Int64, p_size::Int64)
-	copyto!(dest, getindx3(i1, j1, p_size, n_neurons_per_pop), src, 1:length(src))
+	#copyto!(dest, getindx3(i1, j1, p_size, n_neurons_per_pop), src, 1:length(src))
+	copyto!(dest, CartesianIndices((i1:i1, j1:j1, 1:length(src))),
+			reshape(src, length(src), 1, 1), CartesianIndices((1:length(src), 1:1, 1:1)))
 end
-# for input layer -> patchy layer
+# input layer -> patchy layer
 @inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)
 	n_patch, p_size, i_size, str = getparameters(layer_post)
 	for i in 1:n_patch
@@ -174,7 +179,7 @@ end
 		end
 	end
 end
-# for patchy layer -> patchy layer
+# patchy layer -> patchy layer
 @inline function distributeinput!(layer_pre::layer_patchy, layer_post::layer_patchy)
 	n_patch, p_size, i_size, str = getparameters(layer_post)
 	n_neurons_per_pop = length(layer_pre.layer_patches[1].a)
@@ -196,7 +201,7 @@ end
 		end
 	end
 end
-#For all the other situations (fully connected):
+# all the other situations (fully connected):
 @inline function distributeinput!(layer_pre, layer_post)
 	inds = 1:length(layer_post.a_pre)
 	copyto!(layer_post.a_pre, inds, layer_pre.a, inds)

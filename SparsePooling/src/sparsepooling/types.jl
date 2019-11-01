@@ -34,11 +34,8 @@ end
 
 mutable struct layer_sparse <: layer
 	parameters::parameters_sparse
-	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
-
-	# TODO restructure that into 3 d array (ksize, ksize, nfilters)
-
-	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
+	a_pre::Array{Float64, 3} #activation of pre layer (3d array (ksize, ksize, nfilters))
+	a_tr_pre::Array{Float64, 3} #activation-trace of pre layer
 	u::Array{Float64, 1} #membrane potential
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
 	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
@@ -56,6 +53,7 @@ mutable struct parameters_sparse_patchy
 	stride::Int64 #stride of patch centers (in #pixels (input) or #populations)
 	in_size::Int64 #size of total input image/filter bank (1 filter): in_size*in_size
 	in_fan::Int64 #total number of inputs per population
+	weight_sharing::Bool
 end
 mutable struct layer_sparse_patchy <: layer_patchy
 	parameters::parameters_sparse_patchy
@@ -82,9 +80,9 @@ end
 
 mutable struct layer_pool <: layer
 	parameters::parameters_pool
-	a_pre::Array{Float64, 1} #activation of pre layer (needed for parallel/patchy)
-	a_tr_pre::Array{Float64, 1} #activation-trace of pre layer
-	a_tr_s_pre::Array{Float64, 1}
+	a_pre::Array{Float64, 3} #activation of pre layer (3d array (ksize, ksize, nfilters))
+	a_tr_pre::Array{Float64, 3} #activation-trace of pre layer
+	a_tr_s_pre::Array{Float64, 3}
 	u::Array{Float64, 1} #membrane potential
 	a::Array{Float64, 1} #activation = nonlinearity(membrane potential)
 	a_tr::Array{Float64, 1} #low pass filtered activity: "trace" (current time step is left out)
@@ -92,7 +90,7 @@ mutable struct layer_pool <: layer
 	w::Array{Float64, 2} #synaptic weight matrix in format TOxFROM
 	v::Array{Float64, 2} #recurrent/lateral inhibition weight matrix
 	t::Array{Float64, 1} #thresholds
-	b::Array{Float64, 1} #biases
+	#b::Array{Float64, 1} #biases
 	hidden_reps::Array{Float64, 2} #hidden representations of the layer
 end
 
@@ -102,6 +100,7 @@ mutable struct parameters_pool_patchy
 	stride::Int64 #stride of patch centers (in #pixels (input) or #populations)
 	in_size::Int64 #size of total image/filter bank (1 filter): in_size*in_size
 	in_fan::Int64 #total number of inputs per population
+	weight_sharing::Bool
 end
 mutable struct layer_pool_patchy <: layer_patchy
 	parameters::parameters_pool_patchy
@@ -191,10 +190,12 @@ function parameters_sparse(ns; learningrate_v = 1e-1, learningrate_w = 5e-3, lea
 			dt, epsilon, activationfunction, OneOverMaxFiringRate,
 			calculate_trace, one_over_tau_a, one_over_tau_a_s, one_over_tau_a_l, p)
 end
-function layer_sparse(ns::Array{Int64, 1}; in_fan = ns[1], one_over_tau_a = 1e-2, p = 1. / ns[2]) #ns: number of neurons in previous and present layer
+function layer_sparse(ns::Array{Int64, 1}; ksize = 1, n_in_channel = ns[1], one_over_tau_a = 1e-2, p = 1. / ns[2])
+	#ns: number of neurons/filters in previous and present layer
+	in_fan = ksize ^ 2 * n_in_channel
 	layer_sparse(parameters_sparse(ns; one_over_tau_a = one_over_tau_a, p = p), # default parameter init
-			zeros(in_fan), #pre activation initialized with zeros
-			zeros(in_fan), #pre low-pass filtered activity initialized with zeros
+			zeros(ksize, ksize, n_in_channel), #pre activation initialized with zeros
+			zeros(ksize, ksize, n_in_channel), #pre low-pass filtered activity initialized with zeros
 			zeros(ns[2]), #membrane potential initialized with zeros
 			zeros(ns[2]), #activation initialized with zeros
 			zeros(ns[2]), #low-pass filtered activity initialized with zeros
@@ -211,15 +212,26 @@ function get_n_of_layer_patches(in_size::Int64, patch_size::Int64, stride::Int64
 	# stride: stride of patches/kernel in #pixels or #populations
 	Int(floor((in_size - patch_size) / stride) + 1) ^ 2
 end
+function init_weight_sharing!(layer::layer_patchy)
+	for layer_patch in layer.layer_patches
+		layer_patch.w = layer.layer_patches[1].w
+		layer_patch.v = layer.layer_patches[1].v
+		layer_patch.t = layer.layer_patches[1].t
+	end
+end
 function layer_sparse_patchy(ns::Array{Int64, 1};
-		patch_size = 10, stride = 1, in_size = 32, in_fan = ns[1],
+		patch_size = 10, n_in_channel = ns[1], stride = 1, in_size = 32,
 		n_of_layer_patches = get_n_of_layer_patches(in_size, patch_size, stride),
-		one_over_tau_a = 1e-2, p = 1. / ns[2])
-	layer_sparse_patchy(parameters_sparse_patchy(n_of_layer_patches, patch_size, stride, in_size, in_fan),
-	[layer_sparse(ns; in_fan = in_fan, one_over_tau_a = one_over_tau_a, p = p) for i in 1:n_of_layer_patches],
+		one_over_tau_a = 1e-2, p = 1. / ns[2],
+		weight_sharing = false)
+	in_fan = patch_size ^ 2 * n_in_channel
+	layer = layer_sparse_patchy(parameters_sparse_patchy(n_of_layer_patches, patch_size, stride, in_size, in_fan, weight_sharing),
+	[layer_sparse(ns; ksize = patch_size, n_in_channel = n_in_channel, one_over_tau_a = one_over_tau_a, p = p) for i in 1:n_of_layer_patches],
 	zeros(ns[2]*n_of_layer_patches),
 	zeros(ns[2]*n_of_layer_patches),
 	1.)
+	weight_sharing && init_weight_sharing!(layer)
+	return layer
 end
 
 function parameters_pool(ns; learningrate = 1e-2, learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2,
@@ -228,11 +240,12 @@ function parameters_pool(ns; learningrate = 1e-2, learningrate_v = 1e-1, learnin
 	parameters_pool(learningrate, learningrate_v, learningrate_w, learningrate_thr,
 			dt, epsilon, updaterule, activationfunction, calculate_trace, one_over_tau_a, one_over_tau_a_l, p)
 end
-function layer_pool(ns::Array{Int64, 1}; in_fan = ns[1], one_over_tau_a = 2e-1, p = 1. / ns[2])
+function layer_pool(ns::Array{Int64, 1}; ksize = 1, n_in_channel = ns[1], one_over_tau_a = 2e-1, p = 1. / ns[2])
+	in_fan = ksize ^ 2 * n_in_channel
 	layer_pool(parameters_pool(ns; one_over_tau_a = one_over_tau_a, p = p), # default parameter init
-			zeros(in_fan), #pre activation initialized with zeros
-			zeros(in_fan), #pre low-pass filtered activity initialized with zeros
-			zeros(in_fan), #pre a_tr_s
+			zeros(ksize, ksize, n_in_channel), #pre activation initialized with zeros
+			zeros(ksize, ksize, n_in_channel), #pre low-pass filtered activity initialized with zeros
+			zeros(ksize, ksize, n_in_channel), #pre a_tr_s
 			zeros(ns[2]), #membrane potential initialized with zeros
 			zeros(ns[2]), #activation initialized with zeros
 			zeros(ns[2]), #low-pass filtered activity initialized with zeros
@@ -240,18 +253,20 @@ function layer_pool(ns::Array{Int64, 1}; in_fan = ns[1], one_over_tau_a = 2e-1, 
 			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr. # rand(ns[2], ns[1])/(10*sqrt(ns[1])),#
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
 			5*ones(ns[2]), #thresholds initialized with zeros
-			zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
+			#zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
 function layer_pool_patchy(ns::Array{Int64, 1};
-		patch_size = 10, stride = 1, in_size = 32, in_fan = ns[1],
+		patch_size = 10, n_in_channel = ns[1], stride = 1, in_size = 32,
 		n_of_layer_patches = get_n_of_layer_patches(in_size, patch_size, stride),
 		one_over_tau_a = 2e-1, p = 1. / ns[2])
-	layer_pool_patchy(parameters_pool_patchy(n_of_layer_patches, patch_size, stride, in_size, in_fan),
-	[layer_pool(ns; in_fan = in_fan, one_over_tau_a = one_over_tau_a, p = p) for i in 1:n_of_layer_patches],
+	in_fan = patch_size ^ 2 * n_in_channel
+	layer = layer_pool_patchy(parameters_pool_patchy(n_of_layer_patches, patch_size, stride, in_size, in_fan, weight_sharing),
+	[layer_pool(ns; ksize = patch_size, n_in_channel = n_in_channel, one_over_tau_a = one_over_tau_a, p = p) for i in 1:n_of_layer_patches],
 	zeros(ns[2]*n_of_layer_patches),
-	zeros(ns[2]*n_of_layer_patches)
-	)
+	zeros(ns[2]*n_of_layer_patches))
+	weight_sharing && init_weight_sharing!(layer)
+	return layer
 end
 
 function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
@@ -272,14 +287,14 @@ function addfullyconnectedlayer!(layers, i, layertype, tl, sl, taus, ps)
 		if tl[i] == "classifier"
 			layers = (layers... , layertype(vcat(layers[i-1].parameters.n_of_layer_patches * sl[i-1], sl[i:end])))
 		else
-			layers = (layers... , layertype([layers[i-1].parameters.n_of_layer_patches * sl[i-1], sl[i]];
+			layers = (layers... , layertype(sl[i-1:i]; ksize = Int(sqrt(layers[i-1].parameters.n_of_layer_patches)),
 											one_over_tau_a = 1. / taus[i], p = ps[i]))
 		end
 	else
 		if tl[i] == "classifier"
 			layers = (layers... , layertype(sl[i-1:end]))
 		else
-			layers = (layers... , layertype(sl[i-1:i];
+			layers = (layers... , layertype(sl[i-1:i]; ksize = 1,
 											one_over_tau_a = 1. / taus[i], p = ps[i]))
 		end
 	end
@@ -287,18 +302,16 @@ function addfullyconnectedlayer!(layers, i, layertype, tl, sl, taus, ps)
 end
 function addpatchylayer!(layers, i, layertype, tl, sl, ks, str, taus, ps)
 	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
-		layers = (layers... , layertype([ks[i]^2 * sl[i-1],sl[i]];
-					patch_size = ks[i], stride = str[i],
-					in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches)),
-					in_fan = ks[i]^2 * sl[i-1],
-					one_over_tau_a = 1. / taus[i], p = ps[i]))
+		in_size = in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches))
+		n_in_channel = sl[i-1]
 	elseif tl[i-1] == "input"
-		layers = (layers... , layertype([ks[i]^2, sl[i]];
-					patch_size = ks[i], stride = str[i],
-					in_size = Int(sqrt(length(layers[i-1].a))),
-					in_fan = ks[i]^2,
-					one_over_tau_a = 1. / taus[i], p = ps[i]))
+		in_size = Int(sqrt(length(layers[i-1].a)))
+		n_in_channel = 1 # careful! change this for color images!
 	end
+	layers = (layers... , layertype(sl[i-1:i];
+				patch_size = ks[i], n_in_channel = n_in_channel, stride = str[i],
+				in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches)),
+				one_over_tau_a = 1. / taus[i], p = ps[i]))
 	return layers
 end
 function net(tl::Array{String, 1}, # tl: types of layers
