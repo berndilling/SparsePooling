@@ -37,7 +37,7 @@ end
 #ATTENTION: FOR PCA/SFA nonlinearity should be linear!
 #PAY ATTENTION: lc_forward has to be consistent with the one in parameterupdate!
 
-# TODO implement max/mean pooling here!
+# TODO implement max/mean pooling here! or new type!!!
 @inline function forwardprop_maxpool!(layer::layer_pool)
 	(size(layer.a_pre, 3) != length(layer.a)) && error("Number of filters must stay the same for max pooling (change number of neurons per patch)")
 	for i in size(layer.a_pre, 3)

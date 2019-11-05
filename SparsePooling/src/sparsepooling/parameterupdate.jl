@@ -82,8 +82,8 @@ end
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
 
-	#TODO disable if max pooling is enabled
-	
+	#TODO disable if max pooling is enabled or new type!
+
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
 	update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr, layer.v)

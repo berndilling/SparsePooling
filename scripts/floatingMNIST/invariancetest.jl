@@ -22,24 +22,45 @@ function _shiftimage(img, amplitude, nettype)
     end
 end
 
-function getcorrelatesperimage(m, l, img, nettype; margin = 9)
-    rep = deepcopy(m[1:l](_shiftimage(img, [0, 0], nettype)).data)
-    correlates = []
-    for x in -margin:margin
+function getcorrelatesperimage(m, l, img, nettype;
+                                margin = 9, shifts = -margin:margin,
+                                singleneurons = (false, 1))
+    refshift = [rand(shifts), 0]
+    refrep = deepcopy(m[1:l](_shiftimage(img, refshift, nettype)).data)
+    correlates = ones(length(shifts)) .* Inf
+    for x in shifts
+        relativeshift = x - refshift[1]
         #for y in -margin:margin
         y = 0
+        if relativeshift in shifts
+            index = relativeshift - collect(shifts)[1] + 1
             rep_shifted = deepcopy(m[1:l](_shiftimage(img, [x, y], nettype)).data)
-            push!(correlates, dot(rep, rep_shifted) / dot(rep, rep))
+            if singleneurons[1]
+                inds = singleneurons[2]
+                refrep = refrep[inds]
+                rep_shifted = rep_shifted[inds]
+            end
+            dotprod = dot(refrep, rep_shifted)
+            normprod = norm(refrep) * norm(rep_shifted)
+            if dotprod == 0. && normprod == 0.
+                cor = 0.
+            else
+                cor = dotprod / normprod
+            end
+            correlates[index] = cor
+        end
         #end
     end
     return correlates
 end
 
-function getcorrelates(m, l, imgs, nettype; margin = 9, nofsamples = 1000) # size(imgs)[end])
+function getcorrelates(m, l, imgs, nettype; margin = 9, nofsamples = 1000, # size(imgs)[end])
+                        singleneurons = (false, 1))
     correlates = zeros(2 * margin + 1, nofsamples)
     print(string("\n calculate correlates for layer ", l, "\n"))
     @showprogress for i in 1:nofsamples
-        correlates[:, i] = getcorrelatesperimage(m, l, imgs[:, i], nettype; margin = margin)
+        correlates[:, i] = getcorrelatesperimage(m, l, imgs[:, i], nettype;
+                                                margin = margin, singleneurons = singleneurons)
     end
     return correlates
 end
@@ -47,17 +68,18 @@ end
 function averageoversamples(correlates)
     avrg_correlates = zeros(size(correlates, 1))
     for i in 1:size(correlates, 1)
-        avrg_correlates[i] = mean(correlates[i, :])
+        inds_in_range = findall(correlates[i, :] .!= Inf)
+        avrg_correlates[i] = mean(correlates[i, inds_in_range])
     end
     return avrg_correlates
 end
 
-function getaveragedcorrelates(m, layer, imgs, nettype; margin = 9)
-    correlates = getcorrelates(m, layer, imgs, nettype)
+function getaveragedcorrelates(m, layer, imgs, nettype; margin = 9, singleneurons = (false, 1))
+    correlates = getcorrelates(m, layer, imgs, nettype; margin = margin, singleneurons = singleneurons)
     averageoversamples(correlates)
 end
 
-function main(nettype; margin = 9)
+function main(nettype; margin = 9, singleneurons = (false, 1))
     m = gettrainednet(; nettype = nettype)
     testimgs = gettestdata()
     figure()
@@ -66,18 +88,18 @@ function main(nettype; margin = 9)
     title(string("Correlates for network type ", nettype))
     lowestlayer = (nettype[1:2] == "CN") ? 1 : 2
     for layer in length(m):-1:lowestlayer
-        avrg_correlates = getaveragedcorrelates(m, layer, testimgs, nettype; margin = 9)
+        avrg_correlates = getaveragedcorrelates(m, layer, testimgs, nettype; margin = margin, singleneurons = singleneurons)
         plot(collect(-margin:margin), avrg_correlates, label = string((nettype[1:2] == "CN") ? layer : layer - 1," ",string(m[layer])[1:minimum([end,50])]))
     end
     legend(fontsize = 5, loc="upper left", bbox_to_anchor=(0., -0.2))
     tight_layout()
 
-    savefig(string("invariancetest_", nettype,".pdf"))
+    #savefig(string("invariancetest_", nettype,".pdf"))
 end
 
-main("SP")
-main("RP")
-main("MLP")
+# main("SP")
+# main("RP")
+# main("MLP")
 main("CNN")
-main("CNN_convpool")
-main("CNN_nopool")
+#main("CNN_convpool")
+#main("CNN_nopool")
