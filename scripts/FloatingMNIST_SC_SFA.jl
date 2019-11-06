@@ -1,4 +1,4 @@
-using Pkg; Pkg.activate("./../SparsePooling/");# Pkg.instantiate()
+using Pkg; Pkg.activate("./../SparsePooling/"); Pkg.instantiate()
 push!(LOAD_PATH, "./../SparsePooling/src/")
 using SparsePooling
 using Dates, Serialization
@@ -18,8 +18,8 @@ function trainandtest(data, datatest, ind, ind_t;
                 [0,Int(ksize1),Int(ksize2)], # kernel sizes
                 [0,Int(str1),Int(str2)], #s strides: stride 1 in first layer works best so far
                 [100.,100.,tau2], # time scales tau for SFA (ignored for non SFA layers)
-   			    [0,p1,p2], # ps: sparsity parameters p
-                )
+   			    [0,p1,p2]; # ps: sparsity parameters p
+                weight_sharing = false)
 
     inputfunction = getsmallimg
     intermediatestates = []

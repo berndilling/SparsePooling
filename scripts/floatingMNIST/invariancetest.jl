@@ -5,6 +5,7 @@ using SparsePooling
 using Flux, BSON, PyPlot, JLD2, FileIO, LinearAlgebra, ProgressMeter, Statistics
 
 function gettrainednet(; nettype = "CNN", dataset = "floatingMNIST")
+    # created by Reference_CNN.jl
     BSON.load(string("Reference_", nettype, "_", dataset,".bson"))[:referencenetwork]
 end
 function gettestdata(; targetsize = 40)
@@ -79,8 +80,8 @@ function getaveragedcorrelates(m, layer, imgs, nettype; margin = 9, singleneuron
     averageoversamples(correlates)
 end
 
-function main(nettype; margin = 9, singleneurons = (false, 1))
-    m = gettrainednet(; nettype = nettype)
+function main(nettype; dataset = "floatingMNIST", margin = 9, singleneurons = (false, 1))
+    m = gettrainednet(; nettype = nettype, dataset = dataset)
     testimgs = gettestdata()
     figure()
     xlabel("shift (pixels)")
@@ -94,12 +95,14 @@ function main(nettype; margin = 9, singleneurons = (false, 1))
     legend(fontsize = 5, loc="upper left", bbox_to_anchor=(0., -0.2))
     tight_layout()
 
-    #savefig(string("invariancetest_", nettype,".pdf"))
+    savefig(string("invariancetest_", nettype,".pdf"))
 end
 
-# main("SP")
-# main("RP")
-# main("MLP")
+main("SP")
+main("RP")
+main("MLP")
 main("CNN")
-#main("CNN_convpool")
-#main("CNN_nopool")
+main("CNN_padded")
+main("CNN_padded_convpool")
+main("CNN_convpool")
+main("CNN_nopool")

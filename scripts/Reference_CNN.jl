@@ -21,8 +21,8 @@ use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!
 
 nettype = "CNN" #"SP"#"RP" #"MLP" #"SP" #
 data_set = "floatingMNIST" #"floatingreducedMNIST" #"MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #
-epochs = 10
-batch_size = 512
+epochs = 20
+batch_size = 128
 n_in_channel = (data_set == "CIFAR10") ? 3 : 1
 
 function getonechanneldataset(X, Y, batchsize, imsize)
@@ -159,19 +159,19 @@ Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
     Dense(imsize ^ 2, nhidden, relu),
     Dense(nhidden, n_classes),
     softmax) |> todevice
-Simple_CNN(; n_classes = 10, stride = 1, pstride = 2) = Chain(
-    Conv((3, 3), n_in_channel => 32, stride = (stride, stride), pad=(1, 1), relu),
+Simple_CNN(; n_classes = 10, stride = 2, pstride = 1, pad = 1) = Chain(
+    Conv((3, 3), n_in_channel => 32, stride = (stride, stride), pad=(pad, pad), relu),
     # BatchNorm(32),
     MaxPool((2,2), stride = (pstride, pstride)), # default: stride = pool window
-    Conv((3, 3), 32 => 64, stride = (stride, stride), pad=(1, 1), relu),
+    Conv((3, 3), 32 => 64, stride = (stride, stride), pad=(pad, pad), relu),
     # BatchNorm(64),
     MaxPool((2,2), stride = (pstride, pstride)),
-    Conv((3, 3), 64 => 128, stride = (stride, stride), pad=(1, 1), relu),
+    Conv((3, 3), 64 => 128, stride = (stride, stride), pad=(pad, pad), relu),
     # BatchNorm(128),
     MaxPool((2,2), stride = (pstride, pstride)),
     x -> reshape(x, :, size(x, 4)),
     # Dropout(0.25),
-    Dense(3200, n_classes),
+    Dense(2048, n_classes), # 1152 3200
     softmax) |> todevice
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
@@ -227,8 +227,8 @@ accuracy(x, y; n_classes = 10) = mean(onecold(cpu(m)(x), 1:n_classes) .== onecol
 opt = ADAM()
 
 # if only last layer should be learned, e.g. for RP: trainableparams =  params(m[end-1])
-#trainableparams = (nettype == "RP") ? params(m[end - 1]) : params(m)
-trainableparams = params(m[[1,2,8,9]])
+trainableparams = (nettype == "RP") ? params(m[end - 1]) : params(m)
+#trainableparams = params(m[[1,2,8,9]])
 
 
 @info("Train CNN/MLP...")
@@ -244,4 +244,4 @@ println("acc train: ", accuracy(X_all, labels; n_classes = size(labels)[1]))
 println("acc test: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
 
 referencenetwork = cpu(m)
-dosave && @save string("./floatingMNIST/Reference_", nettype, "_", data_set, "_padded.bson") referencenetwork
+dosave && @save string("./floatingMNIST/Reference_", nettype, "_", data_set, "_convpool_padded.bson") referencenetwork

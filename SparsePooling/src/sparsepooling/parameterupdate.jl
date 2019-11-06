@@ -81,9 +81,6 @@ end
 	update_thresholds!(layer.parameters.learningrate_thr, layer.parameters.p, layer.a, layer.t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_pool)
-
-	#TODO disable if max pooling is enabled or new type!
-
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)
 	update_recurrent_weights!(layer.parameters.learningrate_v, layer.a_tr_l, layer.a, layer.v)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr, layer.v)
@@ -114,6 +111,8 @@ end
 	if norm(layer.a_pre[:]) != 0. #don't do anything if no input is provided
 		lc_forward ? update_layer_parameters_lc!(layer) : layer.parameters.updaterule(layer)
 	end
+end
+@inline function _update_layer_parameters!(layer::layer_max_pool)
 end
 @inline function _update_layer_parameters!(layer::layer_patchy)
 	for layer_patch in layer.layer_patches
