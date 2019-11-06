@@ -19,12 +19,12 @@ function trainandtest(data, datatest, ind, ind_t;
                 [0,Int(str1)], #s strides: stride 1 in first layer works best so far
                 [100.,100.], # time scales tau for SFA (ignored for non SFA layers)
    			    [0,p1], # ps: sparsity parameters p
-                )
+                weight_sharing = true)
 
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^5],
+        [10^4],
         [inputfunction for i in 1:network.nr_layers],
         # TODO use getstaticimagefloatingMNIST
         [getstaticimagefloatingMNIST];
@@ -53,7 +53,7 @@ function SparsePoolingSim(; nfilters1 = 10,
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
     # train model
-    error_train, error_test, network, data = trainandtest(data, datatest, 10000, 10000; #ind, ind_t;
+    error_train, error_test, network, data = trainandtest(data, datatest, 1000, 1000; #ind, ind_t;
                                 nfilters1 = nfilters1,
                                 ksize1 = ksize1,
                                 str1 = str1,

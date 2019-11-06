@@ -239,6 +239,9 @@ function init_weight_sharing!(layer::layer_patchy)
 		layer_patch.w = layer.layer_patches[1].w
 		layer_patch.v = layer.layer_patches[1].v
 		layer_patch.t = layer.layer_patches[1].t
+		layer_patch.parameters.learningrate_v /= layer.parameters.n_of_layer_patches
+		layer_patch.parameters.learningrate_w /= layer.parameters.n_of_layer_patches
+		layer_patch.parameters.learningrate_thr /= layer.parameters.n_of_layer_patches
 	end
 end
 function layer_sparse_patchy(ns::Array{Int64, 1};

@@ -58,9 +58,9 @@ version = "0.8.10"
 
 [[BinaryProvider]]
 deps = ["Libdl", "SHA"]
-git-tree-sha1 = "29995a7b317bbd06be147e1974a3541ce2502dca"
+git-tree-sha1 = "5b08ed6036d9d3f0ee6369410b830f8873d4024c"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
-version = "0.5.7"
+version = "0.5.8"
 
 [[BlackBoxOptim]]
 deps = ["CPUTime", "Compat", "Distributed", "Distributions", "LinearAlgebra", "Printf", "Random", "SpatialIndexing", "StatsBase"]
@@ -300,9 +300,9 @@ version = "0.8.1"
 
 [[ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "NaNMath", "Random", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "e2c81741a8be50de143ecddee942396894f47750"
+git-tree-sha1 = "adf88d6da1f0294058f38295becf8807986bb7d0"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.4"
+version = "0.10.5"
 
 [[GPUArrays]]
 deps = ["Adapt", "FFTW", "FillArrays", "LinearAlgebra", "Printf", "Random", "Serialization", "StaticArrays", "Test"]
@@ -453,9 +453,9 @@ version = "1.2.2"
 
 [[LLVM]]
 deps = ["CEnum", "Libdl", "Printf", "Unicode"]
-git-tree-sha1 = "3680605a77f20bec59eea00389eb7aafe973abbb"
+git-tree-sha1 = "74fe444b8b6d1ac01d639b2f9eaf395bcc2e24fc"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "1.3.1"
+version = "1.3.2"
 
 [[LaTeXStrings]]
 deps = ["Compat"]
@@ -579,9 +579,9 @@ version = "0.12.0"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "ef0af6c8601db18c282d092ccbd2f01f3f0cd70b"
+git-tree-sha1 = "c56ecb484f286639f161e712b8311f5ab77e8d32"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "0.3.7"
+version = "0.3.8"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
@@ -614,10 +614,10 @@ uuid = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 version = "2.8.1"
 
 [[QuadGK]]
-deps = ["DataStructures", "LinearAlgebra", "Test"]
-git-tree-sha1 = "3ce467a8e76c6030d4c3786e7d3a73442017cdc0"
+deps = ["DataStructures", "LinearAlgebra"]
+git-tree-sha1 = "1af46bf083b9630a5b27d4fd94f496c5fca642a8"
 uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-version = "2.0.3"
+version = "2.1.1"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]
@@ -712,9 +712,9 @@ version = "0.7.2"
 
 [[StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "1085ffbf5fd48fdba64ef8e902ca429c4e1212d3"
+git-tree-sha1 = "1e9c5d89cba8047d518f1ffef432906ef1a3e8bd"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "0.11.1"
+version = "0.12.0"
 
 [[Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
