@@ -13,7 +13,7 @@ function trainandtest(data, datatest, ind, ind_t;
                             str1 = 2, str2 = 1,
                             tau2 = 5.,
                             p1 = 0.1, p2 = 0.5)
-    network = net(["input","sparse_patchy","pool_patchy"],
+    network = net(["input","sparse_patchy","max_pool_patchy"],
                 [getindim(data),Int(nfilters1), Int(nfilters2)],
                 [0,Int(ksize1),Int(ksize2)], # kernel sizes
                 [0,Int(str1),Int(str2)], #s strides: stride 1 in first layer works best so far
@@ -24,7 +24,7 @@ function trainandtest(data, datatest, ind, ind_t;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^3, 10^3], # [3*10^4, 3*10^3],
+        [10^4, 10^0], # [3*10^4, 3*10^3],
         [inputfunction for i in 1:network.nr_layers],
         [getstaticimagefloatingMNIST, getmovingimage];
         LearningFromLayer = 2,
@@ -45,7 +45,7 @@ function trainandtest(data, datatest, ind, ind_t;
                 iters = 10^6, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_train, error_test, network, data
 end
-function SparsePoolingSim(; nfilters1 = 10, nfilters2 = 20,
+function SparsePoolingSim(; nfilters1 = 10, nfilters2 = 10,
                             ksize1 = 8, ksize2 = 3,
                             str1 = 2, str2 = 1,
                             tau2 = 5, p1 = 0.2, p2 = 0.4)
