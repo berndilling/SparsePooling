@@ -120,18 +120,24 @@ end
 	powerrelu!(layer; power = 10)
 end
 
-@inline function forwardprop!(layer::layer_patchy; normalize = false)
+@inline function _activitynormalisation!(layer_patch::layer_max_pool, layer::layer_patchy) end
+@inline function _activitynormalisation!(layer_patch::layer, layer::layer_patchy)
+	#(maximum(layer_patch.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer_patch.a)))
+	#layer_patch.a ./= layer.a_max; layer_patch.a_tr ./= layer.a_max #
+	a_norm = norm(deepcopy(layer_patch.a))
+	(a_norm != 0.) && (layer_patch.a ./= a_norm; layer_patch.a_tr ./= a_norm)
+end
+@inline function forwardprop!(layer::layer_patchy; normalize = true)
 	len = length(layer.layer_patches[1].a)
 	i = 1
 	for layer_patch in layer.layer_patches
 		forwardprop!(layer_patch)
+		if normalize # take care this only works for layer_sparse_patchy yet!
+			_activitynormalisation!(layer_patch, layer)
+		end
 		copyto!(layer.a, (i-1)*len+1:i*len,	layer_patch.a, 1:len)
 		copyto!(layer.a_tr, (i-1)*len+1:i*len, layer_patch.a_tr, 1:len)
 		i += 1
-	end
-	if normalize # take care this only works for layer_sparse_patchy yet!
-		(maximum(layer.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer.a)))
-		layer.a ./= layer.a_max; layer.a_tr ./= layer.a_max
 	end
 end
 

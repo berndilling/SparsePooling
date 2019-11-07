@@ -65,8 +65,8 @@ end
 
 ##
 
-error_train, error_test, network, data = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy"];
-                                                            nfilters = [10, 10, 20, 20, 40, 40],
+error_train, error_test, network, data = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy");# "max_pool_patchy");
+                                                            nfilters = [10, 10, 20, 20, 20, 40],
                                                             ksize = [3, 2, 3, 2, 3, 2],
                                                             str = [2, 1, 2, 1, 2, 1], # downsampling in convlayers!
                                                             tau = [100, 5., 100., 5., 100., 5.],
