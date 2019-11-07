@@ -7,13 +7,13 @@ using BlackBoxOptim
 
 # layer wise training + classifier training + testing
 # returns scalar fitness (i.e. test error)
-function trainandtest(data, datatest, ind, ind_t;
+function trainandtest(data, datatest, ind, ind_t, layertypes;
                             nfilters1 = 5,
                             ksize1 = 5,
                             str1 = 2,
                             tau2 = 5.,
                             p1 = 0.1)
-    network = net(["input","sparse_patchy"],
+    network = net(layertypes,
                 [getindim(data),Int(nfilters1)],
                 [0,Int(ksize1)], # kernel sizes
                 [0,Int(str1)], #s strides: stride 1 in first layer works best so far
@@ -43,17 +43,18 @@ function trainandtest(data, datatest, ind, ind_t;
                                             subtractmean = false),
                                         datatest.labels[1:ind_t]; classes = datatest.classes)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
-                iters = 10^5, ind = ind, indtest = ind_t, n_classes = length(data.classes))
+                iters = 10^6, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_train, error_test, network, data
 end
-function SparsePoolingSim(; nfilters1 = 10,
+function SparsePoolingSim(layertypes; nfilters1 = 10,
                             ksize1 = 8,
                             str1 = 2,
                             p1 = 0.4)
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
     # train model
-    error_train, error_test, network, data = trainandtest(data, datatest, 1000, 1000; #ind, ind_t;
+    error_train, error_test, network, data = trainandtest(data, datatest, 10000, 10000, #ind, ind_t;
+                                layertypes;
                                 nfilters1 = nfilters1,
                                 ksize1 = ksize1,
                                 str1 = str1,
@@ -63,4 +64,8 @@ end
 
 ##
 
-error_train, error_test, network, data = SparsePoolingSim();
+error_train, error_test, network, data = SparsePoolingSim(["input","sparse_patchy"];
+                                                            nfilters1 = 10,
+                                                            ksize1 = 3,
+                                                            str1 = 1,
+                                                            p1 = 0.1);

@@ -33,19 +33,17 @@ end
 	_calculatetrace_tr_a_and_a_tr_l!(layer)
 end
 
-#Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
-#ATTENTION: FOR PCA/SFA nonlinearity should be linear!
-#PAY ATTENTION: lc_forward has to be consistent with the one in parameterupdate!
 
-# TODO implement max/mean pooling here! or new type!!!
 @inline function forwardprop!(layer::layer_max_pool)
 	(size(layer.a_pre, 3) != length(layer.a)) && error("Number of filters must stay the same for max pooling (change number of neurons per patch)")
-	for i in size(layer.a_pre, 3)
-		layer.a[i] = maximum(layer.a_pre[:, :, i])
+	for i in 1:size(layer.a_pre, 3)
+		layer.a[i] =  maximum(layer.a_pre[:, :, i])
 		layer.a_tr[i] = maximum(layer.a_tr_pre[:, :, i])
 	end
 end
-
+#Forwardprop WITHOUT lateral competition (wlc): meant for pooling layers!
+#ATTENTION: FOR PCA/SFA nonlinearity should be linear!
+#PAY ATTENTION: lc_forward has to be consistent with the one in parameterupdate!
 @inline function forwardprop!(layer::layer_pool; lc_forward = true) #true
 	lc_forward ? forwardprop_lc!(layer) : #forwardprop_WTA!(layer) : #
 		forwardprop_wlc!(layer)

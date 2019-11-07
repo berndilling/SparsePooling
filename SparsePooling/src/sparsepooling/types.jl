@@ -342,7 +342,7 @@ function addfullyconnectedlayer!(layers, i, layertype, tl, sl, taus, ps)
 end
 function addpatchylayer!(layers, i, layertype, tl, sl, ks, str, taus, ps;
 						weight_sharing = false, maxpool = false)
-	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
+	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy" || tl[i-1] == "max_pool_patchy"
 		in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches))
 		n_in_channel = sl[i-1]
 	elseif tl[i-1] == "input"
