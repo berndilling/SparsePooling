@@ -53,7 +53,7 @@ function SparsePoolingSim(layertypes; nfilters1 = 10,
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
     # train model
-    error_train, error_test, network, data = trainandtest(data, datatest, 10000, 10000, #ind, ind_t;
+    error_train, error_test, network, data = trainandtest(data, datatest, ind, ind_t,
                                 layertypes;
                                 nfilters1 = nfilters1,
                                 ksize1 = ksize1,
@@ -65,7 +65,7 @@ end
 ##
 
 error_train, error_test, network, data = SparsePoolingSim(["input","sparse_patchy"];
-                                                            nfilters1 = 10,
-                                                            ksize1 = 3,
+                                                            nfilters1 = 32,
+                                                            ksize1 = 5,
                                                             str1 = 1,
                                                             p1 = 0.1);

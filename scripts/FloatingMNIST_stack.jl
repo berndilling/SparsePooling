@@ -42,7 +42,7 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
                                             subtractmean = false),
                                         datatest.labels[1:ind_t]; classes = datatest.classes)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
-                iters = 10^6, ind = ind, indtest = ind_t, n_classes = length(data.classes))
+                iters = 10^7, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_train, error_test, network, data
 end
 function SparsePoolingSim(layertypes; nfilters = [10, 10],
@@ -53,7 +53,7 @@ function SparsePoolingSim(layertypes; nfilters = [10, 10],
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
     # train model
-    error_train, error_test, network, data = trainandtest(data, datatest, 10000, 10000, # ind, ind_t;
+    error_train, error_test, network, data = trainandtest(data, datatest, ind, ind_t,
                                 layertypes;
                                 nfilters = nfilters,
                                 ksize = ksize,
@@ -65,9 +65,11 @@ end
 
 ##
 
-error_train, error_test, network, data = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy");# "max_pool_patchy");
-                                                            nfilters = [10, 10, 20, 20, 20, 40],
+# TODO try pure SC stack with new normalisation!
+
+error_train, error_test, network, data = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy");
+                                                            nfilters = [32, 32, 64, 64, 128, 128],
                                                             ksize = [3, 2, 3, 2, 3, 2],
-                                                            str = [2, 1, 2, 1, 2, 1], # downsampling in convlayers!
+                                                            str = [1, 2, 1, 2, 1, 2], # [2, 1, 2, 1, 2, 1], # downsampling in convlayers!
                                                             tau = [100, 5., 100., 5., 100., 5.],
                                                             p = [0.1, 0.5, 0.1, 0.5, 0.1, 0.5])

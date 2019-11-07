@@ -13,13 +13,13 @@ using Base.Iterators: partition
 using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
 using BSON: @save
 
-dosave = true
+dosave = false # true
 
 use_gpu = true # helper to easily switch between gpu/cpu
 todevice(x) = use_gpu ? gpu(x) : x
 use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-nettype = "CNN" #"SP"#"RP" #"MLP" #"SP" #
+nettype = "RP"#"CNN" #"SP"#"RP" #"MLP" #"SP" #
 data_set = "floatingMNIST" #"floatingreducedMNIST" #"MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #
 epochs = 20
 batch_size = 128
@@ -154,12 +154,12 @@ Simple_Perceptron(; n_classes = 10, imsize = 28) = Chain(
     x -> reshape(x, :, size(x)[end]),
     Dense(imsize ^ 2, n_classes),
     softmax) |> todevice
-Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
+Simple_MLP(; nhidden = 100000, n_classes = 10, imsize = 28) = Chain(
     x -> reshape(x, :, size(x)[end]),
     Dense(imsize ^ 2, nhidden, relu),
     Dense(nhidden, n_classes),
     softmax) |> todevice
-Simple_CNN(; n_classes = 10, stride = 2, pstride = 1, pad = 1) = Chain(
+Simple_CNN(; n_classes = 10, stride = 1, pstride = 2, pad = 0) = Chain(
     Conv((3, 3), n_in_channel => 32, stride = (stride, stride), pad=(pad, pad), relu),
     # BatchNorm(32),
     MaxPool((2,2), stride = (pstride, pstride)), # default: stride = pool window
@@ -171,7 +171,7 @@ Simple_CNN(; n_classes = 10, stride = 2, pstride = 1, pad = 1) = Chain(
     MaxPool((2,2), stride = (pstride, pstride)),
     x -> reshape(x, :, size(x, 4)),
     # Dropout(0.25),
-    Dense(2048, n_classes), # 1152 3200
+    Dense(1152, n_classes), # 1152 3200 2048
     softmax) |> todevice
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
