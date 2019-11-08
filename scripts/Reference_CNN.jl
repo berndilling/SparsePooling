@@ -19,7 +19,7 @@ use_gpu = true # helper to easily switch between gpu/cpu
 todevice(x) = use_gpu ? gpu(x) : x
 use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-nettype = "RP"#"CNN" #"SP"#"RP" #"MLP" #"SP" #
+nettype = "CNN" #"SP"#"RP" #"MLP" #"SP" #"RP" #"patchyRP"#
 data_set = "floatingMNIST" #"floatingreducedMNIST" #"MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #
 epochs = 20
 batch_size = 128
@@ -154,19 +154,24 @@ Simple_Perceptron(; n_classes = 10, imsize = 28) = Chain(
     x -> reshape(x, :, size(x)[end]),
     Dense(imsize ^ 2, n_classes),
     softmax) |> todevice
-Simple_MLP(; nhidden = 100000, n_classes = 10, imsize = 28) = Chain(
+Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
     x -> reshape(x, :, size(x)[end]),
     Dense(imsize ^ 2, nhidden, relu),
     Dense(nhidden, n_classes),
     softmax) |> todevice
-Simple_CNN(; n_classes = 10, stride = 1, pstride = 2, pad = 0) = Chain(
-    Conv((3, 3), n_in_channel => 32, stride = (stride, stride), pad=(pad, pad), relu),
+onelayer_CNN(; n_classes = 10, ksize = 8, stride = 1, pad = 0) = Chain(
+    Conv((ksize, ksize), n_in_channel => 32, stride = (stride, stride), pad=(pad, pad), relu),
+    x -> reshape(x, :, size(x, 4)),
+    Dense(34848, n_classes),
+    softmax) |> todevice
+Simple_CNN(; n_classes = 10, ksize = 3, stride = 1, pstride = 2, pad = 0) = Chain(
+    Conv((ksize, ksize), n_in_channel => 32, stride = (stride, stride), pad=(pad, pad), relu),
     # BatchNorm(32),
     MaxPool((2,2), stride = (pstride, pstride)), # default: stride = pool window
-    Conv((3, 3), 32 => 64, stride = (stride, stride), pad=(pad, pad), relu),
+    Conv((ksize, ksize), 32 => 64, stride = (stride, stride), pad=(pad, pad), relu),
     # BatchNorm(64),
     MaxPool((2,2), stride = (pstride, pstride)),
-    Conv((3, 3), 64 => 128, stride = (stride, stride), pad=(pad, pad), relu),
+    Conv((ksize, ksize), 64 => 128, stride = (stride, stride), pad=(pad, pad), relu),
     # BatchNorm(128),
     MaxPool((2,2), stride = (pstride, pstride)),
     x -> reshape(x, :, size(x, 4)),
@@ -215,8 +220,10 @@ vgg16() = Chain(
 
 if nettype == "CNN"
     m = Simple_CNN()
+elseif nettype == "patchyRP"
+    m = onelayer_CNN()
 elseif nettype == "MLP" || nettype == "RP"
-    m = Simple_MLP(; imsize = size(X_all, 1))
+    m = Simple_MLP(; nhidden = 50000, imsize = size(X_all, 1))
 elseif nettype == "SP"
     m = Simple_Perceptron(; imsize = size(X_all, 1))
 end
@@ -227,8 +234,9 @@ accuracy(x, y; n_classes = 10) = mean(onecold(cpu(m)(x), 1:n_classes) .== onecol
 opt = ADAM()
 
 # if only last layer should be learned, e.g. for RP: trainableparams =  params(m[end-1])
-trainableparams = (nettype == "RP") ? params(m[end - 1]) : params(m)
-#trainableparams = params(m[[1,2,8,9]])
+#trainableparams = (nettype == "RP" || nettype == "patchyRP") ? params(m[end - 1]) : params(m)
+
+trainableparams = params(m[end - 1])
 
 
 @info("Train CNN/MLP...")
@@ -244,4 +252,4 @@ println("acc train: ", accuracy(X_all, labels; n_classes = size(labels)[1]))
 println("acc test: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
 
 referencenetwork = cpu(m)
-dosave && @save string("./floatingMNIST/Reference_", nettype, "_", data_set, "_convpool_padded.bson") referencenetwork
+dosave && @save string("./floatingMNIST/Reference_", nettype, "_", data_set, ".bson") referencenetwork
