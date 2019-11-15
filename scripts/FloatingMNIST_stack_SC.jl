@@ -66,13 +66,11 @@ end
 
 ##
 
-# TODO try pure SC stack with new normalisation!
+error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "sparse_patchy");#, "sparse_patchy");
+                                                            nfilters = [32, 64],#, 128],
+                                                            ksize = [5, 5],#, 3],
+                                                            str = [2, 2],#, 2], #[2, 1, 2, 1, 2, 1], # downsampling in convlayers! Otherwise use [1, 2, 1, 2, 1, 2] (89/88 % acc on floatingMNIST)!
+                                                            tau = [100, 100.],#, 100.],
+                                                            p = [0.2, 0.3])#, 0.4])
 
-error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy");
-                                                            nfilters = [32, 32, 64, 64, 128, 128],
-                                                            ksize = [3, 2, 3, 2, 3, 2],
-                                                            str = [1, 2, 1, 2, 1, 2], #[2, 1, 2, 1, 2, 1], # downsampling in convlayers! Otherwise use [1, 2, 1, 2, 1, 2] (89/88 % acc on floatingMNIST)!
-                                                            tau = [100, 5., 100., 5., 100., 5.],
-                                                            p = [0.05, 0.5, 0.1, 0.5, 0.2, 0.5]) # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
-
-save("./floatingMNIST/FloatingMNIST_stack.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)
+save("./floatingMNIST/FloatingMNIST_stack_SC.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)
