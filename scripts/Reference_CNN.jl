@@ -6,7 +6,7 @@ using SparsePooling
 using Flux, Flux.Data.MNIST, Statistics
 using Flux: onehotbatch, onecold, crossentropy, throttle
 using Base.Iterators: repeated, partition
-#using Metalhead
+using Metalhead
 using Images: channelview
 using Statistics: mean
 using Base.Iterators: partition

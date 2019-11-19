@@ -14,8 +14,10 @@ end
 end
 export getsparsity
 
-@inline assigninput(data::labelleddata, i) = data.data[:,i]
-@inline assigninput(data::NORBdata, i) = data.data[:,:,i][:]
+@inline function assigninput(data::labelleddata, i)
+	data.color ? data.data[:, :, i] : data.data[:, i]
+end
+@inline assigninput(data::NORBdata, i) = data.data[:, :, i][:]
 @inline function getsmallimg(data)
     data.currentsample = rand(1:data.nsamples)
     assigninput(data, data.currentsample)

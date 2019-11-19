@@ -176,8 +176,9 @@ mutable struct labelleddata{Tdata, Tclasses, Tlabels}
 	nsamples::Int64
 	currentsample::Int64
 	margin::Int64
+	color::Bool
 end
-labelleddata(data, labels; classes = 0:9, margin = 0) = labelleddata(data, classes, labels, size(data)[2], 0, margin)
+labelleddata(data, labels; classes = 0:9, margin = 0, color = false) = labelleddata(data, classes, labels, size(data)[end], 0, margin, color)
 export labelleddata
 
 mutable struct NORBdata{Tdata, Tclasses, Tlabels, Tinstlist, Televlist, Tazlist, Tlightlist}
