@@ -367,8 +367,8 @@ function addpatchylayer!(layers, i, layertype, tl, sl, ks, str, taus, ps;
 		in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches))
 		n_in_channel = sl[i-1]
 	elseif tl[i-1] == "input" || tl[i-1] == "input_color"
-		in_size = Int(sqrt(length(layers[i-1].a)))
 		(tl[i-1] == "input") ? (n_in_channel = 1) : (n_in_channel = 3) # 3 channles for color images
+		in_size = Int(sqrt(length(layers[i-1].a) / n_in_channel))
 	end
 	layers = (layers... , layertype(sl[i-1:i];
 				patch_size = ks[i], n_in_channel = n_in_channel, stride = str[i],

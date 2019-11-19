@@ -223,6 +223,7 @@ export import_smallNORB
 
 
 function getNORB()
+    @info("Loading data set: small NORB")
     images_lt, images_rt, category_list, instance_list, elevation_list,
         azimuth_list, lighting_list = import_smallNORB("train");
     images_lt_test, images_rt_test, category_list_test, instance_list_test, elevation_list_test,
@@ -246,7 +247,7 @@ end
 export getNORB
 
 
-function getMNIST()
+function loadMNIST()
     if Sys.isapple()
         path = "/Users/Bernd/Documents/PhD/Projects/"
     elseif Sys.islinux()
@@ -271,6 +272,16 @@ function getMNIST()
 
     return smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples
 end
+
+function getMNIST()
+    @info("Loading data set: MNIST")
+    imgs, labels, imgstest, labelstest, n_trainsamples, n_testsamples =
+		loadMNIST();
+    data = labelleddata(imgs, labels)
+	datatest = labelleddata(imgstest, labelstest)
+
+    return data, datatest, data.nsamples, datatest.nsamples
+end
 export getMNIST
 
 using StatsBase
@@ -289,8 +300,9 @@ end
 export reduceMNIST
 
 function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3, reduce = false)
+    @info("Loading data set: Padded MNIST (for shifted MNIST)")
     smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
-		getMNIST();
+		loadMNIST();
 
     if reduce
         smallimgs, labels, n_trainsamples = reduceMNIST(smallimgs, labels)
@@ -303,24 +315,22 @@ function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3,
 	data = labelleddata(imgs, labels; margin = margin)
 	datatest = labelleddata(imgstest, labelstest; margin = margin)
 
-    ind = data.nsamples
-    ind_test = datatest.nsamples
-
-    return data, datatest, ind, ind_test
+    return data, datatest, data.nsamples, datatest.nsamples
 end
 export getPaddedMNIST
 
 using Metalhead
+using Images: channelview
 getarray(X) = Float64.(permutedims(channelview(X), (2, 3, 1)))
 function reformatimgs(data, length)
-    labels = [data[i].ground_truth.class for i in 1:length]
+    labels = [float(data[i].ground_truth.class) for i in 1:length]
     imgs = zeros(32*32, 3, length)
     for i in 1:length imgs[:, :, i] = reshape(getarray(data[i].img), 32*32, 3) end
     return imgs, labels
 end
 function getCIFAR10(; greyscale = false)
-    @info("Loading data set: CIFAR10 (color)")
     if greyscale
+        @info("Loading data set: CIFAR10 (greyscale)")
         datastring = "CIFAR10_all.mat"
         if Sys.isapple()
           path = "/Users/Bernd/Documents/PhD/Projects/cifar-10-batches-py/"
@@ -334,12 +344,13 @@ function getCIFAR10(; greyscale = false)
  		labelstest = convert(Array{Float64, 1},reshape(read(file, "testlabels"),10000))
         close(file)
     else
+        @info("Loading data set: CIFAR10 (color)")
         imgs, labels = reformatimgs(trainimgs(CIFAR10), 50000)
         imgstest, labelstest = reformatimgs(valimgs(CIFAR10), 10000)
     end
-    data = labelleddata(imgs, labels)
-	datatest = labelleddata(imgstest, labelstest)
+    data = labelleddata(imgs, labels; color = !greyscale)
+	datatest = labelleddata(imgstest, labelstest; color = !greyscale)
 
-    return data, datatest
+    return data, datatest, data.nsamples, datatest.nsamples
 end
 export getCIFAR10

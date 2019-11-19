@@ -24,7 +24,8 @@ function learn_net_layerwise!(net::net,
 	inputfunctions,
 	dynamicfunctions;
 	LearningFromLayer = 2, LearningUntilLayer = net.nr_layers, cut_size = 0, eval_loss = false, dynamic = true)
-	# cut_size only used for single patch learning, see e.g. getmovingimagepatch()
+	
+	data.color && dynamic && error("Dynamic not implemented for color images!!! Change in learn_net_layerwise!()")
 
 	print(string("\n Learn network layers ",LearningFromLayer, " to ",LearningUntilLayer,"\n"))
 	losses = []

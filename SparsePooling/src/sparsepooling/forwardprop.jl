@@ -168,7 +168,7 @@ end
 		layer.parameters.stride
 end
 # input layer -> patchy layer
-@inline function copyinput!(dest::Array{Float64, 3}, src::Array{Float64, 1},
+@inline function copyinput!(dest::Array{Float64, 3}, src::Array{Float64},
 							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64, n_color_channels::Int64)
 	# copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
 	# 		reshape(src, isize, isize),
