@@ -21,6 +21,13 @@ mutable struct layer_input <: layer
 end
 export layer_input
 
+mutable struct layer_input_color <: layer
+	parameters::parameters_input
+	a::Array{Float64, 2}
+	a_tr::Array{Float64, 2}
+end
+export layer_input_color
+
 mutable struct parameters_sparse
 	learningrate_v::Float64 # learning rate for lateral inhibition
 	learningrate_w::Float64 # learning rate for feedforward weights
@@ -203,6 +210,11 @@ function layer_input(ns::Int64) #ns: number of neurons in input layer
 	zeros(ns),
 	zeros(ns))
 end
+function layer_input_color(ns::Int64)
+	layer_input_color(parameters_input(),
+	zeros(ns, 3),
+	zeros(ns, 3))
+end
 
 function parameters_sparse(ns; learningrate_v = 1e-1, learningrate_w = 5e-3, learningrate_thr = 5e-2, # 1e-1, 5e-3, 5e-2
 		dt = 1e-2, epsilon = 1e-2, activationfunction = SparsePooling.relu!, OneOverMaxFiringRate = 1/50, # sigm_m!
@@ -323,12 +335,20 @@ function classifier(ns::Array{Int64, 1}) #ns: array of layer sizes in classifier
 end
 
 function addfullyconnectedlayer!(layers, i, layertype, tl, sl, taus, ps)
-	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy"
+	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy" || tl[i-1] == "max_pool_patchy"
 		if tl[i] == "classifier"
 			layers = (layers... , layertype(vcat(layers[i-1].parameters.n_of_layer_patches * sl[i-1], sl[i:end])))
 		else
 			layers = (layers... , layertype(sl[i-1:i]; ksize = Int(sqrt(layers[i-1].parameters.n_of_layer_patches)),
 											one_over_tau_a = 1. / taus[i], p = ps[i]))
+		end
+	elseif tl[i-1] == "input" || tl[i-1] == "input_color"
+		if tl[i] == "classifier"
+			layers = (layers... , layertype(sl[i-1:end]))
+		else
+			(tl[i-1] == "input") ? (n_in_channel = 1) : (n_in_channel = 3)
+			layers = (layers... , layertype(sl[i-1:i]; ksize = Int(sqrt(layers[i-1].parameters.n_of_layer_patches)),
+							n_in_channel = n_in_channel, one_over_tau_a = 1. / taus[i], p = ps[i]))
 		end
 	else
 		if tl[i] == "classifier"
@@ -345,9 +365,9 @@ function addpatchylayer!(layers, i, layertype, tl, sl, ks, str, taus, ps;
 	if tl[i-1] == "sparse_patchy" || tl[i-1] == "pool_patchy" || tl[i-1] == "max_pool_patchy"
 		in_size = Int(sqrt(layers[i-1].parameters.n_of_layer_patches))
 		n_in_channel = sl[i-1]
-	elseif tl[i-1] == "input"
+	elseif tl[i-1] == "input" || tl[i-1] == "input_color"
 		in_size = Int(sqrt(length(layers[i-1].a)))
-		n_in_channel = 1 # careful! change this for color images!
+		(tl[i-1] == "input") ? (n_in_channel = 1) : (n_in_channel = 3) # 3 channles for color images
 	end
 	layers = (layers... , layertype(sl[i-1:i];
 				patch_size = ks[i], n_in_channel = n_in_channel, stride = str[i],
@@ -367,6 +387,8 @@ function net(tl::Array{String, 1}, # tl: types of layers
 	for i in 1:nl
 		if tl[i] == "input"
 			layers = (layers... , layer_input(sl[i]))
+		elseif tl[i] == "input_color"
+			layers = (layers... , layer_input_color(sl[i]))
 		elseif tl[i] == "sparse"
 			layers = addfullyconnectedlayer!(layers, i, layer_sparse, tl, sl, taus, ps)
 		elseif tl[i] == "pool"

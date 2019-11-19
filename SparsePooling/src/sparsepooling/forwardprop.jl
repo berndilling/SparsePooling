@@ -25,6 +25,9 @@ end
 @inline function calculatetrace!(layer::layer_input)
 	_calculatetrace!(layer.parameters.one_over_tau_a, layer.a, layer.a_tr)
 end
+@inline function calculatetrace!(layer::layer_input_color)
+	_calculatetrace!(layer.parameters.one_over_tau_a, layer.a, layer.a_tr)
+end
 @inline function calculatetrace!(layer::layer_sparse)
 	_calculatetrace_tr_a_and_a_tr_l!(layer)
 	_calculatetrace!(layer.parameters.one_over_tau_a_s, layer.a, layer.a_tr_s)
@@ -166,13 +169,13 @@ end
 end
 # input layer -> patchy layer
 @inline function copyinput!(dest::Array{Float64, 3}, src::Array{Float64, 1},
-							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64)
+							i::Int64, j::Int64, psize::Int64, isize::Int64, str::Int64, n_color_channels::Int64)
 	# copyto!(reshape(dest, psize, psize), CartesianIndices((1:psize, 1:psize)),
 	# 		reshape(src, isize, isize),
 	# 		CartesianIndices((getindx4(i, str, psize), getindx4(j, str, psize))))
-	copyto!(reshape(dest, psize, psize, 1), CartesianIndices((1:psize, 1:psize, 1:1)),
-			reshape(src, isize, isize, 1),
-			CartesianIndices((getindx4(i, str, psize), getindx4(j, str, psize), 1)))
+	copyto!(reshape(dest, psize, psize, n_color_channels), CartesianIndices((1:psize, 1:psize, 1:n_color_channels)),
+			reshape(src, isize, isize, n_color_channels),
+			CartesianIndices((getindx4(i, str, psize), getindx4(j, str, psize), 1:n_color_channels)))
 end
 # patchy layer -> patchy layer
 @inline function copyinput!(dest::Array{Float64, 3}, src::Array{Float64, 1},
@@ -181,17 +184,24 @@ end
 	copyto!(dest, CartesianIndices((i1:i1, j1:j1, 1:length(src))),
 			reshape(src, 1, 1, length(src)), CartesianIndices((1:1, 1:1, 1:length(src))))
 end
+
 # input layer -> patchy layer
-@inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)
+@inline function distributeinput!(layer_pre::layer, layer_post::layer_sparse_patchy, n_color_channels)
 	n_patch, p_size, i_size, str = getparameters(layer_post)
 	for i in 1:n_patch
 		for j in 1:n_patch
 			copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_pre,
-			 		   layer_pre.a,	i, j, p_size, i_size, str)
+			 		   layer_pre.a,	i, j, p_size, i_size, str, n_color_channels)
 		   	copyinput!(layer_post.layer_patches[getindx1(i, j, n_patch)].a_tr_pre,
-			 		   layer_pre.a_tr, i, j, p_size, i_size, str)
+			 		   layer_pre.a_tr, i, j, p_size, i_size, str, n_color_channels)
 		end
 	end
+end
+@inline function distributeinput!(layer_pre::layer_input, layer_post::layer_sparse_patchy)
+	distributeinput!(layer_pre, layer_post, 1)
+end
+@inline function distributeinput!(layer_pre::layer_input_color, layer_post::layer_sparse_patchy)
+	distributeinput!(layer_pre, layer_post, 3)
 end
 # patchy layer -> patchy layer
 @inline function distributeinput!(layer_pre::layer_patchy, layer_post::layer_patchy)
