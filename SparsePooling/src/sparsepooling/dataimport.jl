@@ -4,13 +4,17 @@
 using HDF5
 
 ## Helpers and Preprocesing
-
-function subtractmean!(data)
+function subtractmean!(data::Array{Float64, 2})
         m = mean(data, dims=2)
         d, n = size(data)
         for i in 0:n-1
                 BLAS.axpy!(-1., m, 1:d, data, i*d + 1: (i+1) * d)
         end
+end
+export subtractmean!
+function subtractmean!(data::Array{Float64, 3})
+    s = size(data)
+    subtractmean!(reshape(data, s[1] * s[2], s[3]))
 end
 export subtractmean!
 function subtractmean(data)
@@ -348,6 +352,14 @@ function getCIFAR10(; greyscale = false)
         imgs, labels = reformatimgs(trainimgs(CIFAR10), 50000)
         imgstest, labelstest = reformatimgs(valimgs(CIFAR10), 10000)
     end
+
+    data_max = maximum([maximum(abs.(imgs)),maximum(abs.(imgstest))])
+    imgs ./= data_max
+    imgstest ./= data_max
+
+    imgs = subtractmean(imgs)
+    imgstest = subtractmean(imgstest)
+
     data = labelleddata(imgs, labels; color = !greyscale)
 	datatest = labelleddata(imgstest, labelstest; color = !greyscale)
 
