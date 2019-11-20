@@ -26,7 +26,7 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^4, 0, 10^4, 0, 10^4, 0], # 10^4
+        [10^4, 1, 10^4, 1, 10^4, 1], # 10^4
         [inputfunction for i in 1:network.nr_layers],
         [getstaticimagefloatingMNIST for i in 1:network.nr_layers]; # getmovingimage
         LearningFromLayer = 2,
@@ -60,7 +60,7 @@ function SparsePoolingSim(layertypes; nfilters = [10, 10],
 
     data, datatest, ind, ind_t = getCIFAR10(; greyscale = false) # getPaddedMNIST() # getNORB() getMNIST()# getPaddedMNIST() #
 
-    error_train, error_test, network, data, hrtrain, hrtest = trainandtest(data, datatest, 10000, 10000, #ind, ind_t,
+    error_train, error_test, network, data, hrtrain, hrtest = trainandtest(data, datatest, ind, ind_t, #
                                 layertypes;
                                 nfilters = nfilters,
                                 ksize = ksize,
@@ -76,7 +76,7 @@ error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat(
                                                             ksize = [3, 2, 3, 2, 3, 2],
                                                             str = [1, 2, 1, 2, 1, 2], #[2, 1, 2, 1, 2, 1], # downsampling in convlayers! Otherwise use [1, 2, 1, 2, 1, 2] (89/88 % acc on floatingMNIST)!
                                                             tau = [100, 5., 100., 5., 100., 5.],
-                                                            p = [0.05, 0.5, 0.1, 0.5, 0.2, 0.5], # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
+                                                            p = [0.2, 0.5, 0.1, 0.5, 0.2, 0.5], # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
                                                             shiftdata = false)
 
 #save("./floatingMNIST/FloatingMNIST_stack.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)
