@@ -2,6 +2,7 @@
 #Data Import and Preprocesing
 
 using HDF5
+using MLDatasets
 
 ## Helpers and Preprocesing
 function subtractmean!(data::Array{Float64, 2})
@@ -81,123 +82,6 @@ function zeropad(smallimgs; targetsize = 32)
 	return imgs
 end
 export zeropad
-
-
-## Data imports
-#
-# function import_data(data::String)
-#     if data == "MNIST"
-#         datastring = "GitLab_exercise/mnist.mat"
-# 	elseif data == "MNIST_shifted"
-# 		datastring = "GitLab_exercise/MNIST_shifted.mat"
-#     elseif data == "MNIST144"
-#         datastring = "GitLab_exercise/mnist144.mat"
-#     elseif data == "MNIST144_white"
-#         datastring = "GitLab_exercise/MNIST144_whiteZCA.mat"
-#     elseif data == "MNIST144_shifted"
-# 		datastring = "GitLab_exercise/MNIST144_shifted.mat"
-#     elseif data == "CIFAR10"
-#         datastring = "cifar-10-batches-py/CIFAR10_all.mat"
-#     elseif data == "CIFAR10_whitened"
-#         datastring = "cifar-10-batches-py/CIFAR10_all_ZCA_white.mat"
-#     end
-#
-#
-#   if Sys.isapple()
-#     path = "/Users/Bernd/Documents/PhD/Projects/"
-#   elseif Sys.islinux()
-#     path = "/home/illing/"
-#   end
-#
-#   print("using matlab import...\n")
-# 	print(string("load: ",data,"\n"))
-#   if data == "CIFAR10"
-# 	file = matopen(string(path,datastring))
-#   elseif data == "CIFAR10_whitened"
-#     file = h5open(string(path,datastring))
-#   else
-# 	file = h5open(string(path,datastring))
-#   end
-#   smallimgs = read(file, "trainingimages")
-#   labels = read(file, "traininglabels")
-#   smallimgstest = read(file, "testimages");
-#   labelstest =  read(file, "testlabels");
-#   close(file)
-#
-# 	if data == "CIFAR10"
-# 		smallimgs = convert(Array{Float64, 2}, reshape(smallimgs,50000,32*32)')
-# 		labels = convert(Array{Float64, 1},reshape(labels,50000))
-# 		smallimgstest = convert(Array{Float64, 2}, reshape(smallimgstest,10000,32*32)')
-# 		labelstest = convert(Array{Float64, 1},reshape(labelstest,10000))
-# 	end
-# 	n_trainsamples = size(smallimgs)[2]
-# 	n_testsamples = size(smallimgstest)[2]
-#
-#     data_max = maximum([maximum(abs.(smallimgs)),maximum(abs.(smallimgstest))])
-#     smallimgs ./= data_max
-#     smallimgstest ./= data_max
-#   return smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples
-# end
-# export import_data
-#
-# # using Knet
-# # include(Knet.dir("data", "cifar.jl"))
-# # include(Knet.dir("data", "mnist.jl"))
-# # function import_data_Knet(dataset::String)
-# # 	if dataset == "CIFAR10"
-# # 		smallimgs, labels, smallimgstest, labelstest = cifar10()
-# # 	    smallimgs = reshape(smallimgs, 32^2 * 3, 50000)
-# # 	    smallimgstest = reshape(smallimgstest, 32^2 * 3, 10000)
-# # 	elseif dataset == "MNIST"
-# # 		smallimgs, labels, smallimgstest, labelstest = mnist()
-# # 	    smallimgs = reshape(smallimgs, 28^2, 60000)
-# # 	    smallimgstest = reshape(smallimgstest, 28^2, 10000)
-# # 	end
-# # 	smallimgs, labels .- 1, smallimgstest, labelstest .- 1, size(smallimgs)[2], size(smallimgstest)[2]
-# # end
-# # export import_data_Knet
-#
-# function import_unlabelled_data(data::String)
-#   if Sys.isapple()
-#     path = "/Users/Bernd/Documents/PhD/Projects/"
-#   elseif Sys.islinux()
-#     path = "/home/illing/"
-#   end
-#
-# 	if data == "Olshausen"
-# 		datastring = "natural_images/patchesOlshausen.jld"
-#     print(string("load: ",data,"\n"))
-#   	smallimgs = load(string(path,datastring),"patches")
-#     n_samples = size(smallimgs)[2]
-#   elseif data == "Olshausen_white"
-#   	datastring = "natural_images/patchesOlshausen.jld"
-#     print(string("load: ",data,"\n"))
-#   	smallimgs = load(string(path,datastring),"wpatches")
-#     n_samples = size(smallimgs)[2]
-# 	elseif data == "VanHateren"
-# 		datastring = "natural_images/patchesVanHateren.jld"
-#     print(string("load: ",data,"\n"))
-#   	smallimgs = load(string(path,datastring),"patches")
-#     n_samples = size(smallimgs)[2]
-#   elseif data == "VanHateren_white"
-# 		datastring = "natural_images/patchesVanHateren.jld"
-#     print(string("load: ",data,"\n"))
-#   	smallimgs = load(string(path,datastring),"wpatches")
-#     n_samples = size(smallimgs)[2]
-#   elseif data == "bars"
-#     datastring = "SparsePooling/artificial_data/moving_bars/all_bars.jld"
-#     print(string("load: ",data,"\n"))
-#   	smallimgs = load(string(path,datastring),"data")
-#     n_samples = size(smallimgs)[2]
-#   elseif data == "bars_superimposed"
-#     datastring = "SparsePooling/artificial_data/moving_bars/superimposed_bars.jld"
-#     print(string("load: ",data,"\n"))
-#   	smallimgs = load(string(path,datastring),"data")
-#     n_samples = size(smallimgs)[2]
-#   end
-#
-# 	return smallimgs, n_samples #n_testsamples = 0
-# end
 
 # Docs:
 # https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/
@@ -323,13 +207,10 @@ function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3,
 end
 export getPaddedMNIST
 
-using Metalhead
-using Images: channelview
-getarray(X) = Float64.(permutedims(channelview(X), (2, 3, 1)))
-function reformatimgs(data, length)
-    labels = [float(data[i].ground_truth.class) for i in 1:length]
-    imgs = zeros(32*32, 3, length)
-    for i in 1:length imgs[:, :, i] = reshape(getarray(data[i].img), 32*32, 3) end
+function reformatimgs((x, y))
+    imgs = convert.(Float64, x)
+    labels = float.(y)
+    imgs = reshape(convert.(Float64, x), 32 * 32, 3, size(x)[end])
     return imgs, labels
 end
 function getCIFAR10(; greyscale = false)
@@ -349,8 +230,8 @@ function getCIFAR10(; greyscale = false)
         close(file)
     else
         @info("Loading data set: CIFAR10 (color)")
-        imgs, labels = reformatimgs(trainimgs(CIFAR10), 50000)
-        imgstest, labelstest = reformatimgs(valimgs(CIFAR10), 10000)
+        imgs, labels = reformatimgs(CIFAR10.traindata())
+        imgstest, labelstest = reformatimgs(CIFAR10.testdata())
     end
 
     data_max = maximum([maximum(abs.(imgs)),maximum(abs.(imgstest))])
