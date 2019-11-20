@@ -134,31 +134,45 @@ function getNORB()
 end
 export getNORB
 
-
-function loadMNIST()
-    if Sys.isapple()
-        path = "/Users/Bernd/Documents/PhD/Projects/"
-    elseif Sys.islinux()
-        path = "/root/"
+function reformatimgs((x, y); color = false)
+    imgs = convert.(Float64, x)
+    labels = float.(y)
+    if color
+        imgs = reshape(convert.(Float64, x), size(x)[1] * size(x)[2], 3, size(x)[end])
+    else
+        imgs = reshape(convert.(Float64, x), size(x)[1] * size(x)[2], size(x)[end])
     end
-    file = h5open(string(path,"mnist.mat"))
-    smallimgs = read(file, "trainingimages")
-    labels = read(file, "traininglabels")
-    smallimgstest = read(file, "testimages");
-    labelstest =  read(file, "testlabels");
-    close(file)
-
-    n_trainsamples = size(smallimgs)[2]
-	n_testsamples = size(smallimgstest)[2]
-
-    data_max = maximum([maximum(abs.(smallimgs)),maximum(abs.(smallimgstest))])
+    return imgs, labels
+end
+function preprocessdata(smallimgs, smallimgstest)
+    data_max = maximum([maximum(abs.(smallimgs)), maximum(abs.(smallimgstest))])
     smallimgs ./= data_max
     smallimgstest ./= data_max
 
     smallimgs = subtractmean(smallimgs)
     smallimgstest = subtractmean(smallimgstest)
 
-    return smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples
+    return smallimgs, smallimgstest
+end
+function loadMNIST()
+    # if Sys.isapple()
+    #     path = "/Users/Bernd/Documents/PhD/Projects/"
+    # elseif Sys.islinux()
+    #     path = "/root/"
+    # end
+    # file = h5open(string(path,"mnist.mat"))
+    # smallimgs = read(file, "trainingimages")
+    # labels = read(file, "traininglabels")
+    # smallimgstest = read(file, "testimages");
+    # labelstest =  read(file, "testlabels");
+    # close(file)
+
+    smallimgs, labels = reformatimgs(MNIST.traindata())
+    smallimgstest, labelstest = reformatimgs(MNIST.testdata())
+
+    smallimgs, smallimgstest = preprocessdata(smallimgs, smallimgstest)
+
+    return smallimgs, labels, smallimgstest, labelstest, size(smallimgs)[2], size(smallimgstest)[2]
 end
 
 function getMNIST()
@@ -207,39 +221,21 @@ function getPaddedMNIST(; targetsize = 40, margin = div(targetsize - 28, 2) + 3,
 end
 export getPaddedMNIST
 
-function reformatimgs((x, y))
-    imgs = convert.(Float64, x)
-    labels = float.(y)
-    imgs = reshape(convert.(Float64, x), 32 * 32, 3, size(x)[end])
-    return imgs, labels
+function getgreyscale(imgs::Array{Float64, 3}; factors = [0.2126, 0.7152, 0.0722]) # luminance preserving
+    imgs[:, 1, :] * factors[1] + imgs[:, 2, :] * factors[2] + imgs[:, 3, :] * factors[3]
 end
+
 function getCIFAR10(; greyscale = false)
+    @info(string("Loading data set: CIFAR10 ", greyscale ? "(greyscale)" : "(color)"))
+    imgs, labels = reformatimgs(CIFAR10.traindata(); color = true)
+    imgstest, labelstest = reformatimgs(CIFAR10.testdata(); color = true)
+
     if greyscale
-        @info("Loading data set: CIFAR10 (greyscale)")
-        datastring = "CIFAR10_all.mat"
-        if Sys.isapple()
-          path = "/Users/Bernd/Documents/PhD/Projects/cifar-10-batches-py/"
-        elseif Sys.islinux()
-          path = "/home/illing/"
-        end
-        file = matopen(string(path,datastring))
-        imgs = convert(Array{Float64, 2}, reshape(read(file, "trainingimages"),50000,32*32)')
- 		labels = convert(Array{Float64, 1},reshape(read(file, "traininglabels"),50000))
- 		imgstest = convert(Array{Float64, 2}, reshape(read(file, "testimages"),10000,32*32)')
- 		labelstest = convert(Array{Float64, 1},reshape(read(file, "testlabels"),10000))
-        close(file)
-    else
-        @info("Loading data set: CIFAR10 (color)")
-        imgs, labels = reformatimgs(CIFAR10.traindata())
-        imgstest, labelstest = reformatimgs(CIFAR10.testdata())
+        imgs = getgreyscale(imgs)
+        imgstest = getgreyscale(imgstest)
     end
 
-    data_max = maximum([maximum(abs.(imgs)),maximum(abs.(imgstest))])
-    imgs ./= data_max
-    imgstest ./= data_max
-
-    imgs = subtractmean(imgs)
-    imgstest = subtractmean(imgstest)
+    imgs, imgstest = preprocessdata(imgs, imgstest)
 
     data = labelleddata(imgs, labels; color = !greyscale)
 	datatest = labelleddata(imgstest, labelstest; color = !greyscale)
