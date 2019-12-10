@@ -72,7 +72,7 @@ end
 end
 @inline function update_thresholds!(lr, p, post, t)
 	#BLAS.axpy!(lr, post .- p, t)
-	BLAS.axpy!(lr, Float64.(post .> 1e-6) .- p, t) # 1e-4
+	BLAS.axpy!(lr, Float64.(post .> 1e-4) .- p, t)
 end
 @inline function update_layer_parameters_lc!(layer::layer_sparse)
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a, layer.v)

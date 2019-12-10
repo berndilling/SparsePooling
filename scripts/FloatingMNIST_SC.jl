@@ -12,7 +12,8 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
                             ksize1 = 5,
                             str1 = 2,
                             tau2 = 5.,
-                            p1 = 0.1)
+                            p1 = 0.1,
+                            shiftdata = true)
     network = net(layertypes,
                 [getindim(data),Int(nfilters1)],
                 [0,Int(ksize1)], # kernel sizes
@@ -31,9 +32,11 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
         LearningFromLayer = 2,
         LearningUntilLayer = network.nr_layers)
 
-    ShiftPaddedMNIST!(data) # create (fixed through fixed seed) shifted data set
-    ShiftPaddedMNIST!(datatest)
-    # TODO does it make sense to train the classifier on this fixed data set?
+    if shiftdata
+        ShiftPaddedMNIST!(data) # create (fixed through fixed seed) shifted data set
+        ShiftPaddedMNIST!(datatest)
+    end
+
     lasthiddenrepstrain = labelleddata(generatehiddenreps!(network, data;
                                             ind = ind, normalize = true,
                                             subtractmean = false),
@@ -43,13 +46,14 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
                                             subtractmean = false),
                                         datatest.labels[1:ind_t]; classes = datatest.classes)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
-                iters = 10^6, ind = ind, indtest = ind_t, n_classes = length(data.classes))
+                iters = 10^5, ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_train, error_test, network, data
 end
 function SparsePoolingSim(layertypes; nfilters1 = 10,
                             ksize1 = 8,
                             str1 = 2,
-                            p1 = 0.4)
+                            p1 = 0.4,
+                            shiftdata = true)
     # load data
     data, datatest, ind, ind_t = getPaddedMNIST() # getNORB()
     # train model
@@ -58,7 +62,8 @@ function SparsePoolingSim(layertypes; nfilters1 = 10,
                                 nfilters1 = nfilters1,
                                 ksize1 = ksize1,
                                 str1 = str1,
-                                p1 = p1)
+                                p1 = p1,
+                                shiftdata = shiftdata)
     return error_train, error_test, network, data
 end
 
@@ -68,4 +73,5 @@ error_train, error_test, network, data = SparsePoolingSim(["input","sparse_patch
                                                             nfilters1 = 32,
                                                             ksize1 = 5,
                                                             str1 = 1,
-                                                            p1 = 0.1);
+                                                            p1 = 0.1,
+                                                            shiftdata = true);

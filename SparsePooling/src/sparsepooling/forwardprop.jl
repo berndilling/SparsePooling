@@ -127,8 +127,10 @@ end
 @inline function _activitynormalisation!(layer_patch::layer, layer::layer_patchy)
 	#(maximum(layer_patch.a) > layer.a_max) && (layer.a_max = deepcopy(maximum(layer_patch.a)))
 	#layer_patch.a ./= layer.a_max; layer_patch.a_tr ./= layer.a_max #
-	a_norm = norm(deepcopy(layer_patch.a))
-	(a_norm != 0.) && (layer_patch.a ./= a_norm; layer_patch.a_tr ./= a_norm)
+	for a in (layer_patch.a, layer_patch.a_tr)
+		a_norm = norm(deepcopy(a))
+		(a_norm != 0.) && (a ./= a_norm)
+	end
 end
 @inline function forwardprop!(layer::layer_patchy; normalize = true)
 	len = length(layer.layer_patches[1].a)

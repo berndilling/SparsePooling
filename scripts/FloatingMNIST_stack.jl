@@ -31,7 +31,7 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
         [getstaticimagefloatingMNIST for i in 1:network.nr_layers]; # getmovingimage
         LearningFromLayer = 2,
         LearningUntilLayer = network.nr_layers,
-        dynamic = false)
+        dynamic = shiftdata)
 
     if shiftdata
         ShiftPaddedMNIST!(data) # create (fixed through fixed seed) shifted data set
@@ -58,7 +58,7 @@ function SparsePoolingSim(layertypes; nfilters = [10, 10],
                             p = [0.1, 0.5],
                             shiftdata = true)
 
-    data, datatest, ind, ind_t = getCIFAR10(; greyscale = false) # getPaddedMNIST() # getNORB() getMNIST()# getPaddedMNIST() #
+    data, datatest, ind, ind_t = getCIFAR10(; greyscale = false)#getPaddedMNIST() # # getNORB() getMNIST()# getPaddedMNIST() #
 
     error_train, error_test, network, data, hrtrain, hrtest = trainandtest(data, datatest, ind, ind_t, #
                                 layertypes;
@@ -71,12 +71,12 @@ function SparsePoolingSim(layertypes; nfilters = [10, 10],
     return error_train, error_test, network, data, hrtrain, hrtest
 end
 
-error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input_color", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy");
+error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input_color", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy"); #"input_color"
                                                             nfilters = [32, 32, 64, 64, 128, 128],
                                                             ksize = [3, 2, 3, 2, 3, 2],
                                                             str = [1, 2, 1, 2, 1, 2], #[2, 1, 2, 1, 2, 1], # downsampling in convlayers! Otherwise use [1, 2, 1, 2, 1, 2] (89/88 % acc on floatingMNIST)!
                                                             tau = [100, 5., 100., 5., 100., 5.],
-                                                            p = [0.2, 0.5, 0.1, 0.5, 0.2, 0.5], # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
+                                                            p = [0.15, 0.5, 0.1, 0.5, 0.2, 0.5], # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
                                                             shiftdata = false)
 
 #save("./floatingMNIST/FloatingMNIST_stack.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)

@@ -238,7 +238,7 @@ function layer_sparse(ns::Array{Int64, 1}; ksize = 1, n_in_channel = ns[1], one_
 			zeros(ns[2]), #a_tr_l
 			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr.
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
-			5*ones(ns[2]), #thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
+			1 .* ones(ns[2]), #previously: thresholds initialized with 5's (as in Zylberberg) (zero maybe not so smart...)
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
 function get_n_of_layer_patches(in_size::Int64, patch_size::Int64, stride::Int64)
@@ -291,7 +291,7 @@ function layer_pool(ns::Array{Int64, 1}; ksize = 1, n_in_channel = ns[1], one_ov
 			zeros(ns[2]), #a_tr_l
 			randn(ns[2], in_fan)/(10*sqrt(in_fan)), #feed-forward weights initialized gaussian distr. # rand(ns[2], ns[1])/(10*sqrt(ns[1])),#
 			zeros(ns[2], ns[2]), #lateral inhibition initialized with zeros
-			5*ones(ns[2]), #thresholds initialized with zeros
+			1 .* ones(ns[2]),
 			#zeros(ns[2]), # biases equal zero for linear computation such as PCA! OR rand(ns[2])/10) #biases initialized equally distr.
 			zeros(ns[2],1)) #reps initialized with zeros (only 1 reps here, but can be changed later)
 end
