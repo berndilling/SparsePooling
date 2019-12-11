@@ -87,8 +87,8 @@ end
 	#update_recurrent_weights!(layer.parameters.learningrate_v, layer.parameters.p, layer.a_tr-layer.a, layer.v)
 
 
-	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre[:] - layer.a_tr_pre[:], layer.w)
-	update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre[:], layer.w)
+	update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre[:] - layer.a_tr_pre[:], layer.w)
+	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr, layer.a_pre[:], layer.w)
 
 	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr- layer.a, layer.a_pre[:] - layer.a_tr_pre[:], layer.w)
 	#update_ff_weights!(layer.parameters.learningrate_w, layer.a_tr,
