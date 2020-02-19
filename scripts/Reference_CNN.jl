@@ -230,7 +230,7 @@ end
 
 loss(x, y) = Flux.crossentropy(m(x), y)
 evalcb = throttle(() -> @show(loss(valX, vallabels)), 2)
-accuracy(x, y; n_classes = 10) = mean(onecold(cpu(m)(x), 1:n_classes) .== onecold(y, 1:n_classes))
+accuracy(x, y; n_classes = 10) = mean(onecold(cpu(m(todevice(x))), 1:n_classes) .== onecold(cpu(y), 1:n_classes))
 opt = ADAM()
 
 # if only last layer should be learned, e.g. for RP: trainableparams =  params(m[end-1])
@@ -248,7 +248,8 @@ end
 
 # Evaluate train and test accuracy
 @info("Evaluate accuracies...")
-println("acc train: ", accuracy(X_all, labels; n_classes = size(labels)[1]))
+#println("acc train: ", accuracy(X_all, labels; n_classes = size(labels)[1]))
+println("acc train: ", mean([accuracy(t[1], t[2]; n_classes = size(labels)[1]) for t in train]))
 println("acc test: ", accuracy(testX, testlabels; n_classes = size(labels)[1]))
 
 referencenetwork = cpu(m)

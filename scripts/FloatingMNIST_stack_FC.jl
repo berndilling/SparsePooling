@@ -26,7 +26,7 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^4, 1, 10^4, 1, 10^4, 1], # 10^4
+        [10^4, 1, 10^4, 1, 10^4, 1, 10^4], # 10^4
         [inputfunction for i in 1:network.nr_layers],
         [getstaticimagefloatingMNIST for i in 1:network.nr_layers]; # getmovingimage
         LearningFromLayer = 2,
@@ -39,15 +39,17 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
     end    # TODO does it make sense to train the classifier on this fixed data set?
 
     lasthiddenrepstrain = labelleddata(generatehiddenreps!(network, data;
-                                            ind = ind, normalize = true,
+                                            ind = ind,
+                                            normalize = true,
                                             subtractmean = false),
                                         data.labels[1:ind]; classes = data.classes)
     lasthiddenrepstest = labelleddata(generatehiddenreps!(network, datatest;
-                                            ind = ind_t, normalize = true,
+                                            ind = ind_t,
+                                            normalize = true,
                                             subtractmean = false),
                                         datatest.labels[1:ind_t]; classes = datatest.classes)
     error_train, error_test = traintopendclassifier!(network, lasthiddenrepstrain, lasthiddenrepstest; hidden_sizes = Int64[],
-                iters = 10^7, # 10^7
+                iters = 10^7,
                 ind = ind, indtest = ind_t, n_classes = length(data.classes))
     return error_train, error_test, network, data, lasthiddenrepstrain, lasthiddenrepstest
 end
@@ -71,12 +73,12 @@ function SparsePoolingSim(layertypes; nfilters = [10, 10],
     return error_train, error_test, network, data, hrtrain, hrtest
 end
 
-error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy"); #"input_color"
-                                                            nfilters = [32, 32, 64, 64, 128, 128],
-                                                            ksize = [3, 2, 3, 2, 3, 2],
-                                                            str = [1, 2, 1, 2, 1, 2], #[2, 1, 2, 1, 2, 1], # downsampling in convlayers! Otherwise use [1, 2, 1, 2, 1, 2] (89/88 % acc on floatingMNIST)!
-                                                            tau = [100, 5., 100., 5., 100., 5.],
-                                                            p = [0.1, 0.5, 0.1, 0.5, 0.2, 0.5], # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
+error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse"); #"input_color"
+                                                            nfilters = [32, 32, 64, 64, 128, 128, 1028],
+                                                            ksize = [3, 2, 3, 2, 3, 2, 0],
+                                                            str = [1, 2, 1, 2, 1, 2, 0], #[2, 1, 2, 1, 2, 1], # downsampling in convlayers! Otherwise use [1, 2, 1, 2, 1, 2] (89/88 % acc on floatingMNIST)!
+                                                            tau = [100, 5., 100., 5., 100., 5., 100.],
+                                                            p = [0.1, 0.5, 0.1, 0.5, 0.2, 0.5, 0.2], # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
                                                             shiftdata = true)
 
 #save("./floatingMNIST/FloatingMNIST_stack.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)
