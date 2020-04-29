@@ -13,13 +13,13 @@ using Base.Iterators: partition
 using LinearAlgebra, ProgressMeter, JLD2, FileIO, MAT, Random
 using BSON: @save
 
-dosave = false # true
+dosave = true
 
-use_gpu = true # helper to easily switch between gpu/cpu
+use_gpu = true # true # helper to easily switch between gpu/cpu
 todevice(x) = use_gpu ? gpu(x) : x
 use_gpu && using CuArrays # ATTENTION: This decides whether GPU or CPU is used!!!
 
-nettype = "CNN" #"SP"#"RP" #"MLP" #"SP" #"RP" #"patchyRP"#
+nettype = "CNN" # "patchyRP"#"RP" # "CNN" #"SP"#"RP" #"MLP" #"SP" #"RP" #
 data_set = "floatingMNIST" #"floatingreducedMNIST" #"MNIST" # "CIFAR10_gray" #"CIFAR10_gray" # "NORB" #
 epochs = 20
 batch_size = 128
@@ -159,10 +159,10 @@ Simple_MLP(; nhidden = 5000, n_classes = 10, imsize = 28) = Chain(
     Dense(imsize ^ 2, nhidden, relu),
     Dense(nhidden, n_classes),
     softmax) |> todevice
-onelayer_CNN(; n_classes = 10, ksize = 8, stride = 1, pad = 0) = Chain(
+onelayer_CNN(; n_classes = 10, ksize = 10, stride = 1, pad = 0) = Chain(
     Conv((ksize, ksize), n_in_channel => 32, stride = (stride, stride), pad=(pad, pad), relu),
     x -> reshape(x, :, size(x, 4)),
-    Dense(34848, n_classes),
+    Dense((40 - ksize + 1)^2 * 32, n_classes),
     softmax) |> todevice
 Simple_CNN(; n_classes = 10, ksize = 3, stride = 1, pstride = 2, pad = 0) = Chain(
     Conv((ksize, ksize), n_in_channel => 32, stride = (stride, stride), pad=(pad, pad), relu),
@@ -176,8 +176,9 @@ Simple_CNN(; n_classes = 10, ksize = 3, stride = 1, pstride = 2, pad = 0) = Chai
     MaxPool((2,2), stride = (pstride, pstride)),
     x -> reshape(x, :, size(x, 4)),
     # Dropout(0.25),
-    Dense(1152, n_classes), # 1152 3200 2048
+    Dense(512, n_classes), # 512 1152 3200 2048
     softmax) |> todevice
+
 vgg16() = Chain(
   Conv((3, 3), n_in_channel => 64, relu, pad=(1, 1), stride=(1, 1)),
   BatchNorm(64),
@@ -223,21 +224,21 @@ if nettype == "CNN"
 elseif nettype == "patchyRP"
     m = onelayer_CNN()
 elseif nettype == "MLP" || nettype == "RP"
-    m = Simple_MLP(; nhidden = 50000, imsize = size(X_all, 1))
+    m = Simple_MLP(; nhidden = 10 * 5000, imsize = size(X_all, 1))
 elseif nettype == "SP"
     m = Simple_Perceptron(; imsize = size(X_all, 1))
 end
 
-loss(x, y) = Flux.crossentropy(m(x), y)
+#loss(x, y) = Flux.crossentropy(m(x), y)
+loss(x, y; ϵ = Float32(1e-10)) = Flux.crossentropy(m(x) .+ ϵ, y)
 evalcb = throttle(() -> @show(loss(valX, vallabels)), 2)
 accuracy(x, y; n_classes = 10) = mean(onecold(cpu(m(todevice(x))), 1:n_classes) .== onecold(cpu(y), 1:n_classes))
 opt = ADAM()
 
 # if only last layer should be learned, e.g. for RP: trainableparams =  params(m[end-1])
-#trainableparams = (nettype == "RP" || nettype == "patchyRP") ? params(m[end - 1]) : params(m)
+trainableparams = (nettype == "RP" || nettype == "patchyRP") ? params(m[end - 1]) : params(m)
 
-trainableparams = params(m[end - 1])
-
+# trainableparams = params(m[end - 1])
 
 @info("Train CNN/MLP...")
 for i in 1:epochs

@@ -174,6 +174,7 @@ function loadMNIST()
 
     return smallimgs, labels, smallimgstest, labelstest, size(smallimgs)[2], size(smallimgstest)[2]
 end
+export loadMNIST
 
 function getMNIST()
     @info("Loading data set: MNIST")

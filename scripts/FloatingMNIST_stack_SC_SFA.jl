@@ -26,9 +26,9 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^4, 10^4, 10^4, 10^4, 10^4, 10^4],
+        [10^4 for i in 1:network.nr_layers - 1],
         [inputfunction for i in 1:network.nr_layers],
-        [getstaticimagefloatingMNIST, getmovingimage, getstaticimagefloatingMNIST, getmovingimage, getstaticimagefloatingMNIST, getmovingimage];
+        [getstaticimagefloatingMNIST, getmovingimage, getstaticimagefloatingMNIST, getmovingimage, getstaticimagefloatingMNIST, getmovingimage, getstaticimagefloatingMNIST, getmovingimage];
         LearningFromLayer = 2,
         LearningUntilLayer = network.nr_layers,
         dynamic = shiftdata)
@@ -75,12 +75,12 @@ end
 
 # TODO try pure SC stack with new normalisation!
 
-error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "pool_patchy", "sparse_patchy", "pool_patchy", "sparse_patchy", "pool_patchy");
-                                                            nfilters = [32, 32, 64, 64, 128, 128],
-                                                            ksize = [3, 2, 2, 2, 2, 2],
-                                                            str = [1, 2, 1, 2, 1, 2],
-                                                            tau = [100, 2., 100., 2., 100., 2.],
-                                                            p = [0.1, 0.2, 0.1, 0.2, 0.1, 0.2],
+error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "pool_patchy", "sparse_patchy", "pool_patchy", "sparse_patchy", "pool_patchy", "sparse_patchy", "pool_patchy");
+                                                            nfilters = [32, 32, 64, 64, 128, 128, 256, 256],
+                                                            ksize = [3, 2, 3, 2, 3, 2, 2, 2],
+                                                            str = [1, 2, 1, 2, 1, 2, 1, 1],
+                                                            tau = [100, 2., 100., 4., 100., 6., 100., 8.],
+                                                            p = [0.1, 0.2, 0.1, 0.2, 0.2, 0.2, 0.2, 0.2],
                                                             shiftdata = true)
 
-save("./floatingMNIST/FloatingMNIST_bigstack_SC_SFA.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)
+save("./floatingMNIST/FloatingMNIST_4_modules_SC_SFA.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)

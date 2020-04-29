@@ -26,7 +26,8 @@ function trainandtest(data, datatest, ind, ind_t, layertypes;
     inputfunction = getsmallimg
     intermediatestates = []
     learn_net_layerwise!(network, data, intermediatestates,
-        [10^4, 1, 10^4, 1, 10^4, 1], # 10^4
+        #[10^4, 1, 10^4, 1, 10^4, 1],
+        [10^4, 1, 10^4, 1, 10^4, 1, 10^4, 1],
         [inputfunction for i in 1:network.nr_layers],
         [getstaticimagefloatingMNIST for i in 1:network.nr_layers]; # getmovingimage
         LearningFromLayer = 2,
@@ -71,12 +72,20 @@ function SparsePoolingSim(layertypes; nfilters = [10, 10],
     return error_train, error_test, network, data, hrtrain, hrtest
 end
 
-error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy"); #"input_color"
-                                                            nfilters = [32, 32, 64, 64, 128, 128],
-                                                            ksize = [3, 2, 3, 2, 3, 2],
-                                                            str = [1, 2, 1, 2, 1, 2], #[2, 1, 2, 1, 2, 1], # downsampling in convlayers! Otherwise use [1, 2, 1, 2, 1, 2] (89/88 % acc on floatingMNIST)!
-                                                            tau = [100, 5., 100., 5., 100., 5.],
-                                                            p = [0.1, 0.5, 0.1, 0.5, 0.2, 0.5], # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
+# error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy"); #"input_color"
+#                                                             nfilters = [32, 32, 64, 64, 128, 128],
+#                                                             ksize = [3, 2, 3, 2, 3, 2],
+#                                                             str = [1, 2, 1, 2, 1, 2], #[2, 1, 2, 1, 2, 1], # downsampling in convlayers! Otherwise use [1, 2, 1, 2, 1, 2] (89/88 % acc on floatingMNIST)!
+#                                                             tau = [100, 5., 100., 5., 100., 5.],
+#                                                             p = [0.1, 0.5, 0.1, 0.5, 0.2, 0.5], # 0.1, 0.1, 0.2 for SC layers lead to 90.6/90%
+#                                                             shiftdata = true)
+
+error_train, error_test, network, data, hrtrain, hrtest = SparsePoolingSim(vcat("input", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy", "sparse_patchy", "max_pool_patchy"); #"input_color"
+                                                            nfilters = [32, 32, 64, 64, 128, 128, 256, 256],
+                                                            ksize = [3, 2, 3, 2, 3, 2, 2, 2],
+                                                            str = [1, 2, 1, 2, 1, 2, 1, 1],
+                                                            tau = [100, 5., 100., 5., 100., 5., 100., 5.],
+                                                            p = [0.1, 0.5, 0.1, 0.5, 0.2, 0.5, 0.2, 0.5],
                                                             shiftdata = true)
 
-#save("./floatingMNIST/FloatingMNIST_stack.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)
+save("./floatingMNIST/FloatingMNIST_stack_SC_maxpool_4_modules.jld2", "error_train", error_train, "error_test", error_test, "network", network, "data", data, "hrtrain", hrtrain, "hrtest", hrtest)

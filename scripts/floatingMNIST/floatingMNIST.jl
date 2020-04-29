@@ -15,7 +15,7 @@ Random.seed!(1234)
 function createpaddedandshifteddata(; zero_pad = true, targetsize = 40, margin = div(targetsize - 28, 2) + 3,
 								duration_per_pattern = 1)
 	smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
-		getMNIST();
+		loadMNIST();
 	newimgstrain = zeros(targetsize^2, duration_per_pattern * n_trainsamples)
 	newimgstest = zeros(targetsize^2, duration_per_pattern * n_testsamples)
 	newlabelstrain = zeros(duration_per_pattern * n_trainsamples)
@@ -50,7 +50,7 @@ function _shiftimage(img, amplitude)
 end
 function createreducedpaddedandshifteddata(; targetsize = 40, nclasses = 10, nperclass = 60, margin = div(targetsize - 28, 2) + 3)
 	smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
-		getMNIST();
+		loadMNIST();
 	smallimgs, labels, n_trainsamples = reduceMNIST(smallimgs, labels; nclasses = nclasses, nperclass = nperclass)
 	# smallimgstest, labelstest, n_testsamples = reduceMNIST(smallimgstest, labelstest; nclasses = nclasses, nperclass = nperclass)
 
@@ -107,7 +107,7 @@ createreducedpaddedandshifteddata(; targetsize = targetsize, nperclass = 100, ma
 # duration_per_pattern = margin
 #
 # smallimgs, labels, smallimgstest, labelstest, n_trainsamples, n_testsamples =
-# 	getMNIST();
+# 	loadMNIST();
 #
 # imgs = reshape(zeropad(smallimgs; targetsize = targetsize), targetsize^2, n_trainsamples)
 # imgstest = reshape(zeropad(smallimgstest; targetsize = targetsize), targetsize^2, n_testsamples)
