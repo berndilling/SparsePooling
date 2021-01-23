@@ -18,6 +18,7 @@ def train(opt, model, train_loader, logs):
             input = img.to(opt.device)
             out = model(input)
 
+        # TODO: implement SC loss and keep track it
         print("Sparsity: ", utils.getsparsity(out))
         logs.create_log(model, epoch=epoch)
 

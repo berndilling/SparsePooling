@@ -28,7 +28,7 @@ def parse_args(parser):
     group.add_option(
         "--learning_rate", 
         type="float", 
-        default=5e-3, 
+        default=1e-3, # 5e-3 
         help="Learning rate for feedforward weights (W_ff). Learning rates for W_rec and thresholds are scaled accordingly (for SGD optimiser)"
     )
     group.add_option(
@@ -46,7 +46,7 @@ def parse_args(parser):
     group.add_option(
         "--tau", 
         type="float", 
-        default=.5, 
+        default=.1, 
         help="time constant for lateral recurrence update (1=immediate update)"
     )
     group.add_option(

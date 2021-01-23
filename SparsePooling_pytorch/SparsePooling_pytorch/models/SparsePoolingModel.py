@@ -10,7 +10,7 @@ class SparsePoolingModel(torch.nn.Module):
         self.update_params = True
 
         # Format: (layer_type, out_channels, kernel_size, p)    
-        arch = [('SC', 32, 10, 1e-1)] # ,('SC',64, 3, 1e-1),('M') .. etc
+        arch = [('SC', 400, 10, 1e-1)] # ,('SC',64, 3, 1e-1),('M') .. etc
         self.layers = nn.ModuleList([])
         
         in_channels = opt.in_channels_input

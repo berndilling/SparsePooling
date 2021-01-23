@@ -12,7 +12,7 @@ def plot_weights(weights, k=10, nh=8, nv=4):
     return im.detach().numpy() 
 
 w = model.module.layers[0].W_ff.weight
-im = plot_weights(w)
+im = plot_weights(w, nh=10, nv=10)
 plt.figure()
 plt.imshow(im,cmap='gray')
 plt.show()

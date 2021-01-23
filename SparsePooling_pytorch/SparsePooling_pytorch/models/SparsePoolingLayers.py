@@ -15,16 +15,17 @@ class SparsePoolingLayer(nn.Module):
         self.tau = opt.tau
         self.p = p
 
-        # TODO: replace by ADAM e.g.  opt = torch.optim.ADAM(self.parameters(), lr=1e-3)
-        self.optimizer = torch.optim.SGD(self.parameters(),lr=opt.learning_rate)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.learning_rate) 
+        # self.optimizer = torch.optim.SGD(self.parameters(), lr=opt.learning_rate)
 
     def forward(self, input):
         u_0 = self.W_ff(input) # b, c, x, y
         a = self.nonlin(u_0).clone().detach()
 
         converged = False
-        u = torch.zeros(u_0.shape)
-        u_old = torch.zeros(u_0.shape)
+        cur_device = input.get_device()
+        u = torch.zeros(u_0.shape, device=cur_device)
+        u_old = torch.zeros(u_0.shape, device=cur_device)
         i = 0
         while not converged:
             u = (1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a))
@@ -103,7 +104,7 @@ class SparsePoolingLayer(nn.Module):
         
         # Dale's law: only one sign allowed in weight matrix (pos but eff. neg in forward)
         cur_device = W_rec.get_device()
-        zeros = torch.zeros(size=W_rec.shape) #, device=cur_device)
+        zeros = torch.zeros(size=W_rec.shape, device=cur_device)
         W_rec = torch.where(W_rec > zeros, W_rec, zeros)
         
         self.W_rec.weight.data = W_rec.unsqueeze(-1).unsqueeze(-1) # c_post, c_post, 1, 1
