@@ -98,6 +98,7 @@ class Logger:
         # Save hyper-parameters
         with open(os.path.join(self.opt.log_path, "log.txt"), "w+") as cur_file:
             cur_file.write(str(self.opt))
+            cur_file.write(', arch: '+str(model.module.architecture))
             if accuracy is not None:
                 cur_file.write("Top 1 -  accuracy: " + str(accuracy))
             if acc5 is not None:

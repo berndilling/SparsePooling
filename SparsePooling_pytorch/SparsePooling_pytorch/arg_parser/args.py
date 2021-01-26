@@ -24,18 +24,53 @@ def parse_args(parser):
         default=1,
         help="Number of in_channels to the SparsePooling network",
     )
-
     group.add_option(
         "--learning_rate", 
         type="float", 
-        default=1e-3, # 5e-3 
-        help="Learning rate for feedforward weights (W_ff). Learning rates for W_rec and thresholds are scaled accordingly (for SGD optimiser)"
+        default=5e-2, #5e-3
+        help="Learning rate for feedforward weights (W_ff). Learning rates for W_rec and thresholds are scaled accordingly"
+    )
+    group.add_option(
+        "--learning_rate_decay", 
+        type="float", 
+        default=1., # 
+        help="Learning rate decay for feedforward weights (W_ff). Learning rates for W_rec and thresholds are scaled accordingly."
     )
     group.add_option(
         "--weight_decay", 
         type="float", 
         default=0., 
         help="weight decay or l2-penalty on weights (for ADAM optimiser, default = 0., i.e. no l2-penalty)"
+    )
+    parser.add_option(
+        "--data_loader_type",
+        type="string",
+        default="static",
+        help="Can be static (for SC training) or moving (for SFA training); for moving, a sequence of moving image patches will be extracted instead of a single patch. The time dimension will be appended to batch dimension",
+    )
+    parser.add_option(
+        "--dataset",
+        type="string",
+        default="olshausen", # "stl10"
+        help="Dataset to use for training, default: olshausen",
+    )
+    group.add_option(
+        "--preprocess",
+        type="string",
+        default="subtractmean", # whiten
+        help="Preprocessing of extracted image patches (subtract pixel-wise mean or whitening)",
+    )
+    group.add_option(
+        "--patch_size",
+        type="int",
+        default=10, 
+        help="Size (number of pixels) of image patches"
+    )
+    group.add_option(
+        "--N_patches_per_image",
+        type="int",
+        default=1000, 
+        help="Number of image patches extracted from each image"
     )
     group.add_option(
         "--epsilon", 
@@ -50,10 +85,10 @@ def parse_args(parser):
         help="time constant for lateral recurrence update (1=immediate update)"
     )
     group.add_option(
-        "--patch_size",
+        "--enc_patch_size",
         type="int",
         default=16,
-        help="Encoding patch size. Use single integer for same encoding size for all modules (default=16)",
+        help="Encoder patch size. Use single integer for same encoding size for all modules (default=16)",
     )
     group.add_option(
         "--random_crop_size",

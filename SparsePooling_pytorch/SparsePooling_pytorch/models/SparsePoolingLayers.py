@@ -5,6 +5,10 @@ import torch
 class SparsePoolingLayer(nn.Module):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p):
         super(SparsePoolingLayer, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+
         self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=0, bias=False)
         self.W_rec = nn.Conv2d(out_channels, out_channels, 1, bias=False)
         self.W_rec.weight.data = torch.zeros(self.W_rec.weight.shape) # initialize with zeros
@@ -16,7 +20,7 @@ class SparsePoolingLayer(nn.Module):
         self.p = p
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.learning_rate) 
-        # self.optimizer = torch.optim.SGD(self.parameters(), lr=opt.learning_rate)
+        #self.optimizer = torch.optim.SGD(self.parameters(), lr=opt.learning_rate)
 
     def forward(self, input):
         u_0 = self.W_ff(input) # b, c, x, y
@@ -24,6 +28,8 @@ class SparsePoolingLayer(nn.Module):
 
         converged = False
         cur_device = input.get_device()
+        if cur_device==-1:
+            cur_device = None
         u = torch.zeros(u_0.shape, device=cur_device)
         u_old = torch.zeros(u_0.shape, device=cur_device)
         i = 0
@@ -40,16 +46,18 @@ class SparsePoolingLayer(nn.Module):
     # manual implementation of SC learning rules: overwrite grads & update with opt.step()
     def update_parameters(self, pre, post):
         self.zero_grad()
-        self.get_parameters_updates(pre, post)
+        dW_ff, dthreshold, dW_rec = self.get_parameters_updates(pre, post)
         self.optimizer.step()
         self.postprocess_parameter_updates()
+        return (dW_ff, dthreshold, dW_rec)
 
     def get_parameters_updates(self, pre, post):
-        self.get_update_W_ff(pre, post)
-        self.get_update_threshold_ff(post)
-        self.get_update_W_rec(post)
+        dW_ff = self.get_update_W_ff(pre, post)
+        dthreshold = self.get_update_threshold_ff(post)
+        dW_rec = self.get_update_W_rec(post)
+        return dW_ff, dthreshold, dW_rec
 
-    def get_update_W_ff(self, pre, post, power=4): 
+    def get_update_W_ff(self, pre, post, power=2): 
         # pre: b, c_pre, x_pre, y_pre 
         # post: b, c_post, x_post, y_post
         # self.W_ff: c_post, c_pre, kernel_size, kernel_size
@@ -68,7 +76,9 @@ class SparsePoolingLayer(nn.Module):
             /(post.shape[0] * post.shape[-1] * post.shape[-2])
         ) # c_post, c_pre, kernel_size, kernel_size
         
-        self.W_ff.weight.grad = -1 * (dW_ff_data - dW_ff_weight_decay) # c_post, c_pre, kernel_size, kernel_size
+        dW_ff = dW_ff_data - dW_ff_weight_decay # c_post, c_pre, kernel_size, kernel_size
+        self.W_ff.weight.grad = -1 * dW_ff
+        return dW_ff
         
     def get_update_threshold_ff(self, post, lr_factor_to_W_ff = 10.):
         # post: b, c_post, x_post, y_post
@@ -77,6 +87,7 @@ class SparsePoolingLayer(nn.Module):
         # ATTENTION: this assumes ReLU-like nonlin with real zeros; otherwise sign operation doesn't work!
         dthreshold = torch.mean(torch.sign(post), (0,2,3)) - self.p # c_post
         self.threshold.grad = -1 * lr_factor_to_W_ff * dthreshold # c_post
+        return dthreshold
 
     def get_update_W_rec(self, post, lr_factor_to_W_ff = 20.):
         # post: b, c_post, x_post, y_post
@@ -93,8 +104,10 @@ class SparsePoolingLayer(nn.Module):
             /(post.shape[0] * post.shape[-1] * post.shape[-2])
         ).unsqueeze(-1).unsqueeze(-1) # c_post, c_post, 1, 1
         
-        self.W_rec.weight.grad = -1 * lr_factor_to_W_ff * (dW_rec_data - dW_rec_weight_decay) # c_post, c_post, 1, 1
+        dW_rec = dW_rec_data - dW_rec_weight_decay
+        self.W_rec.weight.grad = -1 * lr_factor_to_W_ff * dW_rec  # c_post, c_post, 1, 1
         # postprocessing (no self inhib. + Dale's law) is done after updating
+        return dW_rec
 
     def postprocess_parameter_updates(self):
         W_rec = self.W_rec.weight.squeeze().clone() # c_post, c_post
@@ -104,6 +117,8 @@ class SparsePoolingLayer(nn.Module):
         
         # Dale's law: only one sign allowed in weight matrix (pos but eff. neg in forward)
         cur_device = W_rec.get_device()
+        if cur_device==-1:
+            cur_device = None
         zeros = torch.zeros(size=W_rec.shape, device=cur_device)
         W_rec = torch.where(W_rec > zeros, W_rec, zeros)
         
@@ -114,12 +129,12 @@ class SC_layer(SparsePoolingLayer):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p):
         super(SC_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p)
 
-    # def update_parameters(self, pre, post):
-    # overwrite with specific inputs
-
 class SFA_layer(SparsePoolingLayer):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p):
         super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p)
+
+    # def update_parameters(self, pre, post):
+    # overwrite with specific inputs
 
     
 

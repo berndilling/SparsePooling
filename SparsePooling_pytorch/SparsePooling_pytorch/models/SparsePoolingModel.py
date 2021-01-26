@@ -10,11 +10,11 @@ class SparsePoolingModel(torch.nn.Module):
         self.update_params = True
 
         # Format: (layer_type, out_channels, kernel_size, p)    
-        arch = [('SC', 400, 10, 1e-1)] # ,('SC',64, 3, 1e-1),('M') .. etc
+        self.architecture = [('SC', 100, 10, 5e-2)] # ,('SC',64, 3, 1e-1),('M') .. etc
         self.layers = nn.ModuleList([])
         
         in_channels = opt.in_channels_input
-        for (layer_type, out_channels, kernel_size, p) in arch:
+        for (layer_type, out_channels, kernel_size, p) in self.architecture:
             if layer_type=='SC':
                 layer = SparsePoolingLayers.SC_layer(opt, in_channels, out_channels, kernel_size, p)
             else:
@@ -25,12 +25,13 @@ class SparsePoolingModel(torch.nn.Module):
 
 
     def forward(self, input):
+        dparams = None
         pre = input
         for layer in self.layers:
             post = layer(pre).clone().detach()
             if self.update_params:
-                layer.update_parameters(pre, post)
+                dparams = layer.update_parameters(pre, post)
             pre = post
         
-        return post
+        return post, dparams
 

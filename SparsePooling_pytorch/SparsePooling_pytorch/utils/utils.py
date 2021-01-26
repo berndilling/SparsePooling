@@ -15,7 +15,6 @@ def get_device(opt, input_tensor):
 
     return cur_device
 
-
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
     with torch.no_grad():
@@ -35,4 +34,12 @@ def accuracy(output, target, topk=(1,)):
 def getsparsity(x:torch.tensor):
     return float(torch.sum(x == 0))/np.prod(x.shape)
 
+# data is (b, c) array of b c-dimensional vectors
+def subtractmean(data):
+    return data - torch.mean(data, (0))
 
+# data is (b, c) array of b c-dimensional vectors
+def whiten(data):
+    data = subtractmean(data)
+    U, S, V = torch.svd(data)
+    return torch.matmul(U, V.t()) * np.sqrt(data.shape[0] - 1)
