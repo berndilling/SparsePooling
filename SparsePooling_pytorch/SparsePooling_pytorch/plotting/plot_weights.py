@@ -3,7 +3,7 @@ import numpy as np
 import torch 
 
 def plot_receptive_fields(weights, nh=10, nv=10):
-    w = weights.squeeze().detach().numpy()
+    w = weights.cpu().squeeze().detach().numpy()
     fig, axes = plt.subplots(nrows=nv, ncols=nh, sharex=True, sharey=True)
     fig.set_size_inches(7, 7)
     for i in range(nv):
@@ -20,7 +20,7 @@ def plot_receptive_fields(weights, nh=10, nv=10):
     # plt.pause(0.0001)
 
 def plot_weights(weights, k=10, nh=10, nv=10):
-    w = weights.squeeze()
+    w = weights.cpu().squeeze()
     im = torch.zeros(k*nv, k*nh)
     for i in range(nv):
         for j in range(nh):

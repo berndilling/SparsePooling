@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+from IPython import embed
 
 class SparsePoolingLayer(nn.Module):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p):
@@ -130,11 +131,37 @@ class SC_layer(SparsePoolingLayer):
         super(SC_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p)
 
 class SFA_layer(SparsePoolingLayer):
-    def __init__(self, opt, in_channels, out_channels, kernel_size, p):
+    def __init__(self, opt, in_channels, out_channels, kernel_size, p, timescale):
+        if opt.dataset_type != "moving":
+            raise ValueError("Option --dataset_type must be 'moving' if you are using SFA layers")
+
         super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p)
+        self.timescale = timescale
+        self.sequence_length = opt.sequence_length
+        if self.timescale >= self.sequence_length:
+            raise ValueError("layer timescale is greater than sequence length of data")
 
-    # def update_parameters(self, pre, post):
-    # overwrite with specific inputs
+    def calculate_trace(self, post):
+        s = post.shape # b'(=b*sequence_length), c_post, x_post, y_post
+        post = post.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c_post, x_post, y_post
+        post = post.unfold(1, self.timescale, 1) # b, sequence_length-timescale+1, c_post, x_post, y_post, timescale
+        # TODO add weights to fake exponential average?
+        post_tr = torch.mean(post, (-1)) # b, sequence_length-timescale+1, c_post, x_post, y_post
+        return post_tr.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_post, x_post, y_post
 
+    # center and cut of beginning of sequence where no trace can be computed
+    def preprocess_pre(self, pre):
+        s = pre.shape # b'(=b*sequence_length), c_pre, x_pre, y_pre
+        pre_av = torch.mean(pre, (0,2,3)) # c_pre (average over batch, x_pre, y_pre)
+        pre = pre - pre_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b', c_pre, x_pre, y_pre
+        pre = pre.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c_pre, x_pre, y_pre
+        pre = pre[:, self.timescale-1:, :, :, :] # b, sequence_length-timescale+1, c_pre, x_pre, y_pre
+        return pre.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_pre, x_pre, y_pre
+
+    # overwrite parent's function
+    def get_update_W_ff(self, pre, post, power=2):
+        post_trace = self.calculate_trace(post)
+        pre_centered = self.preprocess_pre(pre)
+        return super().get_update_W_ff(pre_centered, post_trace, power=power)
     
 

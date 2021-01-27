@@ -27,7 +27,7 @@ def parse_args(parser):
     group.add_option(
         "--learning_rate", 
         type="float", 
-        default=5e-2, #5e-3
+        default=5e-3, #5e-3
         help="Learning rate for feedforward weights (W_ff). Learning rates for W_rec and thresholds are scaled accordingly"
     )
     group.add_option(
@@ -43,10 +43,16 @@ def parse_args(parser):
         help="weight decay or l2-penalty on weights (for ADAM optimiser, default = 0., i.e. no l2-penalty)"
     )
     parser.add_option(
-        "--data_loader_type",
+        "--dataset_type",
         type="string",
-        default="static",
+        default="static", # "moving"
         help="Can be static (for SC training) or moving (for SFA training); for moving, a sequence of moving image patches will be extracted instead of a single patch. The time dimension will be appended to batch dimension",
+    )
+    parser.add_option(
+        "--sequence_length",
+        type="int",
+        default=10,
+        help="Length (number of frames) of image patch sequences for SFA learning",
     )
     parser.add_option(
         "--dataset",

@@ -14,17 +14,17 @@ import matplotlib.pyplot as plt
 plt.ion()
 
 # TODO: use torch.optim.lr_scheduler!
-def decay_learningrates(model, decay_factor=0.95):
+def decay_learningrates(model, opt):
     for layer in model.module.layers:
         for g in layer.optimizer.param_groups:
-            g['lr'] *= decay_factor
-            print(g['lr'])
+            g['lr'] *= opt.learning_rate_decay
+            # print(g['lr'])
 
 def train(opt, model, train_loader, logs):
-    #plt.figure()
-    for epoch in range(opt.start_epoch, opt.num_epochs + opt.start_epoch):
-        print("epoch ", epoch, " of ", opt.num_epochs-1)
-        if epoch % 1 == 0:
+    logs.create_log(model, epoch=-1)
+    for epoch in range(opt.start_epoch, opt.num_epochs + opt.start_epoch + 1):
+        print("epoch ", epoch, " of ", opt.num_epochs)
+        if epoch % (opt.num_epochs // min(opt.num_epochs, 10)) == 0:
             plot_weights.plot_receptive_fields(model.module.layers[0].W_ff.weight.clone().detach())
             plt.savefig(os.path.join(opt.log_path,'W_ff'+str(epoch)+'.png'))
         for step, (img) in enumerate(train_loader):
@@ -36,7 +36,7 @@ def train(opt, model, train_loader, logs):
             
         # TODO: implement SC loss and keep track it
         print("Sparsity: ", utils.getsparsity(out))
-        decay_learningrates(model, decay_factor=opt.learning_rate_decay)
+        decay_learningrates(model, opt)
 
         logs.create_log(model, epoch=epoch)
     

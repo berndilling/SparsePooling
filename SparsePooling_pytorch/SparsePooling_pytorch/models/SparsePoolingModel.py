@@ -10,14 +10,17 @@ class SparsePoolingModel(torch.nn.Module):
         self.update_params = True
 
         # Format: (layer_type, out_channels, kernel_size, p)    
-        self.architecture = [('SC', 100, 10, 5e-2)] # ,('SC',64, 3, 1e-1),('M') .. etc
+        # self.architecture = [('SC', 100, 10, 5e-2)]
+        self.architecture = [('SC', 100, 10, 5e-2, None), ('SFA',100, 1, 1e-1, 3)] #,('M') .. etc
         self.layers = nn.ModuleList([])
         
         in_channels = opt.in_channels_input
-        for (layer_type, out_channels, kernel_size, p) in self.architecture:
+        for (layer_type, out_channels, kernel_size, p, timescale) in self.architecture:
             if layer_type=='SC':
                 layer = SparsePoolingLayers.SC_layer(opt, in_channels, out_channels, kernel_size, p)
-            else:
+            elif layer_type=='SFA':
+                layer = SparsePoolingLayers.SFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale)
+            else: 
                 raise ValueError("layer type not implemented yet")
             
             self.layers.append(layer)
