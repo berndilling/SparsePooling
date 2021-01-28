@@ -69,7 +69,7 @@ def parse_args(parser):
     group.add_option(
         "--patch_size",
         type="int",
-        default=10, 
+        default=20, 
         help="Size (number of pixels) of image patches"
     )
     group.add_option(

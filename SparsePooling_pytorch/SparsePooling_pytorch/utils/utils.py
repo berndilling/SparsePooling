@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from IPython import embed
 
-
 def get_device(opt, input_tensor):
     if opt.device.type != "cpu":
         cur_device = input_tensor.get_device()

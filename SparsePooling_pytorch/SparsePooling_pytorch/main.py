@@ -63,7 +63,7 @@ if __name__ == "__main__":
     try:
         # Train the model
         train(opt, model, train_loader, logs)
-        embed()
+        # embed()
 
     except KeyboardInterrupt:
         print("Training got interrupted, saving log-files now.")
