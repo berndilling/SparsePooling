@@ -10,7 +10,7 @@ class SparsePoolingLayer(nn.Module):
         self.out_channels = out_channels
         self.kernel_size = kernel_size
 
-        self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=0, bias=False)
+        self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=max(kernel_size//2,1), padding=0, bias=False)
         self.W_rec = nn.Conv2d(out_channels, out_channels, 1, bias=False)
         self.W_rec.weight.data = torch.zeros(self.W_rec.weight.shape) # initialize with zeros
         self.threshold = torch.nn.Parameter(0.1 * torch.randn(out_channels, requires_grad=True))
@@ -132,8 +132,8 @@ class SC_layer(SparsePoolingLayer):
 
 class SFA_layer(SparsePoolingLayer):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p, timescale):
-        if opt.dataset_type != "moving":
-            raise ValueError("Option --dataset_type must be 'moving' if you are using SFA layers")
+        if not opt.classifying and opt.dataset_type != "moving":
+            raise ValueError("Option --dataset_type must be 'moving' if you are training SFA layers")
 
         super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p)
         self.timescale = timescale

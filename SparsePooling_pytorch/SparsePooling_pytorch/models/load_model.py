@@ -1,20 +1,57 @@
 import torch
+import torch.nn as nn
+import os
 
 from SparsePooling_pytorch.models import SparsePoolingModel, ClassificationModel
-from SparsePooling_pytorch.utils import model_utils
 
-
-def load_model(opt, num_GPU=None):
-
+def load_model(opt, num_GPU=None, reload_model=False):
     model = SparsePoolingModel.SparsePoolingModel(opt)
 
-    model, num_GPU = model_utils.distribute_over_GPUs(opt, model, num_GPU=num_GPU)
+    model, num_GPU = distribute_over_GPUs(opt, model, num_GPU=num_GPU)
 
-    # model, optimizer = model_utils.reload_weights(
-    #     opt, model, optimizer, reload_model=reload_model
-    # )
+    model = reload_weights(opt, model, reload_model=reload_model)
 
-    return model #, optimizer
+    return model
+
+def reload_weights(opt, model, reload_model=False):
+    # reload weights for investigation or training of downstream linear classifier
+    if reload_model:
+        print("Loading weights from ", opt.model_path)
+        for idx, layer in enumerate(model.module.layers):
+            model.module.layers[idx].load_state_dict(
+                torch.load(
+                    os.path.join(
+                        opt.model_path,
+                        "model_{}_{}.ckpt".format(idx, opt.model_num),
+                    ),
+                        map_location=opt.device.type,
+                )
+            )
+    else:
+        print("Randomly initialized model")
+    
+    return model
+
+def distribute_over_GPUs(opt, model, num_GPU):
+    if opt.device.type != "cpu":
+        if num_GPU is None:
+            model = nn.DataParallel(model)
+            num_GPU = torch.cuda.device_count()
+            opt.batch_size_multiGPU = opt.batch_size * num_GPU
+        else:
+            assert (
+                num_GPU <= torch.cuda.device_count()
+            ), "You can't use more GPUs than you have."
+            model = nn.DataParallel(model, device_ids=list(range(num_GPU)))
+            opt.batch_size_multiGPU = opt.batch_size * num_GPU
+    else:
+        model = nn.DataParallel(model)
+        opt.batch_size_multiGPU = opt.batch_size
+
+    model = model.to(opt.device)
+    print("Let's use", num_GPU, "GPUs!")
+
+    return model, num_GPU
 
 def load_classification_model(opt):
     if opt.in_channels == None:
@@ -22,7 +59,7 @@ def load_classification_model(opt):
     else:
         in_channels = opt.in_channels
 
-    if opt.class_dataset == "stl10":
+    if opt.dataset_class == "stl10":
         num_classes = 10
     else:
         raise Exception("Invalid option")

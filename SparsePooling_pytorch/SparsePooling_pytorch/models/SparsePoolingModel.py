@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
+from IPython import embed
 
 from SparsePooling_pytorch.models import SparsePoolingLayers, Supervised
+
 
 class SparsePoolingModel(torch.nn.Module):
     def __init__(self, opt):
@@ -9,9 +11,9 @@ class SparsePoolingModel(torch.nn.Module):
 
         self.update_params = True
 
-        # Format: (layer_type, out_channels, kernel_size, p)    
-        # self.architecture = [('SC', 100, 10, 5e-2)]
-        self.architecture = [('SC', 100, 10, 5e-2, None), ('SFA',100, 1, 1e-1, 3)] #,('M') .. etc
+        # architecture format: (layer_type, out_channels, kernel_size, p)
+        architecture = [('SC', 100, 10, 0.05, None), ('SFA', 10, 1, 0.1, 5)] #,('M') .. etc
+        self.architecture = architecture
         self.layers = nn.ModuleList([])
         
         in_channels = opt.in_channels_input
@@ -26,15 +28,24 @@ class SparsePoolingModel(torch.nn.Module):
             self.layers.append(layer)
             in_channels = out_channels
 
+        print(self.layers)
 
-    def forward(self, input):
+
+    def forward(self, input, up_to_layer=None):
         dparams = None
+        if up_to_layer==None:
+            up_to_layer = len(self.layers)
+        
         pre = input
-        for layer in self.layers:
-            post = layer(pre).clone().detach()
-            if self.update_params:
-                dparams = layer.update_parameters(pre, post)
-            pre = post
+        if up_to_layer==0: # return (reshaped/flattened) input image
+            s = pre.shape # b, in_channels, x, y
+            post = pre.reshape(s[0], s[1]*s[2]*s[3]).unsqueeze(-1).unsqueeze(-1) # b, in_channels*x*y
+        else:
+            for layer in self.layers[:up_to_layer]:
+                post = layer(pre).clone().detach()
+                if self.update_params:
+                    dparams = layer.update_parameters(pre, post)
+                pre = post
         
         return post, dparams
 

@@ -126,6 +126,18 @@ def parse_args(parser):
         "otherwise saves logs according to time-stamp",
     )
     group.add_option(
+        "--model_path",
+        type="string",
+        default=".",
+        help="Directory of the saved model (path within --data_input_dir)",
+    )
+    group.add_option(
+        "--model_num",
+        type=int,
+        default=10,
+        help="(epoch) Number of model to classify from. ",
+    )
+    group.add_option(
         "--data_input_dir",
         type="string",
         default="./datasets",
@@ -137,11 +149,47 @@ def parse_args(parser):
         default=".",
         help="Directory to store bigger datafiles (dataset and models)",
     )
-    parser.add_option(
-        "--class_dataset",
+    group.add_option(
+        "--classifying",
+        action="store_true",
+        default=False,
+        help="Boolean to communicate classification mode",
+    )
+    group.add_option(
+        "--dataset_class",
         type="string",
         default="stl10",
         help="Dataset to use for training, default: stl10",
+    )
+    group.add_option(
+        "--class_from_layer",
+        type=int,
+        default=None,
+        help="Layer number to classify from. Default None corresponds to the last layer. Keep in mind 0-indexing!",
+    )
+    group.add_option(
+        "--download_dataset",
+        action="store_true",
+        default=False,
+        help="Boolean to decide whether to download the dataset to train on (only tested for STL-10)",
+    )
+    group.add_option(
+        "--validate",
+        action="store_true",
+        default=False,
+        help="Boolean to decide whether to split train dataset into train/val and plot validation loss (True) or combine train+validation set for final testing (False)",
+    )
+    group.add_option(
+        "--grayscale",
+        action="store_true",
+        default=True,
+        help="[stl-10] Boolean to decide whether to convert images to grayscale (default: true)",
+    )
+    group.add_option(
+        "--end_to_end_supervised",
+        action="store_true",
+        default=False,
+        help="[stl-10] Boolean to decide whether full model should be trained end-to-end. CAREFUL: in this case the model should be standard CNN, NOT SparsePoolingModel",
     )
     group.add_option(
         "--in_channels",

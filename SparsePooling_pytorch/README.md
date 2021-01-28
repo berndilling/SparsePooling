@@ -11,4 +11,10 @@ Environment build (on respective OS) using:
 % installing all the packages..
 % conda env export > whateverpath/env.yml
 
+Code base (not algorithm) inspired by:
+https://github.com/lpjiang97/sparse-coding/
+and
+https://github.com/loeweX/Greedy_InfoMax
+
+
 
