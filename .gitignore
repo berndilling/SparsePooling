@@ -1,0 +1,7 @@
+scripts/
+artificial_data/
+analysis/
+SparsePooling_pytorch/pods/
+SparsePooling_pytorch/logs/
+SparsePooling_pytorch/datasets/
+**/__pycache__/
