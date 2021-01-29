@@ -13,31 +13,22 @@ from SparsePooling_pytorch.plotting import plot_weights
 import matplotlib.pyplot as plt
 plt.ion()
 
-# TODO: use torch.optim.lr_scheduler!
-def decay_learningrates(model, opt):
-    for layer in model.module.layers:
-        for g in layer.optimizer.param_groups:
-            g['lr'] *= opt.learning_rate_decay
-            # print(g['lr'])
-
 def train(opt, model, train_loader, logs):
     logs.create_log(model, epoch=-1)
     for epoch in range(opt.start_epoch, opt.num_epochs + opt.start_epoch + 1):
         print("epoch ", epoch, " of ", opt.num_epochs)
         if epoch % (opt.num_epochs // min(opt.num_epochs, 10)) == 0:
-            plot_weights.plot_receptive_fields(model.module.layers[0].W_ff.weight.clone().detach())
+            plot_weights.plot_receptive_fields(model.module.layers[0].W_ff.weight.clone().detach()) # , nh=20, nv=20)
             plt.savefig(os.path.join(opt.log_path,'W_ff'+str(epoch)+'.png'))
         for step, (img) in enumerate(train_loader):
             input = img.to(opt.device)
             out, dparams = model(input)
-            # if step % 100 == 0:
-            #    print(step)
+            if step % 100 == 0:
+               print("batch number: ", step, " out of ", len(train_loader))
                 # print("Change in W_ff :", torch.norm(dparams[0]).data)
             
         # TODO: implement SC loss and keep track it
         print("Sparsity: ", utils.getsparsity(out))
-        decay_learningrates(model, opt)
-
         logs.create_log(model, epoch=epoch)
     
     plt.show()

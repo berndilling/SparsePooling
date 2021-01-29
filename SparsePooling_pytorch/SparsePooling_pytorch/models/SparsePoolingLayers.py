@@ -9,7 +9,8 @@ class SparsePoolingLayer(nn.Module):
         self.out_channels = out_channels
         self.kernel_size = kernel_size
 
-        self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=max(kernel_size//2,1), padding=0, bias=False)
+        #self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=max(kernel_size//2, 1), padding=0, bias=False)
+        self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=0, bias=False)
         self.W_rec = nn.Conv2d(out_channels, out_channels, 1, bias=False)
         self.W_rec.weight.data = torch.zeros(self.W_rec.weight.shape) # initialize with zeros
         self.threshold = torch.nn.Parameter(0.1 * torch.randn(out_channels, requires_grad=True))
@@ -30,11 +31,11 @@ class SparsePoolingLayer(nn.Module):
         cur_device = input.get_device()
         if cur_device==-1:
             cur_device = None
-        u = torch.zeros(u_0.shape, device=cur_device)
-        u_old = torch.zeros(u_0.shape, device=cur_device)
+        u = torch.zeros(u_0.shape, device=cur_device, requires_grad=False)
+        u_old = torch.zeros(u_0.shape, device=cur_device, requires_grad=False)
         i = 0
         while not converged:
-            u = (1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a))
+            u = ((1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a))).detach() # detach is important, otherwise graph grows and RAM overflows
             a = self.nonlin(u - self.threshold.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)).clone().detach()
             converged = torch.norm(u - u_old) / torch.norm(u) < self.epsilon
             u_old = u.clone()
