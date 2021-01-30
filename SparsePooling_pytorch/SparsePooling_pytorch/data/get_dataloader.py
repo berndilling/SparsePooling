@@ -154,9 +154,9 @@ def get_stl10_dataloader(opt):
         base_folder, split="test", transform=transform_valid, download=opt.download_dataset
     )
 
-    # default dataset loaders
+    # default dataset loaders, do not shuffle if you create a dataset for hidden reps for classification
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=opt.batch_size_multiGPU, shuffle=True, num_workers=16
+        train_dataset, batch_size=opt.batch_size_multiGPU, shuffle= not opt.create_hidden_representation, num_workers=16
     )
 
     unsupervised_loader = torch.utils.data.DataLoader(

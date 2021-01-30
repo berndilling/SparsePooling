@@ -1,16 +1,16 @@
+from os import EX_CANTCREAT
 import torch.nn as nn
 import torch
 from IPython import embed
 
 class SparsePoolingLayer(nn.Module):
-    def __init__(self, opt, in_channels, out_channels, kernel_size, p):
+    def __init__(self, opt, in_channels, out_channels, kernel_size, p, stride=1): # stride=max(kernel_size//2, 1)
         super(SparsePoolingLayer, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
 
-        #self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=max(kernel_size//2, 1), padding=0, bias=False)
-        self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=0, bias=False)
+        self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=0, bias=False)
         self.W_rec = nn.Conv2d(out_channels, out_channels, 1, bias=False)
         self.W_rec.weight.data = torch.zeros(self.W_rec.weight.shape) # initialize with zeros
         self.threshold = torch.nn.Parameter(0.1 * torch.randn(out_channels, requires_grad=True))
@@ -23,7 +23,7 @@ class SparsePoolingLayer(nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.learning_rate) 
         #self.optimizer = torch.optim.SGD(self.parameters(), lr=opt.learning_rate)
 
-    def forward(self, input):
+    def forward(self, input, max_n_iter=1000):
         u_0 = self.W_ff(input) # b, c, x, y
         a = self.nonlin(u_0).clone().detach()
 
@@ -40,6 +40,8 @@ class SparsePoolingLayer(nn.Module):
             converged = torch.norm(u - u_old) / torch.norm(u) < self.epsilon
             u_old = u.clone()
             i += 1
+            if i > max_n_iter:
+                raise Exception("Surpassed maximum number of iterations ("+str(max_n_iter)+") in forward path..")
 
         # print("iterations: ", i)
         return a.clone().detach()
@@ -135,7 +137,7 @@ class SFA_layer(SparsePoolingLayer):
         if not opt.classifying and opt.dataset_type != "moving":
             raise ValueError("Option --dataset_type must be 'moving' if you are training SFA layers")
 
-        super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p)
+        super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p, stride=kernel_size)
         self.timescale = timescale
         self.sequence_length = opt.sequence_length
         if self.timescale >= self.sequence_length:

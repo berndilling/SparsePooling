@@ -18,6 +18,8 @@ def train_logistic_regression(opt, context_model, classification_model, train_lo
 
     starttime = time.time()
 
+    if opt.create_hidden_representation:
+        hidden_reps = []
     for epoch in range(opt.num_epochs):
         epoch_acc1 = 0
         epoch_acc5 = 0
@@ -27,16 +29,24 @@ def train_logistic_regression(opt, context_model, classification_model, train_lo
 
             classification_model.zero_grad()
 
-            model_input = img.to(opt.device)
-
-            if opt.end_to_end_supervised:  # end-to-end supervised training
-                z = context_model(model_input)
-            else:
+            if opt.create_hidden_representation and epoch > 0:
                 with torch.no_grad():
-                    z, _ = context_model(model_input, up_to_layer=opt.class_from_layer)
-                z = z.detach() #double security that no gradients go to representation learning part of model
+                    z = hidden_reps[step]
+                z = z.detach()
+            else:
+                model_input = img.to(opt.device)
 
-            prediction = classification_model(z)
+                if opt.end_to_end_supervised:  # end-to-end supervised training
+                    z = context_model(model_input)
+                else:
+                    with torch.no_grad():
+                        z, _ = context_model(model_input, up_to_layer=opt.class_from_layer)
+                    z = z.detach() #double security that no gradients go to representation learning part of model
+                
+                if opt.create_hidden_representation and epoch == 0:
+                    hidden_reps.append(z.clone().detach())
+
+            prediction = classification_model(z).to(opt.device)
 
             target = target.to(opt.device)
             loss = criterion(prediction, target)
@@ -148,7 +158,7 @@ if __name__ == "__main__":
     context_model.module.update_params = False # switching plasticity off
     if opt.end_to_end_supervised and type(context_model.module)==SparsePoolingModel.SparsePoolingModel:
         raise Exception("Cannot train SparsePoolingModel end-to-end. Please create standard CNN model (with same architecture")
-    if opt.class_from_layer==0:
+    if opt.class_from_layer==-1:
         print("CAREFUL! Training classifier directly on input image! Model is ignored and returns the (flattened) input images!")
 
     _, _, train_loader, _, test_loader, _ = get_dataloader.get_dataloader_class(opt)

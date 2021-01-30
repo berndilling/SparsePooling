@@ -165,8 +165,16 @@ def parse_args(parser):
         "--class_from_layer",
         type=int,
         default=None,
-        help="Layer number to classify from. Default None corresponds to the last layer. Keep in mind 0-indexing!",
+        help="Layer number to classify from. Default None corresponds to the last layer. Keep the 0-indexing in mind!"
+        "-1 means direct classification on the (flattened) input image",
     )
+    group.add_option(
+        "--create_hidden_representation",
+        action="store_true",
+        default=False,
+        help="Boolean whether to create and save hidden representations (output of context model) of train set and train classifier on these."
+        "CAREFUL: This is much faster but leads to overfitting on one of the random crops. Better test performance without that option!",
+    )    
     group.add_option(
         "--download_dataset",
         action="store_true",
