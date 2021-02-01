@@ -1,6 +1,7 @@
 from os import EX_CANTCREAT
 import torch.nn as nn
 import torch
+import numpy as np
 from IPython import embed
 
 class SparsePoolingLayer(nn.Module):
@@ -19,40 +20,51 @@ class SparsePoolingLayer(nn.Module):
         self.epsilon = opt.epsilon
         self.tau = opt.tau
         self.p = p
+        self.inference_recurrence = opt.inference_recurrence
+
+        self.update_params = True
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.learning_rate) 
         #self.optimizer = torch.optim.SGD(self.parameters(), lr=opt.learning_rate)
 
-    def forward(self, input, max_n_iter=1000):
+    def forward(self, input, max_n_iter=20): # max_n_iter in units of 1/tau
+        max_n_iter = max_n_iter * int(1. / self.tau)
         u_0 = self.W_ff(input) # b, c, x, y
-        a = self.nonlin(u_0).clone().detach()
+        # a = self.nonlin(u_0).clone().detach() # b, c, x, y; forward path without biases
+        a = self.nonlin(u_0 - self.threshold.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)).clone().detach() # b, c, x, y
 
-        converged = False
-        cur_device = input.get_device()
-        if cur_device==-1:
-            cur_device = None
-        u = torch.zeros(u_0.shape, device=cur_device, requires_grad=False)
-        u_old = torch.zeros(u_0.shape, device=cur_device, requires_grad=False)
-        i = 0
-        while not converged:
-            u = ((1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a))).detach() # detach is important, otherwise graph grows and RAM overflows
-            a = self.nonlin(u - self.threshold.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)).clone().detach()
-            converged = torch.norm(u - u_old) / torch.norm(u) < self.epsilon
-            u_old = u.clone()
-            i += 1
-            if i > max_n_iter:
-                raise Exception("Surpassed maximum number of iterations ("+str(max_n_iter)+") in forward path..")
+        if self.inference_recurrence==1: # 1 - lateral recurrence within layer, 0 - no recurrence
+            converged = False
+            cur_device = input.get_device()
+            if cur_device==-1:
+                cur_device = None
+            u = torch.zeros(u_0.shape, device=cur_device, requires_grad=False)
+            u_old = torch.zeros(u_0.shape, device=cur_device, requires_grad=False)
+            i = 0
+            while not converged:
+                u = ((1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a))).detach() # detach is important, otherwise graph grows and RAM overflows
+                # u = ((1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a / a.shape[1]))).detach() # attempt to lower number of iterations -> leads to less refined RFs
+                a = self.nonlin(u - self.threshold.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)).clone().detach()
+                converged = torch.norm(u - u_old) / torch.norm(u) < self.epsilon
+                u_old = u.clone()
+                i += 1
+                if i > max_n_iter:
+                    raise Exception("Surpassed maximum number of iterations ("+str(max_n_iter)+") in forward path..")
 
         # print("iterations: ", i)
         return a.clone().detach()
 
     # manual implementation of SC learning rules: overwrite grads & update with opt.step()
     def update_parameters(self, pre, post):
-        self.zero_grad()
-        dW_ff, dthreshold, dW_rec = self.get_parameters_updates(pre, post)
-        self.optimizer.step()
-        self.postprocess_parameter_updates()
-        return (dW_ff, dthreshold, dW_rec)
+        dparams = None
+        if self.update_params:
+            self.zero_grad()
+            dW_ff, dthreshold, dW_rec = self.get_parameters_updates(pre, post)
+            self.optimizer.step()
+            self.postprocess_parameter_updates()
+            dparams = (dW_ff, dthreshold, dW_rec)
+
+        return dparams 
 
     def get_parameters_updates(self, pre, post):
         dW_ff = self.get_update_W_ff(pre, post)

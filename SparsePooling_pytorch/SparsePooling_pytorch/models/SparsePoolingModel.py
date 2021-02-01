@@ -22,9 +22,10 @@ class SparsePoolingModel(torch.nn.Module):
         # architecture = [('SC', 100, 3, 0.05, None), ('MaxPool', 100, 2, None, None), 
         #                 ('SC', 200, 3, 0.05, None), ('MaxPool', 200, 2, None, None), 
         #                 ('SC', 400, 3, 0.05, None), ('MaxPool', 400, 2, None, None)]
-        architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.05, 2), 
-                        ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.05, 4), 
-                        ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.05, 8)]
+        architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.18, 8), 
+                        ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 8), 
+                        ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)] 
+        # # sparsity 0.18 comes from 2x2 max-pooling: new sparsity = (4 choose 1)*0.95^3*0.05^1 + negligible terms (4 choose 2) etc
         self.architecture = architecture
         self.layers = nn.ModuleList([])
         
