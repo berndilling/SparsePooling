@@ -18,13 +18,13 @@ class SparsePoolingModel(torch.nn.Module):
         # TODO: try smaller input kernel sizes!
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
-        # architecture = [('SC', 400, 10, 0.05, None), ('SFA', 8, 1, 1/8, 9)] #,('MaxPool', None, 2, None, None) .. etc
+        architecture = [('SC', 400, 10, 0.05, None), ('SFA', 8, 1, 1/8, 9)] #,('MaxPool', None, 2, None, None) .. etc
         # architecture = [('SC', 100, 3, 0.05, None), ('MaxPool', 100, 2, None, None), 
         #                 ('SC', 200, 3, 0.05, None), ('MaxPool', 200, 2, None, None), 
         #                 ('SC', 400, 3, 0.05, None), ('MaxPool', 400, 2, None, None)]
-        architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.18, 8), 
-                        ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 8), 
-                        ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)] 
+        # architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.18, 8), 
+        #                 ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 8), 
+        #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)] 
         # # sparsity 0.18 comes from 2x2 max-pooling: new sparsity = (4 choose 1)*0.95^3*0.05^1 + negligible terms (4 choose 2) etc
         self.architecture = architecture
         self.layers = nn.ModuleList([])

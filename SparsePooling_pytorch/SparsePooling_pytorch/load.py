@@ -24,8 +24,12 @@ if __name__ == "__main__":
     model = load_model.load_model(opt, reload_model=True)
 
     # load data
-    # train_loader = get_dataloader.get_dataloader(opt)
+    train_loader = get_dataloader.get_dataloader(opt)
 
     plt.ion()
     embed()
 
+# plt.ion()
+# ims = train_loader.dataset.images
+# out, _ = model(ims[0:1000, :, : ,: ], up_to_layer = ?)
+# plt.plot(torch.mean(out, (0,2,3)))
