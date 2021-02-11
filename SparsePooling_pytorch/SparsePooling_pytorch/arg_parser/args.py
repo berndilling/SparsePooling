@@ -73,10 +73,10 @@ def parse_args(parser):
         help="Size (number of pixels) of image patches"
     )
     group.add_option(
-        "--N_patches_per_image",
+        "--n_patches",
         type="int",
-        default=1000, 
-        help="Number of image patches extracted from each image"
+        default=10000, 
+        help="Number of image patches extracted from whole dataset (number of patches per image will be computed from that. If < 1 it is set to 1)"
     )
     group.add_option(
         "--epsilon", 
@@ -111,11 +111,10 @@ def parse_args(parser):
         "1 - lateral recurrence within layer"
     )
     group.add_option(
-        "--train_module",
+        "--train_layer",
         type="int",
-        default=3,
-        help="Index of the module to be trained individually (0-2), "
-        "or training network as one (3)",
+        default=None,
+        help="If not None (default, training all layers), index of the layer to be trained individually (0-indexing!))"
     )
     group.add_option(
         "--save_dir",

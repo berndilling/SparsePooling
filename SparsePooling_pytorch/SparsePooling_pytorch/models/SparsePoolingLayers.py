@@ -164,18 +164,20 @@ class SFA_layer(SparsePoolingLayer):
         return post_tr.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_post, x_post, y_post
 
     # center and cut of beginning of sequence where no trace can be computed
-    def preprocess_pre(self, pre):
+    def preprocess_pre(self, pre, subtract_mean=False): 
+        # TODO change subtract_mean back!
         s = pre.shape # b'(=b*sequence_length), c_pre, x_pre, y_pre
-        pre_av = torch.mean(pre, (0,2,3)) # c_pre (average over batch, x_pre, y_pre)
-        pre = pre - pre_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b', c_pre, x_pre, y_pre
+        if subtract_mean:
+            pre_av = torch.mean(pre, (0,2,3)) # c_pre (average over batch, x_pre, y_pre)
+            pre = pre - pre_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b', c_pre, x_pre, y_pre
         pre = pre.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c_pre, x_pre, y_pre
         pre = pre[:, self.timescale-1:, :, :, :] # b, sequence_length-timescale+1, c_pre, x_pre, y_pre
         return pre.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_pre, x_pre, y_pre
 
     # overwrite parent's function
-    def get_update_W_ff(self, pre, post, power=2):
+    def get_update_W_ff(self, pre, post, power=4):
         post_trace = self.calculate_trace(post)
-        pre_centered = self.preprocess_pre(pre)
-        return super().get_update_W_ff(pre_centered, post_trace, power=power)
+        pre_processed = self.preprocess_pre(pre)
+        return super().get_update_W_ff(pre_processed, post_trace, power=power)
     
 

@@ -9,7 +9,7 @@ def plot_receptive_fields(weights, nh=10, nv=10):
     for i in range(nv):
         for j in range(nh):
             ax = axes[i][j]
-            ax.imshow(w[i*nh+j,:,:], cmap='gray', vmin=-1, vmax=1)
+            ax.imshow(w[i*nh+j,:,:], cmap='gray') # , vmin=-1, vmax=1)
             # add normalisation?
             ax.set_xticks([])
             ax.set_yticks([])

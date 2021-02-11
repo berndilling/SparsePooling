@@ -1,3 +1,4 @@
+from PIL import Image
 import torch
 import torchvision.transforms as transforms
 import torchvision
@@ -11,9 +12,9 @@ from SparsePooling_pytorch.utils import utils
 
 # from https://github.com/lpjiang97/sparse-coding/blob/master/src/model/ImageDataset.py
 class NatPatchDataset(Dataset):
-    def __init__(self, opt, N_per_image:int, width:int, height:int, border:int=0, fpath:str='./datasets/Olshausen/IMAGES.mat'):
+    def __init__(self, opt, n_patches:int, width:int, height:int, border:int=0, fpath:str='./datasets/Olshausen/IMAGES.mat', transform=None):
         super(NatPatchDataset, self).__init__()
-        self.N_per_image = N_per_image
+        self.n_patches = n_patches
         self.width = width
         self.height = height
         self.border = border
@@ -23,80 +24,110 @@ class NatPatchDataset(Dataset):
         self.images = None
         self.preprocess = opt.preprocess
         self.sequence_length = opt.sequence_length
-        # initialize patches
-        self.extract_patches_(opt)
+        self.n_channels = None # will be defined in extract_patches_
+        self.transform = transform # used for stl10, overwritten in load_data_()
+        self.extract_patches_(opt) # initialize patches
 
     def __len__(self):
         return self.images.shape[0]
 
     def __getitem__(self, idx):
-        return self.images[idx]
+        img = self.images[idx]
+        if self.transform is not None:
+            img = self.transform(img)
+        return img
 
-    def load_data_(self):
-        X = loadmat(self.fpath)
-        X = X['IMAGES']
-        #X = X['IMAGESr']
+    def load_data_(self, opt):
+        if opt.dataset == "olshausen":
+            X = loadmat(self.fpath)
+            X = torch.tensor(X['IMAGES']).unsqueeze(-2) # 512, 512, 1, 10
+            #X = X['IMAGESr']
+            self.n_channels = 1
+        elif opt.dataset == "stl10":
+            _, _, _, transform_valid, unsupervised_dataset, _, _ = get_stl10(opt, ccrop=False) # 100000, 3, 96, 96
+            X = torch.tensor(unsupervised_dataset.data).permute(2, 3, 1, 0) # 96, 96, 3, 100000 
+            self.n_channels = 3
+            
+            #transform_valid.transforms.insert(0, transforms.ToPILImage())
+            #self.transform = transform_valid
+            
+            self.transform = transforms.Compose([transforms.ToPILImage(), 
+                                                    transforms.Grayscale(), 
+                                                    transforms.ToTensor(),
+                                                    transforms.Normalize(mean=0.562, std=0.245)])
+            # numbers for mean and std obtained by printing mean and std of returns of train_loader for large batch_size (wihtout Normalize)
+        else:
+            raise Exception("dataset not implemented yet!")
+
         img_size = X.shape[0]
-        n_img = X.shape[2]
-        return X, img_size, n_img
+        n_img = X.shape[-1]
+        return X.permute(3, 2, 0, 1), img_size, n_img # X: n_img, n_channels, img_size, img_size
 
-    def preprocess_patches_(self, images):
+    def preprocess_patches_(self, images): # n_patches, n_channels, w, h
         s = images.shape
-        # preprocessing of image patches
-        images = images.reshape(s[0], self.width * self.height) # n_patches, w * h
+        images = images.reshape(s[0], self.n_channels * self.width * self.height) # n_patches, w * h
         if self.preprocess == "subtractmean":
             images = utils.subtractmean(images) # subtract pixel-wise average
         elif self.preprocess=="whiten":
-            images = utils.whiten(images) #ZCA whitening of the extracted patches
-        return images.reshape(s) # # N_per_image * n_imgs, w, h
+            images = utils.whiten(images) # ZCA whitening of the extracted patches
+        return images.reshape(s) # n_patches, n_channels, w, h
 
     # convention: append temporal dimension to batch dimension -> parallel processing!
     # for SC: either use only one instance of sequence or whole seq
     # for SFA: unrol in time and do SFA stuff
-    def create_sequence_(self, img, x, y):
-        seq = torch.zeros((self.sequence_length, self.width, self.height))
+    def create_sequence_(self, img, x, y): # img: n_channels, img_size, img_size
+        seq = torch.zeros((self.sequence_length, self.n_channels, self.width, self.height))
         dir = np.random.randint(-1,2,(2,))
         while sum(abs(dir))==0:
             dir = np.random.randint(-1,2,(2,)) # sample random direction != (0, 0)
         for t in range(self.sequence_length):
             x_shift = x + t * dir[0]
             y_shift = y + t * dir[1]
-            seq[t, :, :] = img[x_shift:x_shift+self.width, y_shift:y_shift+self.height]
+            seq[t, :, :, :] = img[:, x_shift:x_shift+self.width, y_shift:y_shift+self.height]
         return seq
 
     def extract_patches_(self, opt):
-        X, img_size, n_img = self.load_data_()
-        n_patches = self.N_per_image * n_img
+        X, img_size, n_img = self.load_data_(opt) # X: n_img, n_channels, img_size, img_size
+        
+        n_per_image = self.n_patches // n_img
+        if n_per_image == 0:
+            print("ATTENTION: the dataset contains more images than image patches to extract!"
+                " -> n_per_image is raised to 1, which leads to n_patches = ", n_img, " in total")
+            n_per_image = 1
+            self.n_patches = n_per_image * n_img
         if opt.dataset_type=="moving":
-            n_patches *= self.sequence_length
+            self.n_patches *= self.sequence_length
 
-        images = torch.zeros((n_patches, self.width, self.height)) # n_patches, w, h
+        images = torch.zeros((self.n_patches, self.n_channels, self.width, self.height)) # n_patches, n_channels, w, h
         # for every image
         counter = 0
         for i in range(n_img):
-            img = torch.tensor(X[:, :, i])
-            for j in range(self.N_per_image):
+            img = X[i, :, :, :] # n_channels, img_size, img_size
+            for j in range(n_per_image):
                 x = np.random.randint(self.border, img_size - self.width - self.border)
                 y = np.random.randint(self.border, img_size - self.height - self.border)
                 if opt.dataset_type=="moving":
                     seq = self.create_sequence_(img, x, y)
-                    images[counter*self.sequence_length:(counter+1)*self.sequence_length, :, :] = seq
+                    images[counter*self.sequence_length:(counter+1)*self.sequence_length, :, :, :] = seq
                 else:
-                    crop = img[x:x+self.width, y:y+self.height]
-                    images[counter, :, :] = crop
+                    crop = img[:, x:x+self.width, y:y+self.height]
+                    images[counter, :, :, :] = crop
                 counter += 1
 
-        images = self.preprocess_patches_(images)
-        self.images = images.unsqueeze(1) # N_per_image * n_img, 1, w, h as expected by conv layers
+        # for STL-10 preprocessing will be done by dataloader (see below)
+        if opt.dataset == "olshausen":
+            images = self.preprocess_patches_(images)
+        
+        self.images = images # n_patches (= n_per_image * n_img), n_channels, w, h as expected by conv layers
+
+#############################################################################################################################
+# main functions
 
 def get_dataloader(opt):
-    if opt.dataset=="olshausen":
-        dataset = NatPatchDataset(opt, opt.N_patches_per_image, opt.patch_size, opt.patch_size)
-        if opt.dataset_type=="moving":
-            opt.batch_size_multiGPU *= dataset.sequence_length
-        data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size_multiGPU, shuffle=True, num_workers=16)
-    else:
-        raise Exception("dataset not implemented yet!")
+    dataset = NatPatchDataset(opt, opt.n_patches, opt.patch_size, opt.patch_size)
+    if opt.dataset_type=="moving":
+        opt.batch_size_multiGPU *= dataset.sequence_length
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size_multiGPU, shuffle=True, num_workers=16)
 
     return data_loader
 
@@ -117,8 +148,10 @@ def get_dataloader_class(opt):
         test_dataset,
     )
 
-# from https://github.com/loeweX/Greedy_InfoMax
-def get_stl10_dataloader(opt):
+#################################################################################################
+# STL-10 import taken and adapted from https://github.com/loeweX/Greedy_InfoMax
+
+def get_stl10(opt, ccrop=True):
     base_folder = os.path.join(opt.data_input_dir, "stl10_binary")
 
     aug = {
@@ -136,7 +169,7 @@ def get_stl10_dataloader(opt):
         [get_transforms(eval=False, aug=aug["stl10"])]
     )
     transform_valid = transforms.Compose(
-        [get_transforms(eval=True, aug=aug["stl10"])]
+        [get_transforms(eval=True, aug=aug["stl10"], ccrop=ccrop)]
     )
 
     unsupervised_dataset = torchvision.datasets.STL10(
@@ -153,6 +186,12 @@ def get_stl10_dataloader(opt):
     test_dataset = torchvision.datasets.STL10(
         base_folder, split="test", transform=transform_valid, download=opt.download_dataset
     )
+
+    return base_folder, aug, transform_train, transform_valid, unsupervised_dataset, train_dataset, test_dataset 
+
+
+def get_stl10_dataloader(opt):
+    base_folder, aug, transform_train, transform_valid, unsupervised_dataset, train_dataset, test_dataset = get_stl10(opt)
 
     # default dataset loaders, do not shuffle if you create a dataset for hidden reps for classification
     train_loader = torch.utils.data.DataLoader(
@@ -245,13 +284,13 @@ def create_validation_sampler(dataset_size):
     return train_sampler, valid_sampler
 
 
-def get_transforms(eval=False, aug=None):
+def get_transforms(eval=False, aug=None, ccrop=True):
     trans = []
 
     if aug["randcrop"] and not eval:
         trans.append(transforms.RandomCrop(aug["randcrop"]))
 
-    if aug["randcrop"] and eval:
+    if aug["randcrop"] and eval and ccrop:
         trans.append(transforms.CenterCrop(aug["randcrop"]))
 
     if aug["flip"] and not eval:
