@@ -120,11 +120,54 @@ class NatPatchDataset(Dataset):
         
         self.images = images # n_patches (= n_per_image * n_img), n_channels, w, h as expected by conv layers
 
+
+class BarsDataset(Dataset):
+    def __init__(self, opt, size = 10):
+        super(BarsDataset, self).__init__()
+
+        print("Using Dataset of moving bars with size: ", size, ". That means n_patches = 2 * size = ", 2*size, ".")
+        print("Using old n_patches as n_sequences: ", opt.n_patches, " using sequence_length: ", opt.sequence_length)
+        self.sequence_length = opt.sequence_length
+        self.n_sequences = opt.n_patches
+        
+        # Create patches
+        X = torch.zeros(2 * size, 1, size, size) # n_img, n_channels, img_size, img_size
+        for i in range(size):
+            X[i, 0, i, :] = 1. # horizontal bars
+            X[i+size, 0, :, i] = 1. # vertical bars
+        
+        if opt.dataset_type=="moving":
+            # TODO implement sequences!
+            X_seq = torch.zeros(self.n_sequences * self.sequence_length, 1, size, size)
+            for i in range(self.n_sequences):
+                # select if hor. (0:size-1) or vert. (size:2*size)
+                orientation = torch.randint(0, 2, (1,)) * size
+                for t in range(self.sequence_length):
+                    # select instance of bar
+                    inst = torch.randint(0, size, (1,))
+                    X_seq[i*self.sequence_length + t, :, :, :] = X[orientation + inst, :, :, :]
+            
+            self.images = X_seq
+        else:
+            raise Exception("BarsDataset should be used with dataset_type = 'moving'!")
+
+    def __len__(self):
+        return self.images.shape[0]
+
+    def __getitem__(self, idx):
+        img = self.images[idx]
+        return img
+        
+
 #############################################################################################################################
 # main functions
 
 def get_dataloader(opt):
-    dataset = NatPatchDataset(opt, opt.n_patches, opt.patch_size, opt.patch_size)
+    # TODO finalise that:
+    if opt.dataset == "bars":
+        dataset = BarsDataset(opt)
+    else:
+        dataset = NatPatchDataset(opt, opt.n_patches, opt.patch_size, opt.patch_size)
     if opt.dataset_type=="moving":
         opt.batch_size_multiGPU *= dataset.sequence_length
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size_multiGPU, shuffle=True, num_workers=16)

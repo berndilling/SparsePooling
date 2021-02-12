@@ -91,6 +91,12 @@ def parse_args(parser):
         help="time constant for lateral recurrence update (1=immediate update)"
     )
     group.add_option(
+        "--subtract_mean_from_SFA_input",
+        action="store_true",
+        default=False,
+        help="Boolean whether to subtract (batch) mean of input before feeding it to SFA layers",
+    )
+    group.add_option(
         "--enc_patch_size",
         type="int",
         default=16,

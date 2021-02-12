@@ -199,11 +199,11 @@ if __name__ == "__main__":
         context_model.state_dict(), os.path.join(opt.log_path, "context_model.ckpt")
     )
 
-    np.save(os.path.join(opt.model_path, "classification_results_values.npy"), 
+    np.save(os.path.join(opt.model_path, "classification_results_values_layer_"+str(opt.class_from_layer)+".npy"), 
             np.array([acc1, acc5]))
     L = ["Classification from layer: "+str(opt.class_from_layer)+"\n",
         "Test top1 classification accuracy: "+str(acc1)+"\n",
         "Test top5 classification accuracy: "+str(acc5)+"\n"]
-    f = open(os.path.join(opt.model_path, "classification_results.txt"), "w")
+    f = open(os.path.join(opt.model_path, "classification_results_layer_"+str(opt.class_from_layer)+".txt"), "w")
     f.writelines(L)
     f.close()

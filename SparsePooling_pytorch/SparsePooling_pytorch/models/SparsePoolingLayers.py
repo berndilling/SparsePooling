@@ -154,6 +154,7 @@ class SFA_layer(SparsePoolingLayer):
         self.sequence_length = opt.sequence_length
         if self.timescale >= self.sequence_length:
             raise ValueError("layer timescale is greater than sequence length of data")
+        self.subtract_mean=opt.subtract_mean_from_SFA_input
 
     def calculate_trace(self, post):
         s = post.shape # b'(=b*sequence_length), c_post, x_post, y_post
@@ -164,10 +165,10 @@ class SFA_layer(SparsePoolingLayer):
         return post_tr.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_post, x_post, y_post
 
     # center and cut of beginning of sequence where no trace can be computed
-    def preprocess_pre(self, pre, subtract_mean=False): 
+    def preprocess_pre(self, pre): 
         # TODO change subtract_mean back!
         s = pre.shape # b'(=b*sequence_length), c_pre, x_pre, y_pre
-        if subtract_mean:
+        if self.subtract_mean:
             pre_av = torch.mean(pre, (0,2,3)) # c_pre (average over batch, x_pre, y_pre)
             pre = pre - pre_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b', c_pre, x_pre, y_pre
         pre = pre.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c_pre, x_pre, y_pre
