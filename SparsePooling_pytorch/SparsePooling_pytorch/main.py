@@ -19,9 +19,9 @@ def train(opt, model, train_loader, logs):
         raise Exception("Cannot train model if model plasticity switched of (.update_params = False")
     if opt.train_layer != None:
         for idx, layer in enumerate(model.module.layers):
-            layer.update_params = (idx == opt.tain_layer)
+            layer.update_params = (idx == opt.train_layer)
         print("only training layer number ", opt.train_layer)
-
+    
     logs.create_log(model, epoch=-1)
     for epoch in range(opt.start_epoch, opt.num_epochs + opt.start_epoch + 1):   
         print("epoch ", epoch, " of ", opt.num_epochs)
@@ -32,7 +32,7 @@ def train(opt, model, train_loader, logs):
         for step, (img) in enumerate(train_loader):
             input = img.to(opt.device)
 
-            out, dparams = model(input) # param updates happen online
+            out, dparams = model(input, up_to_layer = opt.train_layer) # param updates happen online
             if step % 100 == 0:
                print("batch number: ", step, " out of ", len(train_loader))
                 # print("Change in W_ff :", torch.norm(dparams[0]).data)

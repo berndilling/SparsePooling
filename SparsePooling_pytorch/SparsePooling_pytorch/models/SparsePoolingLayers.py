@@ -100,20 +100,34 @@ class SparsePoolingLayer(nn.Module):
         # self.threshold: c_post
 
         # ATTENTION: this assumes ReLU-like nonlin with real zeros; otherwise sign operation doesn't work!
+        
+        # CAREFUL: this implements L0 penalty!
         dthreshold = torch.mean(torch.sign(post), (0,2,3)) - self.p # c_post
+        
+        # CAREFUL: this implements L1 penalty!
+        # dthreshold = torch.mean(post, (0,2,3)) - self.p # c_post
+        
         self.threshold.grad = -1 * lr_factor_to_W_ff * dthreshold # c_post
         return dthreshold
 
-    def get_update_W_rec(self, post, lr_factor_to_W_ff = 20.):
+    def get_update_W_rec(self, post, post_trace = None, lr_factor_to_W_ff = 20.):
         # post: b, c_post, x_post, y_post
         # self.W_rec: c_post, c_post, 1, 1
         
+        if post_trace == None:
+            post_av = torch.mean(post, (0,2,3)) # c_post (average over batch, x_post, y_post)
+        else:
+            post_av = torch.mean(post_trace, (0,2,3)) # c_post (average over batch, x_post, y_post)
+        
         # First: weight decay
-        post_av = torch.mean(post, (0,2,3)) # c_post (average over batch, x_post, y_post)
         dW_rec_weight_decay = torch.einsum('i,j->ij', post_av, post_av).unsqueeze(-1).unsqueeze(-1) * self.W_rec.weight # c_post, c_post, 1, 1
         
         # Second: (data-driven) decorrelation through anti-Hebb and average over batch, x_post, y_post
-        post_centered = post - post_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b, c_post, x_post, y_post
+        if post_trace == None:
+            post_centered = post - post_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b, c_post, x_post, y_post
+        else:
+            post_centered = post - post_trace # b(_red), c_post, x_post, y_post
+        
         dW_rec_data = (
             torch.einsum('bixy,bjxy->ij', post_centered, post_centered)
             /(post.shape[0] * post.shape[-1] * post.shape[-2])
@@ -154,31 +168,40 @@ class SFA_layer(SparsePoolingLayer):
         self.sequence_length = opt.sequence_length
         if self.timescale >= self.sequence_length:
             raise ValueError("layer timescale is greater than sequence length of data")
-        self.subtract_mean=opt.subtract_mean_from_SFA_input
+        self.subtract_mean = opt.subtract_mean_from_SFA_input
 
     def calculate_trace(self, post):
         s = post.shape # b'(=b*sequence_length), c_post, x_post, y_post
         post = post.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c_post, x_post, y_post
         post = post.unfold(1, self.timescale, 1) # b, sequence_length-timescale+1, c_post, x_post, y_post, timescale
+        # Calculate trace by averaging over timescale-1 time steps. Current activation ([..., :-1]) not included in average)
         # TODO add weights to fake exponential average?
-        post_tr = torch.mean(post, (-1)) # b, sequence_length-timescale+1, c_post, x_post, y_post
+        post_tr = torch.mean(post[:, :, :, :, :, :-1], (-1)) # b, sequence_length-timescale+1, c_post, x_post, y_post
         return post_tr.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_post, x_post, y_post
 
-    # center and cut of beginning of sequence where no trace can be computed
-    def preprocess_pre(self, pre): 
-        # TODO change subtract_mean back!
-        s = pre.shape # b'(=b*sequence_length), c_pre, x_pre, y_pre
-        if self.subtract_mean:
-            pre_av = torch.mean(pre, (0,2,3)) # c_pre (average over batch, x_pre, y_pre)
-            pre = pre - pre_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b', c_pre, x_pre, y_pre
-        pre = pre.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c_pre, x_pre, y_pre
-        pre = pre[:, self.timescale-1:, :, :, :] # b, sequence_length-timescale+1, c_pre, x_pre, y_pre
-        return pre.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_pre, x_pre, y_pre
+    # subtract batch mean
+    def subtract_batch_mean(self, pre):
+        pre_av = torch.mean(pre, (0,2,3)) # c_pre (average over batch, x_pre, y_pre)
+        return pre - pre_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b', c_pre, x_pre, y_pre
+    
+    # cut of beginning of sequence where no trace can be computed
+    def cut_beginning(self, activity): 
+        s = activity.shape # b'(=b*sequence_length), c, x, y
+        activity = activity.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c, x, y
+        activity = activity[:, self.timescale-1:, :, :, :] # b, sequence_length-timescale+1, c, x, y
+        return activity.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c, x, y
 
-    # overwrite parent's function
+    # overwrite parent's functions
     def get_update_W_ff(self, pre, post, power=4):
         post_trace = self.calculate_trace(post)
-        pre_processed = self.preprocess_pre(pre)
-        return super().get_update_W_ff(pre_processed, post_trace, power=power)
+        if self.subtract_mean:
+            pre = self.subtract_batch_mean(pre)
+        pre_cut = self.cut_beginning(pre)
+        return super().get_update_W_ff(pre_cut, post_trace, power=power)
+
+    def get_update_W_rec(self, post, lr_factor_to_W_ff = 20.):
+        post_trace = self.calculate_trace(post)
+        post_cut = self.cut_beginning(post)
+        return super().get_update_W_rec(post_cut, post_trace = post_trace)
     
 
