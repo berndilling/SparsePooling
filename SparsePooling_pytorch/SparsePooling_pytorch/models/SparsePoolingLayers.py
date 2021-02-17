@@ -1,4 +1,5 @@
 from os import EX_CANTCREAT
+from IPython.core.interactiveshell import ExecutionInfo
 import torch.nn as nn
 import torch
 import numpy as np
@@ -17,6 +18,7 @@ class SparsePoolingLayer(nn.Module):
         self.threshold = torch.nn.Parameter(0.1 * torch.randn(out_channels, requires_grad=True))
         
         self.nonlin = nn.ReLU(inplace=False) # ATTENTION: bias update assumes ReLU-like nonlin with real zeros
+        
         self.epsilon = opt.epsilon
         self.tau = opt.tau
         self.p = p
@@ -113,7 +115,7 @@ class SparsePoolingLayer(nn.Module):
     def get_update_W_rec(self, post, post_trace = None, lr_factor_to_W_ff = 20.):
         # post: b, c_post, x_post, y_post
         # self.W_rec: c_post, c_post, 1, 1
-        
+
         if post_trace == None:
             post_av = torch.mean(post, (0,2,3)) # c_post (average over batch, x_post, y_post)
         else:
@@ -170,12 +172,38 @@ class SFA_layer(SparsePoolingLayer):
             raise ValueError("layer timescale is greater than sequence length of data")
         self.subtract_mean = opt.subtract_mean_from_SFA_input
 
+        self.init_trace_filter(out_channels)
+        # self.nonlin = nn.Hardsigmoid()
+
+    # Careful: padding at the end of trace has to be cut off!
+    def init_trace_filter(self, out_channels):
+        self.Trace_filter = torch.nn.Conv1d(out_channels, out_channels, self.timescale, padding = 0, bias=False) # padding = self.timescale-1
+        self.Trace_filter.weight.data = torch.zeros(self.Trace_filter.weight.data.shape) # out, out, timescale
+        for i in range(out_channels):
+            for t in range(self.timescale-1):
+                self.Trace_filter.weight.data[i, i, self.timescale-t-2] = 1./self.timescale * np.exp( -t / self.timescale)
+                # only diagonal elements: each channel is low-pass-filtered independently
+
+
+    def calculate_trace_filter(self, post):
+        s = post.shape # b'(=b*sequence_length), c_post, x_post, y_post
+        post = post.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c_post, x_post, y_post
+        post = post.permute(0, 3, 4, 2, 1) # b, x_post, y_post, c_post, sequence_length
+        post = post.reshape(-1, s[1], self.sequence_length) # b * x_post * y_post, c_post, sequence_length
+
+        post_tr = self.Trace_filter(post) # b * x_post * y_post, c_post, sequence_length_padded
+        
+        # post_tr = post_tr[:, :, :self.sequence_length] # cut off average over padding at the end of trace, b * x_post * y_post, c_post, sequence_length
+        post_tr = post_tr.reshape(-1, s[2], s[3], s[1], self.sequence_length - self.timescale + 1) # b, x_post, y_post, c_post, sequence_length
+        post_tr = post_tr.permute(0, 4, 3, 1, 2) # b, sequence_length, c_post, x_post, y_post
+        #return post_tr.reshape(s)
+        return post_tr.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_post, x_post, y_post
+
     def calculate_trace(self, post):
         s = post.shape # b'(=b*sequence_length), c_post, x_post, y_post
         post = post.reshape(-1, self.sequence_length, s[1], s[2], s[3]) # b, sequence_length, c_post, x_post, y_post
         post = post.unfold(1, self.timescale, 1) # b, sequence_length-timescale+1, c_post, x_post, y_post, timescale
         # Calculate trace by averaging over timescale-1 time steps. Current activation ([..., :-1]) not included in average)
-        # TODO add weights to fake exponential average?
         post_tr = torch.mean(post[:, :, :, :, :, :-1], (-1)) # b, sequence_length-timescale+1, c_post, x_post, y_post
         return post_tr.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c_post, x_post, y_post
 
@@ -192,16 +220,23 @@ class SFA_layer(SparsePoolingLayer):
         return activity.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c, x, y
 
     # overwrite parent's functions
-    def get_update_W_ff(self, pre, post, power=4):
-        post_trace = self.calculate_trace(post)
+    def get_update_W_ff(self, pre, post, power=2): # 4
+        post_trace = self.calculate_trace_filter(post)
         if self.subtract_mean:
             pre = self.subtract_batch_mean(pre)
         pre_cut = self.cut_beginning(pre)
+        #embed()
+        #raise Exception()
+        # return super().get_update_W_ff(pre, post_trace, power=power)
         return super().get_update_W_ff(pre_cut, post_trace, power=power)
 
-    def get_update_W_rec(self, post, lr_factor_to_W_ff = 20.):
-        post_trace = self.calculate_trace(post)
+    def get_update_W_rec(self, post, lr_factor_to_W_ff = 0.5): # 20.
+        post_trace = self.calculate_trace_filter(post)
         post_cut = self.cut_beginning(post)
-        return super().get_update_W_rec(post_cut, post_trace = post_trace)
+        #return super().get_update_W_rec(post, post_trace = post_trace)
+        return super().get_update_W_rec(post_cut, lr_factor_to_W_ff = lr_factor_to_W_ff)
+
+    def get_update_threshold_ff(self, post, lr_factor_to_W_ff = 1.): # 10
+        return super().get_update_threshold_ff(post, lr_factor_to_W_ff = lr_factor_to_W_ff)
     
 
