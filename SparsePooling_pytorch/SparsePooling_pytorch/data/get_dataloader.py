@@ -168,9 +168,12 @@ def get_dataloader(opt):
         dataset = BarsDataset(opt)
     else:
         dataset = NatPatchDataset(opt, opt.n_patches, opt.patch_size, opt.patch_size)
+    
     if opt.dataset_type=="moving":
         opt.batch_size_multiGPU *= dataset.sequence_length
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size_multiGPU, shuffle=True, num_workers=16)
+    
+    # shuffle = False important here if "moving" dataset is used because temporal and batch dimension are merged! 
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size_multiGPU, shuffle=False, num_workers=16)
 
     return data_loader
 

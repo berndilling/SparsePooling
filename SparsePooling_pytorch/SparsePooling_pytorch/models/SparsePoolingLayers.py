@@ -112,7 +112,7 @@ class SparsePoolingLayer(nn.Module):
         self.threshold.grad = -1 * lr_factor_to_W_ff * dthreshold # c_post
         return dthreshold
 
-    def get_update_W_rec(self, post, post_trace = None, lr_factor_to_W_ff = 20.):
+    def get_update_W_rec(self, post, post_trace = None, lr_factor_to_W_ff = 20., center = True):
         # post: b, c_post, x_post, y_post
         # self.W_rec: c_post, c_post, 1, 1
 
@@ -125,10 +125,13 @@ class SparsePoolingLayer(nn.Module):
         dW_rec_weight_decay = torch.einsum('i,j->ij', post_av, post_av).unsqueeze(-1).unsqueeze(-1) * self.W_rec.weight # c_post, c_post, 1, 1
         
         # Second: (data-driven) decorrelation through anti-Hebb and average over batch, x_post, y_post
-        if post_trace == None:
-            post_centered = post - post_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b, c_post, x_post, y_post
+        if center:
+            if post_trace == None:
+                post_centered = post - post_av.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) # b, c_post, x_post, y_post
+            else:
+                post_centered = post - post_trace # b(_red), c_post, x_post, y_post
         else:
-            post_centered = post - post_trace # b(_red), c_post, x_post, y_post
+            post_centered = post
         
         dW_rec_data = (
             torch.einsum('bixy,bjxy->ij', post_centered, post_centered)
@@ -159,6 +162,20 @@ class SparsePoolingLayer(nn.Module):
 class SC_layer(SparsePoolingLayer):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p):
         super(SC_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p)
+        
+        # self.init_optimal_weight_bars()
+
+    def init_optimal_weight_bars(self, size=10):
+        print("Initialise SC layer with optimal weights for bars")
+        X = torch.zeros(2 * size, 1, size, size) # n_img, n_channels, img_size, img_size
+        for i in range(size):
+            X[i, 0, i, :] = 1. # horizontal bars
+            X[i+size, 0, :, i] = 1. # vertical bars
+        self.W_ff.weight.data = X * 1.5
+
+        self.W_rec.weight.data = torch.zeros(self.W_rec.weight.shape) # initialize with zeros
+        self.threshold.data = 1.5 * torch.ones(self.threshold.shape)
+
 
 class SFA_layer(SparsePoolingLayer):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p, timescale):
@@ -174,6 +191,20 @@ class SFA_layer(SparsePoolingLayer):
 
         self.init_trace_filter(out_channels)
         # self.nonlin = nn.Hardsigmoid()
+
+        # self.init_optimal_weight_bars()
+
+    def init_optimal_weight_bars(self, size=10):
+        print("Initialise SFA layer with optimal weights for bars")
+        X = torch.zeros(2, 2 * size, 1, 1)
+        X[0,:size,0,0] = 1.
+        X[0,size:,0,0] = -1.
+        X[1,:size,0,0] = -1.
+        X[1,size:,0,0] = 1.
+        self.W_ff.weight.data = X * 0.15
+
+        self.W_rec.weight.data = torch.zeros(self.W_rec.weight.shape) # initialize with zeros
+        self.threshold.data = .5 * torch.ones(self.threshold.shape)
 
     # Careful: padding at the end of trace has to be cut off!
     def init_trace_filter(self, out_channels):
@@ -225,18 +256,15 @@ class SFA_layer(SparsePoolingLayer):
         if self.subtract_mean:
             pre = self.subtract_batch_mean(pre)
         pre_cut = self.cut_beginning(pre)
-        #embed()
-        #raise Exception()
-        # return super().get_update_W_ff(pre, post_trace, power=power)
         return super().get_update_W_ff(pre_cut, post_trace, power=power)
 
-    def get_update_W_rec(self, post, lr_factor_to_W_ff = 0.5): # 20.
+    def get_update_W_rec(self, post, lr_factor_to_W_ff = 20.): # 20. # 0.5
         post_trace = self.calculate_trace_filter(post)
         post_cut = self.cut_beginning(post)
-        #return super().get_update_W_rec(post, post_trace = post_trace)
-        return super().get_update_W_rec(post_cut, lr_factor_to_W_ff = lr_factor_to_W_ff)
+        return super().get_update_W_rec(post_cut, post_trace = post_trace, lr_factor_to_W_ff = lr_factor_to_W_ff)
 
-    def get_update_threshold_ff(self, post, lr_factor_to_W_ff = 1.): # 10
-        return super().get_update_threshold_ff(post, lr_factor_to_W_ff = lr_factor_to_W_ff)
+    def get_update_threshold_ff(self, post, lr_factor_to_W_ff = 10.): # 10 # 1.
+        post_cut = self.cut_beginning(post)
+        return super().get_update_threshold_ff(post_cut, lr_factor_to_W_ff = lr_factor_to_W_ff)
     
 

@@ -11,6 +11,7 @@ from SparsePooling_pytorch.arg_parser import arg_parser
 from SparsePooling_pytorch.models import load_model
 from SparsePooling_pytorch.data import get_dataloader
 from SparsePooling_pytorch.plotting import plot_weights
+from SparsePooling_pytorch.plotting import plot_activity
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
