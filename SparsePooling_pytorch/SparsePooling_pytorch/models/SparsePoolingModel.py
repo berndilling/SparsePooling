@@ -18,8 +18,8 @@ class SparsePoolingModel(torch.nn.Module):
         # TODO: try smaller input kernel sizes!
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
-        # architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 1/5, 9)] #,('MaxPool', None, 2, None, None) .. etc
-        architecture = [('SC', 20, 10, 0.05, None), ('SFA', 2, 1, 1/2, 8)] # for bars
+        architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
+        # architecture = [('SC', 20, 10, 0.05, None), ('SFA', 2, 1, 1/2, 8)] # for bars
         # architecture = [('SC', 100, 3, 0.05, None), ('MaxPool', 100, 2, None, None), 
         #                 ('SC', 200, 3, 0.05, None), ('MaxPool', 200, 2, None, None), 
         #                 ('SC', 400, 3, 0.05, None), ('MaxPool', 400, 2, None, None)]
