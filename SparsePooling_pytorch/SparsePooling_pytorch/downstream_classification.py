@@ -44,7 +44,8 @@ def train_logistic_regression(opt, context_model, classification_model, train_lo
                     z = z.detach() #double security that no gradients go to representation learning part of model
                 
                 if opt.create_hidden_representation and epoch == 0:
-                    hidden_reps.append(z.clone().detach())
+                    # pool here already to save memory on GPU, pooling is done anyway in classification_model
+                    hidden_reps.append(torch.nn.functional.adaptive_avg_pool2d(z, 1).clone().detach()) 
 
             prediction = classification_model(z).to(opt.device)
 
