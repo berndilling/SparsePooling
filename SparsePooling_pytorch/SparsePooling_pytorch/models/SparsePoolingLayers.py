@@ -6,7 +6,7 @@ import numpy as np
 from IPython import embed
 
 class SparsePoolingLayer(nn.Module):
-    def __init__(self, opt, in_channels, out_channels, kernel_size, p, stride=1): # stride=max(kernel_size//2, 1)
+    def __init__(self, opt, in_channels, out_channels, kernel_size, p, stride=1, do_update_params = True): # stride=max(kernel_size//2, 1)
         super(SparsePoolingLayer, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -24,7 +24,7 @@ class SparsePoolingLayer(nn.Module):
         self.p = p
         self.inference_recurrence = opt.inference_recurrence
 
-        self.update_params = True
+        self.update_params = do_update_params
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.learning_rate) 
         #self.optimizer = torch.optim.SGD(self.parameters(), lr=opt.learning_rate)
@@ -157,11 +157,23 @@ class SparsePoolingLayer(nn.Module):
         W_rec = torch.where(W_rec > zeros, W_rec, zeros)
         
         self.W_rec.weight.data = W_rec.unsqueeze(-1).unsqueeze(-1) # c_post, c_post, 1, 1
-        
+
+#########################################################################################################################        
+# Sub classes of SparsePoolingLayer
+
+class BP_layer(SparsePoolingLayer):
+    def __init__(self, opt, in_channels, out_channels, kernel_size, do_update_params = True):
+        super(BP_layer, self).__init__(opt, in_channels, out_channels, kernel_size, None, do_update_params = do_update_params)
+
+    # overwrite parent's functions
+    def forward(self, input):
+        u_0 = self.W_ff(input) # b, c, x, y
+        a = self.nonlin(u_0 - self.threshold.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)) # b, c, x, y
+        return a
 
 class SC_layer(SparsePoolingLayer):
-    def __init__(self, opt, in_channels, out_channels, kernel_size, p):
-        super(SC_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p)
+    def __init__(self, opt, in_channels, out_channels, kernel_size, p, do_update_params = True):
+        super(SC_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p, do_update_params = do_update_params)
         
         # self.init_optimal_weight_bars()
 
@@ -178,11 +190,11 @@ class SC_layer(SparsePoolingLayer):
 
 
 class SFA_layer(SparsePoolingLayer):
-    def __init__(self, opt, in_channels, out_channels, kernel_size, p, timescale):
+    def __init__(self, opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = True):
         if not opt.classifying and opt.dataset_type != "moving":
             raise ValueError("Option --dataset_type must be 'moving' if you are training SFA layers")
 
-        super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p, stride=kernel_size)
+        super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p, stride=kernel_size, do_update_params = do_update_params)
         self.timescale = timescale
         self.sequence_length = opt.sequence_length
         if self.timescale >= self.sequence_length:

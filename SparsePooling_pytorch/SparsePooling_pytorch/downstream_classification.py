@@ -37,7 +37,7 @@ def train_logistic_regression(opt, context_model, classification_model, train_lo
                 model_input = img.to(opt.device)
 
                 if opt.end_to_end_supervised:  # end-to-end supervised training
-                    z = context_model(model_input)
+                    z, _ = context_model(model_input)
                 else:
                     with torch.no_grad():
                         z, _ = context_model(model_input, up_to_layer=opt.class_from_layer)
@@ -114,7 +114,7 @@ def test_logistic_regression(opt, context_model, classification_model, test_load
         model_input = img.to(opt.device)
 
         if opt.end_to_end_supervised:  # end-to-end supervised training
-                z = context_model(model_input)
+                z, _ = context_model(model_input)
         else:
             with torch.no_grad():
                 z, _ = context_model(model_input, up_to_layer=opt.class_from_layer)
@@ -147,6 +147,7 @@ def test_logistic_regression(opt, context_model, classification_model, test_load
 
 if __name__ == "__main__":
     opt = arg_parser.parse_args()
+    
     opt.classifying = True
     
     add_path_var = "classifier"
@@ -154,11 +155,15 @@ if __name__ == "__main__":
     arg_parser.create_log_path(opt, add_path_var=add_path_var)
     opt.training_dataset = "train"
 
-    # load pretrained model
-    context_model = load_model.load_model(opt, reload_model=True)
-    context_model.module.update_params = False # switching plasticity off
-    if opt.end_to_end_supervised and type(context_model.module)==SparsePoolingModel.SparsePoolingModel:
-        raise Exception("Cannot train SparsePoolingModel end-to-end. Please create standard CNN model (with same architecture")
+    # load pretrained model unless training whole model end-to-end
+    if opt.end_to_end_supervised:
+        context_model = load_model.load_model(opt)
+        context_model.module.set_update_params(update_model = True, update_BP = True, update_SC_SFA = False) # switch plasticity on for BP layer, off for SC/SFA layers
+    else:
+        context_model = load_model.load_model(opt, reload_model=True)
+        context_model.module.update_params = False # switching plasticity off
+
+
     if opt.class_from_layer==-1:
         print("CAREFUL! Training classifier directly on input image! Model is ignored and returns the (flattened) input images!")
 
@@ -168,6 +173,8 @@ if __name__ == "__main__":
 
     if opt.end_to_end_supervised: # end-to-end supervised training
         params = list(context_model.parameters()) + list(classification_model.parameters())
+        #for p in params:
+        #    print(p.shape)
     else:
         params = classification_model.parameters()
 
