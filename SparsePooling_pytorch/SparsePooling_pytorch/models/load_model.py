@@ -9,24 +9,29 @@ def load_model(opt, num_GPU=None, reload_model=False):
 
     model, num_GPU = distribute_over_GPUs(opt, model, num_GPU=num_GPU)
 
-    model = reload_weights(opt, model, reload_model=reload_model)
+    if opt.reload_BP:
+        model = reload_weights(opt, model, reload_model = True, load_layer_type='BP')
+    else:
+        model = reload_weights(opt, model, reload_model=reload_model)
 
     return model
 
-def reload_weights(opt, model, reload_model=False):
+def reload_weights(opt, model, reload_model=False, load_layer_type='all'):
     # reload weights for investigation or training of downstream linear classifier
     if reload_model:
         print("Loading weights from ", opt.model_path)
         for idx, layer in enumerate(model.module.layers):
-            model.module.layers[idx].load_state_dict(
-                torch.load(
-                    os.path.join(
-                        opt.model_path,
-                        "model_{}_{}.ckpt".format(idx, opt.model_num),
-                    ),
-                        map_location=opt.device.type,
+            layer_type = model.module.architecture[idx][0]
+            if (load_layer_type == 'all') or (layer_type == load_layer_type):
+                model.module.layers[idx].load_state_dict(
+                    torch.load(
+                        os.path.join(
+                            opt.model_path,
+                            "model_{}_{}.ckpt".format(idx, opt.model_num),
+                        ),
+                            map_location=opt.device.type,
+                    )
                 )
-            )
     else:
         print("Randomly initialized model")
     

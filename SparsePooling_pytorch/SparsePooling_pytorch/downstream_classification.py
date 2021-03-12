@@ -157,6 +157,7 @@ if __name__ == "__main__":
 
     # load pretrained model unless training whole model end-to-end
     if opt.end_to_end_supervised:
+        print("doing end-to-end supervised training with linear downstream classifier")
         context_model = load_model.load_model(opt)
         context_model.module.set_update_params(update_model = True, update_BP = True, update_SC_SFA = False) # switch plasticity on for BP layer, off for SC/SFA layers
     else:

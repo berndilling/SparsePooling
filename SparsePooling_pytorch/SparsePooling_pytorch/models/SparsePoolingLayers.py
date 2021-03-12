@@ -161,15 +161,20 @@ class SparsePoolingLayer(nn.Module):
 #########################################################################################################################        
 # Sub classes of SparsePoolingLayer
 
-class BP_layer(SparsePoolingLayer):
+class BP_layer(SparsePoolingLayer): #  nn.Module
     def __init__(self, opt, in_channels, out_channels, kernel_size, do_update_params = True):
         super(BP_layer, self).__init__(opt, in_channels, out_channels, kernel_size, None, do_update_params = do_update_params)
+        # super(BP_layer, self).__init__()
+        # self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=0, bias=True)
+        # self.nonlin = nn.ReLU(inplace=False)
 
     # overwrite parent's functions
     def forward(self, input):
         u_0 = self.W_ff(input) # b, c, x, y
         a = self.nonlin(u_0 - self.threshold.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)) # b, c, x, y
         return a
+        # out = self.nonlin(self.conv(input))
+        # return out
 
 class SC_layer(SparsePoolingLayer):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p, do_update_params = True):

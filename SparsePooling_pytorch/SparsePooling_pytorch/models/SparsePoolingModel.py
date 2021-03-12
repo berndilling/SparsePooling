@@ -66,12 +66,15 @@ class SparsePoolingModel(torch.nn.Module):
         else:
             for layer_idx, layer in enumerate(self.layers[:up_to_layer+1]):
                 layer_type = self.architecture[layer_idx][0]
+
+                post = layer(pre)
                 if layer_type=='BP':
-                    post = layer(pre)
                     if not layer.update_params:
                         post = post.clone().detach() # detach to avoid potential backprop to earlier layers
-                else:
-                    post = layer(pre).clone().detach() # detach to avoid potential backprop to earlier layers
+                if (layer_type=='SC') or (layer_type=='SFA'):
+                    post = post.clone().detach() # detach to avoid potential backprop to earlier layers
+                # no detach for MaxPool layers to enable BP learning! But should not matter since SC or SFA layer before should detach in SP learning!
+                
                 if self.update_params:
                     if (layer_type=='SC') or (layer_type=='SFA'):
                         if layer.update_params:

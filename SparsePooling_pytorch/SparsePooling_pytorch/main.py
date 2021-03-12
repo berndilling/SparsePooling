@@ -26,7 +26,7 @@ def train(opt, model, train_loader, logs):
     for epoch in range(opt.start_epoch, opt.num_epochs + opt.start_epoch + 1):   
         print("epoch ", epoch, " of ", opt.num_epochs)
         if epoch % (opt.num_epochs // min(opt.num_epochs, 10)) == 0:
-            plot_weights.plot_receptive_fields(model.module.layers[0].W_ff.weight.clone().detach(), nh=20, nv=20)
+            plot_weights.plot_receptive_fields(model.module.layers[0].W_ff.weight.clone().detach()) # , nh=20, nv=20)
             plt.savefig(os.path.join(opt.log_path,'W_ff'+str(epoch)+'.png'))
         
         sparsity = 0

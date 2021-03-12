@@ -205,6 +205,12 @@ def parse_args(parser):
         help="[stl-10] Boolean to decide whether full model should be trained end-to-end. CAREFUL: in this case the model should be standard CNN, NOT SparsePoolingModel",
     )
     group.add_option(
+        "--reload_BP",
+        action="store_true",
+        default=False,
+        help="Boolean to decide whether BP layers should be reloaded before applying SP learning (used in MaxPool through SFA)",
+    )
+    group.add_option(
         "--in_channels",
         type=int,
         default=None,
