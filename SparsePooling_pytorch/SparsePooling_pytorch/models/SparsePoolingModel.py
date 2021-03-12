@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from IPython import embed
 
-from SparsePooling_pytorch.models import SparsePoolingLayers, Supervised
+from SparsePooling_pytorch.models import SparsePoolingLayers
 
 
 class SparsePoolingModel(torch.nn.Module):
@@ -25,12 +25,12 @@ class SparsePoolingModel(torch.nn.Module):
         #                 ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 8), 
         #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]
         # # sparsity 0.18 comes from 2x2 max-pooling: new sparsity = (4 choose 1)*0.95^3*0.05^1 + negligible terms (4 choose 2) etc
-        architecture = [('BP', 100, 3, None, None), ('MaxPool', 100, 2, None, None), 
-                        ('BP', 200, 3, None, None), ('MaxPool', 200, 2, None, None), 
-                        ('BP', 400, 3, None, None), ('MaxPool', 400, 2, None, None)]
-        # architecture = [('BP', 100, 3, None, None), ('SFA', 100, 2, 0.5, 8), 
-        #                 ('BP', 200, 3, None, None), ('SFA', 200, 2, 0.5, 8), 
-        #                 ('BP', 400, 3, None, None), ('SFA', 400, 2, 0.5, 8)]
+        # architecture = [('BP', 100, 3, None, None), ('MaxPool', 100, 2, None, None), 
+        #                 ('BP', 200, 3, None, None), ('MaxPool', 200, 2, None, None), 
+        #                 ('BP', 400, 3, None, None), ('MaxPool', 400, 2, None, None)]
+        architecture = [('BP', 100, 3, None, None), ('SFA', 100, 2, 0.38, 8), 
+                        ('BP', 200, 3, None, None), ('SFA', 200, 2, 0.95, 8), 
+                        ('BP', 400, 3, None, None), ('SFA', 400, 2, 0.87, 8)]
         
         self.architecture = architecture
         self.layers = nn.ModuleList([])
