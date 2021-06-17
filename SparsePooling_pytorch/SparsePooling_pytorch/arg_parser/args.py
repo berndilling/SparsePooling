@@ -115,6 +115,7 @@ def parse_args(parser):
         help="recurrence (on the layer level) during inference."
         "0 - no recurrence"
         "1 - lateral recurrence within layer"
+        "2 - k-winner-take-all forward"
     )
     group.add_option(
         "--train_layer",

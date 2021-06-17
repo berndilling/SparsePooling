@@ -57,10 +57,13 @@ def plot_pooled_receptive_fields(model, n_pooling_neurons = 10, n_strongest_conn
 
     fig, axes = plt.subplots(nrows=n_pooling_neurons, ncols=n_strongest_connections, sharex=True, sharey=True)
     fig.set_size_inches(7, 7)
+    strongest_SC_rec_fields = []
     for i in range(n_pooling_neurons):
         for j in range(n_strongest_connections):
             ax = axes[i][j]
-            ax.imshow(w_ff_SC[strongest_connections[i][j],0,:,:], cmap='gray', vmin=-1, vmax=1)
+            w_plot = w_ff_SC[strongest_connections[i][j],0,:,:]
+            strongest_SC_rec_fields.append(w_plot)
+            ax.imshow(w_plot, cmap='gray', vmin=-1, vmax=1)
             # add normalisation?
             ax.set_xticks([])
             ax.set_yticks([])
@@ -72,6 +75,8 @@ def plot_pooled_receptive_fields(model, n_pooling_neurons = 10, n_strongest_conn
     for i in range(n_pooling_neurons):
         plt.plot(w_ff_SFA_select[i, :])
 
+    # return strongest_SC_rec_fields
+
 # w_rec = model.module.layers[0].W_rec.squeeze().weight.detach().numpy()
 # plt.figure()
 # plt.imshow(w_rec,cmap='gray')
@@ -79,3 +84,4 @@ def plot_pooled_receptive_fields(model, n_pooling_neurons = 10, n_strongest_conn
 
 # from SparsePooling_pytorch.plotting import plot_weights
 # plot_weights.plot_weights(w)
+

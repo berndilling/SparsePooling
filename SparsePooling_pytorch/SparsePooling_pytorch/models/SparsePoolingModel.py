@@ -16,7 +16,7 @@ class SparsePoolingModel(torch.nn.Module):
         ###############################################################################################################
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
-        # architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
+        architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
         # architecture = [('SC', 20, 10, 0.05, None), ('SFA', 2, 1, 1/2, 8)] # for bars
         # architecture = [('SC', 100, 3, 0.05, None), ('MaxPool', 100, 2, None, None), 
         #                 ('SC', 200, 3, 0.05, None), ('MaxPool', 200, 2, None, None), 
@@ -25,13 +25,39 @@ class SparsePoolingModel(torch.nn.Module):
         #                 ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 8), 
         #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]
         # # sparsity 0.18 comes from 2x2 max-pooling: new sparsity = (4 choose 1)*0.95^3*0.05^1 + negligible terms (4 choose 2) etc
+
+        # architecture = [('SC', 100, 3, 0.4, None), ('SFA', 100, 2, 0.6, 8), 
+        #                 ('SC', 200, 3, 0.03, None), ('SFA', 200, 2, 0.04, 8), 
+        #                 ('SC', 400, 3, 0.06, None), ('SFA', 400, 2, 0.13, 8)]
+        # architecture = [('SC', 100, 3, 0.4, None), ('SFA', 100, 2, 0.6, 2), 
+        #                 ('SC', 200, 3, 0.03, None), ('SFA', 200, 2, 0.04, 4), 
+        #                 ('SC', 400, 3, 0.06, None), ('SFA', 400, 2, 0.13, 8)]
+        # sparsity from end-to-end supervised BP-MaxPool network
+
+        # Pool through SFA stuff
         # architecture = [('BP', 100, 3, None, None), ('MaxPool', 100, 2, None, None), 
         #                 ('BP', 200, 3, None, None), ('MaxPool', 200, 2, None, None), 
         #                 ('BP', 400, 3, None, None), ('MaxPool', 400, 2, None, None)]
-        architecture = [('BP', 100, 3, None, None), ('SFA', 100, 2, 0.38, 8), 
-                        ('BP', 200, 3, None, None), ('SFA', 200, 2, 0.95, 8), 
-                        ('BP', 400, 3, None, None), ('SFA', 400, 2, 0.87, 8)]
-        
+        # architecture = [('BP', 100, 3, None, None), ('SFA', 100, 2, 0.62, 2), 
+        #                 ('BP', 200, 3, None, None), ('SFA', 200, 2, 0.05, 2), 
+        #                 ('BP', 400, 3, None, None), ('SFA', 400, 2, 0.13, 2)]
+       
+        # architecture = [('BP', 32, 3, None, None), ('MaxPool', 32, 2, None, None), 
+        #                 ('BP', 64, 3, None, None), ('MaxPool', 64, 2, None, None), 
+        #                 ('BP', 128, 3, None, None), ('MaxPool', 128, 2, None, None)]
+        # architecture = [('BP', 32, 3, None, None), ('SFA', 32, 2, 0.4, 2), 
+        #                 ('BP', 64, 3, None, None), ('SFA', 64, 2, 0.75, 2), 
+        #                 ('BP', 128, 3, None, None), ('SFA', 128, 2, 0.75, 2)]
+
+        # architecture = [('BP', 32, 3, None, None), ('MeanPool', 32, 2, None, None), 
+        #                 ('BP', 64, 3, None, None), ('MeanPool', 64, 2, None, None), 
+        #                 ('BP', 128, 3, None, None), ('MeanPool', 128, 2, None, None)]
+        # architecture = [('BP', 32, 3, None, None), ('SFA', 32, 2, 0.4, 2), 
+        #                 ('BP', 64, 3, None, None), ('SFA', 64, 2, 0.7, 2), 
+        #                 ('BP', 128, 3, None, None), ('SFA', 128, 2, 0.65, 2)]
+
+        # architecture = [('BP', 32, 3, None, None), ('BP', 64, 3, None, None), ('BP', 128, 3, None, None)]
+          
         self.architecture = architecture
         self.layers = nn.ModuleList([])
         
@@ -45,6 +71,8 @@ class SparsePoolingModel(torch.nn.Module):
                 layer = SparsePoolingLayers.SFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = do_update_params)
             elif layer_type=='MaxPool':
                 layer = nn.MaxPool2d(kernel_size, stride=2)
+            elif layer_type=='MeanPool':
+                layer = nn.AvgPool2d(kernel_size, stride=2)
             else:
                 raise ValueError("layer type not implemented yet")
             

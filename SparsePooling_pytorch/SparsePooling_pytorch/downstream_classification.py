@@ -174,8 +174,6 @@ if __name__ == "__main__":
 
     if opt.end_to_end_supervised: # end-to-end supervised training
         params = list(context_model.parameters()) + list(classification_model.parameters())
-        #for p in params:
-        #    print(p.shape)
     else:
         params = classification_model.parameters()
 

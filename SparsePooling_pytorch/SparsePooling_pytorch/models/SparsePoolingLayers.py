@@ -23,6 +23,8 @@ class SparsePoolingLayer(nn.Module):
         self.tau = opt.tau
         self.p = p
         self.inference_recurrence = opt.inference_recurrence
+        if self.inference_recurrence==2:
+            self.k = int(self.p * out_channels)
 
         self.update_params = do_update_params
 
@@ -35,25 +37,31 @@ class SparsePoolingLayer(nn.Module):
         # a = self.nonlin(u_0).clone().detach() # b, c, x, y; forward path without biases
         a = self.nonlin(u_0 - self.threshold.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)).clone().detach() # b, c, x, y
 
+        cur_device = input.get_device()
+        if cur_device==-1:
+            cur_device = None
         if self.inference_recurrence==1: # 1 - lateral recurrence within layer, 0 - no recurrence
             converged = False
-            cur_device = input.get_device()
-            if cur_device==-1:
-                cur_device = None
             u = torch.zeros(u_0.shape, device=cur_device, requires_grad=False)
             u_old = torch.zeros(u_0.shape, device=cur_device, requires_grad=False)
             i = 0
             while not converged:
                 u = ((1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a))).detach() # detach is important, otherwise graph grows and RAM overflows
-                # u = ((1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a / a.shape[1]))).detach() # attempt to lower number of iterations -> leads to less refined RFs
+                # u = ((1 - self.tau) * u + self.tau * (u_0 - self.W_rec(a / self.out_channels))).detach() # attempt to lower number of iterations -> leads to less refined RFs
                 a = self.nonlin(u - self.threshold.unsqueeze(-1).unsqueeze(-1).unsqueeze(0)).clone().detach()
                 converged = torch.norm(u - u_old) / torch.norm(u) < self.epsilon
                 u_old = u.clone()
                 i += 1
                 if i > max_n_iter:
                     raise Exception("Surpassed maximum number of iterations ("+str(max_n_iter)+") in forward path..")
-
-        # print("iterations: ", i)
+            # print("iterations: ", i)
+        
+        elif self.inference_recurrence==2: # 2 - k-winner-take-all
+            a_topks, inds = torch.topk(a, self.k, dim=1) # k biggest elements: b, k, x, y
+            a_topk = a_topks[:, -1, :, :] # k-th biggest element: b, 1, x, y
+            mask = a >= a_topk.unsqueeze(1) # b, c, x, y
+            a = torch.where(mask, a, torch.zeros(a.shape, device=cur_device, requires_grad=False)) # b, c, x, y
+        
         return a.clone().detach()
 
     # manual implementation of SC learning rules: overwrite grads & update with opt.step()

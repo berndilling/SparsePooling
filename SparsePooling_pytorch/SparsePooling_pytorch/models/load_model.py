@@ -11,10 +11,28 @@ def load_model(opt, num_GPU=None, reload_model=False):
 
     if opt.reload_BP:
         model = reload_weights(opt, model, reload_model = True, load_layer_type='BP')
+        # model = prime_SFA_weights_for_Pool(model, pool_type = 'MeanPool')
     else:
         model = reload_weights(opt, model, reload_model=reload_model)
 
     return model
+
+def prime_SFA_weights_for_Pool(model, pool_type = 'MaxPool'):
+    if pool_type=='MaxPool':
+        c = 1.
+    elif pool_type =='MeanPool':
+        c = 1./4
+    for idx, layer in enumerate(model.module.layers):
+            layer_type = model.module.architecture[idx][0]
+            if layer_type == 'SFA':
+                s = layer.W_ff.weight.shape
+                cur_device = layer.W_ff.weight.get_device()
+                layer.W_ff.weight.data = torch.zeros(s, device=cur_device)
+                for post in range(s[1]): # loop over post neurons
+                    layer.W_ff.weight.data[post, post, :, :] = c # this is the solution
+                    # layer.W_ff.weight.data[post, post, 0, 0] = 1.
+    return model
+
 
 def reload_weights(opt, model, reload_model=False, load_layer_type='all'):
     # reload weights for investigation or training of downstream linear classifier

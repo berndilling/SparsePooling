@@ -44,16 +44,17 @@ class Logger:
 
         ### remove old model files to keep dir uncluttered
         if (epoch - self.num_models_to_keep) % 10 != 0:
-            try:
-                for idx, _ in enumerate(model.module.layers):
-                    os.remove(
-                        os.path.join(
-                            self.opt.log_path,
-                            "model_{}_{}.ckpt".format(idx, epoch - self.num_models_to_keep),
+            if epoch != 0:
+                try:
+                    for idx, _ in enumerate(model.module.layers):
+                        os.remove(
+                            os.path.join(
+                                self.opt.log_path,
+                                "model_{}_{}.ckpt".format(idx, epoch - self.num_models_to_keep),
+                            )
                         )
-                    )
-            except:
-                print("not enough models there yet, nothing to delete")
+                except:
+                    print("not enough models there yet, nothing to delete")
 
 
         if classification_model is not None:
