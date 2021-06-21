@@ -36,10 +36,10 @@ def plot_simple_and_complex_response(model, size=10, stim_strength = 5, rot = Fa
                 X[i+2*size, 0, size-j-1, min(i-size//2+j,9)] = stim_strength
         X[i+3*size, 0, :, :] = torch.flip(X[i+2*size, 0, :, :], (0,)) # diag bars
     
-    if rot:
+    if rot: # manual extra rotation to maximally activate diagonals
         X_rot = torch.zeros(4 * size, 3, size, size) # n_img, n_channels, img_size, img_size
-        X_rot[:size,:,:,:] = tvF.rotate(X[:size,:,:,:], 65)
-        X_rot[size:2*size, :, :, :] = tvF.rotate(X[:size,:,:,:], -60)
+        X_rot[:size,:,:,:] = tvF.rotate(X[:size,:,:,:], 25) # 65
+        X_rot[size:2*size, :, :, :] = tvF.rotate(X[:size,:,:,:], -60) # -60
         X_rot[2*size:, :, :, :] = X[2*size:, :, :, :]
         input = X_rot[:, 0, :, :].unsqueeze(1)
     else:    

@@ -16,7 +16,7 @@ class SparsePoolingModel(torch.nn.Module):
         ###############################################################################################################
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
-        architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
+        # architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
         # architecture = [('SC', 20, 10, 0.05, None), ('SFA', 2, 1, 1/2, 8)] # for bars
         # architecture = [('SC', 100, 3, 0.05, None), ('MaxPool', 100, 2, None, None), 
         #                 ('SC', 200, 3, 0.05, None), ('MaxPool', 200, 2, None, None), 
@@ -24,7 +24,24 @@ class SparsePoolingModel(torch.nn.Module):
         # architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.18, 8), 
         #                 ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 8), 
         #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]
+        # architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.18, 2), 
+        #                 ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 4), 
+        #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]
         # # sparsity 0.18 comes from 2x2 max-pooling: new sparsity = (4 choose 1)*0.95^3*0.05^1 + negligible terms (4 choose 2) etc
+        # VGG-6 arch. used in CLAPP
+        # TODO BP (supervised) training!
+        architecture = [('SC', 128, 3, 0.05, None), 
+                        ('SC', 256, 3, 0.05, None), ('MaxPool', 256, 2, None, None), 
+                        ('SC', 256, 3, 0.05, None),
+                        ('SC', 512, 3, 0.05, None), ('MaxPool', 512, 2, None, None),
+                        ('SC', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None),
+                        ('SC', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None)]
+        # architecture = [('BP', 128, 3, 0.05, None), 
+        #                 ('BP', 256, 3, 0.05, None), ('MaxPool', 256, 2, None, None), 
+        #                 ('BP', 256, 3, 0.05, None),
+        #                 ('BP', 512, 3, 0.05, None), ('MaxPool', 512, 2, None, None),
+        #                 ('BP', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None),
+        #                 ('BP', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None)]
 
         # architecture = [('SC', 100, 3, 0.4, None), ('SFA', 100, 2, 0.6, 8), 
         #                 ('SC', 200, 3, 0.03, None), ('SFA', 200, 2, 0.04, 8), 
@@ -62,13 +79,16 @@ class SparsePoolingModel(torch.nn.Module):
         self.layers = nn.ModuleList([])
         
         in_channels = opt.in_channels_input
+        padding = opt.padding
+        if padding != 0:
+            raise Exception("Padding not yet implemented for manual update rules!")
         for (layer_type, out_channels, kernel_size, p, timescale) in self.architecture:
             if layer_type=='BP':
-                layer = SparsePoolingLayers.BP_layer(opt, in_channels, out_channels, kernel_size, do_update_params = not do_update_params)
+                layer = SparsePoolingLayers.BP_layer(opt, in_channels, out_channels, kernel_size, do_update_params = not do_update_params, padding=padding)
             elif layer_type=='SC':
-                layer = SparsePoolingLayers.SC_layer(opt, in_channels, out_channels, kernel_size, p, do_update_params = do_update_params)
+                layer = SparsePoolingLayers.SC_layer(opt, in_channels, out_channels, kernel_size, p, do_update_params = do_update_params, padding=padding)
             elif layer_type=='SFA':
-                layer = SparsePoolingLayers.SFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = do_update_params)
+                layer = SparsePoolingLayers.SFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = do_update_params, padding=padding)
             elif layer_type=='MaxPool':
                 layer = nn.MaxPool2d(kernel_size, stride=2)
             elif layer_type=='MeanPool':

@@ -67,6 +67,12 @@ def parse_args(parser):
         help="Preprocessing of extracted image patches (subtract pixel-wise mean or whitening)",
     )
     group.add_option(
+        "--padding",
+        type="int",
+        default=0, 
+        help="Padding of SC/SFA/BP layers (default: 0)"
+    )
+    group.add_option(
         "--patch_size",
         type="int",
         default=20, 
