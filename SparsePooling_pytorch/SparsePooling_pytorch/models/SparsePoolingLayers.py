@@ -23,7 +23,7 @@ class SparsePoolingLayer(nn.Module):
         self.tau = opt.tau
         self.p = p
         self.inference_recurrence = opt.inference_recurrence
-        if self.inference_recurrence==2:
+        if self.inference_recurrence==2 and self.p != None:
             self.k = int(self.p * out_channels)
 
         self.update_params = do_update_params

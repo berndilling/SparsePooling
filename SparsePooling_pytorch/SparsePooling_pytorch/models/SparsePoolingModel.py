@@ -30,12 +30,18 @@ class SparsePoolingModel(torch.nn.Module):
         # # sparsity 0.18 comes from 2x2 max-pooling: new sparsity = (4 choose 1)*0.95^3*0.05^1 + negligible terms (4 choose 2) etc
         # VGG-6 arch. used in CLAPP
         # TODO BP (supervised) training!
+        # architecture = [('SC', 128, 3, 0.05, None), 
+        #                 ('SC', 256, 3, 0.05, None), ('MaxPool', 256, 2, None, None), 
+        #                 ('SC', 256, 3, 0.05, None),
+        #                 ('SC', 512, 3, 0.05, None), ('MaxPool', 512, 2, None, None),
+        #                 ('SC', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None),
+        #                 ('SC', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None)]
         architecture = [('SC', 128, 3, 0.05, None), 
-                        ('SC', 256, 3, 0.05, None), ('MaxPool', 256, 2, None, None), 
+                        ('SC', 256, 3, 0.05, None), ('SFA', 256, 2, 0.18, 8), 
                         ('SC', 256, 3, 0.05, None),
-                        ('SC', 512, 3, 0.05, None), ('MaxPool', 512, 2, None, None),
-                        ('SC', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None),
-                        ('SC', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None)]
+                        ('SC', 512, 3, 0.05, None), ('SFA', 512, 2, 0.18, 8),
+                        ('SC', 1024, 3, 0.05, None), ('SFA', 1024, 2, 0.18, 8),
+                        ('SC', 1024, 3, 0.05, None), ('SFA', 1024, 2, 0.18, 8)]
         # architecture = [('BP', 128, 3, 0.05, None), 
         #                 ('BP', 256, 3, 0.05, None), ('MaxPool', 256, 2, None, None), 
         #                 ('BP', 256, 3, 0.05, None),
@@ -80,8 +86,9 @@ class SparsePoolingModel(torch.nn.Module):
         
         in_channels = opt.in_channels_input
         padding = opt.padding
-        if padding != 0:
-            raise Exception("Padding not yet implemented for manual update rules!")
+        #if padding != 0:
+        # TODO implement SP with padding!!!
+        #    raise Exception("Padding not yet implemented for manual update rules!")
         for (layer_type, out_channels, kernel_size, p, timescale) in self.architecture:
             if layer_type=='BP':
                 layer = SparsePoolingLayers.BP_layer(opt, in_channels, out_channels, kernel_size, do_update_params = not do_update_params, padding=padding)
