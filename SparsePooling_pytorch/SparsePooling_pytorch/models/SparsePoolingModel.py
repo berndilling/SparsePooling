@@ -17,6 +17,8 @@ class SparsePoolingModel(torch.nn.Module):
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
         # architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
+        architecture = [('SC', 400, 10, 0.05, None), ('CSFA', 10, 1, 0.1, 8)]
+        # architecture = [('CSFA', 100, 10, 0.1, 8)]
         # architecture = [('SC', 20, 10, 0.05, None), ('SFA', 2, 1, 1/2, 8)] # for bars
         # architecture = [('SC', 100, 3, 0.05, None), ('MaxPool', 100, 2, None, None), 
         #                 ('SC', 200, 3, 0.05, None), ('MaxPool', 200, 2, None, None), 
@@ -36,12 +38,12 @@ class SparsePoolingModel(torch.nn.Module):
         #                 ('SC', 512, 3, 0.05, None), ('MaxPool', 512, 2, None, None),
         #                 ('SC', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None),
         #                 ('SC', 1024, 3, 0.05, None), ('MaxPool', 1024, 2, None, None)]
-        architecture = [('SC', 128, 3, 0.05, None), 
-                        ('SC', 256, 3, 0.05, None), ('SFA', 256, 2, 0.18, 8), 
-                        ('SC', 256, 3, 0.05, None),
-                        ('SC', 512, 3, 0.05, None), ('SFA', 512, 2, 0.18, 8),
-                        ('SC', 1024, 3, 0.05, None), ('SFA', 1024, 2, 0.18, 8),
-                        ('SC', 1024, 3, 0.05, None), ('SFA', 1024, 2, 0.18, 8)]
+        # architecture = [('SC', 128, 3, 0.05, None), 
+        #                 ('SC', 256, 3, 0.05, None), ('SFA', 256, 2, 0.18, 8), 
+        #                 ('SC', 256, 3, 0.05, None),
+        #                 ('SC', 512, 3, 0.05, None), ('SFA', 512, 2, 0.18, 8),
+        #                 ('SC', 1024, 3, 0.05, None), ('SFA', 1024, 2, 0.18, 8),
+        #                 ('SC', 1024, 3, 0.05, None), ('SFA', 1024, 2, 0.18, 8)]
         # architecture = [('BP', 128, 3, 0.05, None), 
         #                 ('BP', 256, 3, 0.05, None), ('MaxPool', 256, 2, None, None), 
         #                 ('BP', 256, 3, 0.05, None),
@@ -96,6 +98,8 @@ class SparsePoolingModel(torch.nn.Module):
                 layer = SparsePoolingLayers.SC_layer(opt, in_channels, out_channels, kernel_size, p, do_update_params = do_update_params, padding=padding)
             elif layer_type=='SFA':
                 layer = SparsePoolingLayers.SFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = do_update_params, padding=padding)
+            elif layer_type=='CSFA':
+                layer = SparsePoolingLayers.CSFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = do_update_params, padding=padding)
             elif layer_type=='MaxPool':
                 layer = nn.MaxPool2d(kernel_size, stride=2)
             elif layer_type=='MeanPool':
@@ -126,12 +130,12 @@ class SparsePoolingModel(torch.nn.Module):
                 if layer_type=='BP':
                     if not layer.update_params:
                         post = post.clone().detach() # detach to avoid potential backprop to earlier layers
-                if (layer_type=='SC') or (layer_type=='SFA'):
+                if (layer_type=='SC') or (layer_type=='SFA') or (layer_type=='CSFA'):
                     post = post.clone().detach() # detach to avoid potential backprop to earlier layers
                 # no detach for MaxPool layers to enable BP learning! But should not matter since SC or SFA layer before should detach in SP learning!
                 
                 if self.update_params:
-                    if (layer_type=='SC') or (layer_type=='SFA'):
+                    if (layer_type=='SC') or (layer_type=='SFA') or (layer_type=='CSFA'):
                         if layer.update_params:
                             dparams = layer.update_parameters(pre, post)
                 pre = post
@@ -147,6 +151,6 @@ class SparsePoolingModel(torch.nn.Module):
             layer_type = self.architecture[layer_idx][0]
             if layer_type=='BP':
                 layer.update_params = update_BP
-            if (layer_type=='SC') or (layer_type=='SFA'):
+            if (layer_type=='SC') or (layer_type=='SFA') or (layer_type=='CSFA'):
                 layer.update_params = update_SC_SFA
 

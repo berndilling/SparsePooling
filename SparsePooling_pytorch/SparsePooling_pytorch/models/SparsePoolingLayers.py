@@ -86,7 +86,7 @@ class SparsePoolingLayer(nn.Module):
         # pre: b, c_pre, x_pre, y_pre 
         # post: b, c_post, x_post, y_post
         # self.W_ff: c_post, c_pre, kernel_size, kernel_size
-        
+
         # First: weight decay
         post_av = torch.mean(post, (0,2,3)) # c_post (average over batch, x_post, y_post)
         dW_ff_weight_decay = post_av.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)**power * self.W_ff.weight # c_post, c_pre, kernel_size, kernel_size
@@ -110,7 +110,7 @@ class SparsePoolingLayer(nn.Module):
         # self.threshold: c_post
 
         # ATTENTION: this assumes ReLU-like nonlin with real zeros; otherwise sign operation doesn't work!
-        
+
         # CAREFUL: this implements L0 penalty!
         dthreshold = torch.mean(torch.sign(post), (0,2,3)) - self.p # c_post
         
@@ -184,6 +184,7 @@ class BP_layer(SparsePoolingLayer): #  nn.Module
         # out = self.nonlin(self.conv(input))
         # return out
 
+
 class SC_layer(SparsePoolingLayer):
     def __init__(self, opt, in_channels, out_channels, kernel_size, p, do_update_params = True, padding=0):
         super(SC_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p, do_update_params = do_update_params, padding=padding)
@@ -203,11 +204,16 @@ class SC_layer(SparsePoolingLayer):
 
 
 class SFA_layer(SparsePoolingLayer):
-    def __init__(self, opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = True, padding=0):
+    def __init__(self, opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = True, padding=0, stride=None):
         if not opt.classifying and opt.dataset_type != "moving":
             raise ValueError("Option --dataset_type must be 'moving' if you are training SFA layers")
 
-        super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p, stride=kernel_size, do_update_params = do_update_params, padding=padding)
+        if stride==None:
+            stride_v = kernel_size
+        else:
+            stride_v = stride
+
+        super(SFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p, stride=stride_v, do_update_params = do_update_params, padding=padding)
         self.timescale = timescale
         self.sequence_length = opt.sequence_length
         if self.timescale >= self.sequence_length:
@@ -276,11 +282,14 @@ class SFA_layer(SparsePoolingLayer):
         return activity.reshape(-1, s[1], s[2], s[3]) # b*(sequence_length-timescale+1), c, x, y
 
     # overwrite parent's functions
-    def get_update_W_ff(self, pre, post, power=2): # 4
+    def get_pre_and_trace(self, pre, post):
         post_trace = self.calculate_trace_filter(post)
         if self.subtract_mean:
             pre = self.subtract_batch_mean(pre)
         pre_cut = self.cut_beginning(pre)
+        return pre_cut, post_trace
+    def get_update_W_ff(self, pre, post, power=2): # 4
+        pre_cut, post_trace = self.get_pre_and_trace(pre, post)
         return super().get_update_W_ff(pre_cut, post_trace, power=power)
 
     def get_update_W_rec(self, post, lr_factor_to_W_ff = 20.): # 20. # 0.5
@@ -291,5 +300,65 @@ class SFA_layer(SparsePoolingLayer):
     def get_update_threshold_ff(self, post, lr_factor_to_W_ff = 10.): # 10 # 1.
         post_cut = self.cut_beginning(post)
         return super().get_update_threshold_ff(post_cut, lr_factor_to_W_ff = lr_factor_to_W_ff)
-    
 
+
+class CSFA_layer(SFA_layer): # Contrastive SFA layer
+    def __init__(self, opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = True, padding=0, stride=None):
+        if not opt.classifying and opt.dataset_type != "moving":
+            raise ValueError("Option --dataset_type must be 'moving' if you are training SFA layers")
+
+        super(CSFA_layer, self).__init__(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = do_update_params, padding=padding, stride=stride)
+
+    def sample_contrastive_samples(self, pre, post, beginning_is_cut=False):
+        if beginning_is_cut:
+            seq_length = self.sequence_length - self.timescale + 1
+        else:
+            seq_length = self.sequence_length
+        s_pre = pre.shape # b'(=b*sequence_length), c_pre, x, y
+        s_post = post.shape # b', c_post, x, y
+        
+        pre = pre.reshape(-1, seq_length, s_pre[1], s_pre[2], s_pre[3]) # b, sequence_length, c_pre, x, y
+        post = post.reshape(-1, seq_length, s_post[1], s_post[2], s_post[3]) # b, sequence_length, c_post, x, y
+        b = pre.shape[0]
+        
+        rand_index = torch.randint(b, (b,), dtype=torch.long, device=pre.get_device()) # upper limit, shape
+
+        pre_contr = pre[rand_index, :, :, :, :] # b, sequence_length, c_pre, x, y
+        post_contr = post[rand_index, :, :, :, :] # b, sequence_length, c_post, x, y
+
+        # reshape back
+        pre_contr = pre_contr.reshape(-1, s_pre[1], s_pre[2], s_pre[3]) # b'(=b*sequence_length), c_pre, x, y
+        post_contr = post_contr.reshape(-1, s_post[1], s_post[2], s_post[3]) # b'(=b*sequence_length), c_post, x, y
+        
+        return pre_contr, post_contr
+
+    # overwrite parent's (SFA_layer) functions
+    def get_update_W_ff(self, pre, post, power=2):
+        # TODO: refactor to reduce redundancy for _contr arrays!
+        
+        # get traces and cut pre and post
+        pre_cut, post_trace = super().get_pre_and_trace(pre, post) # (b', c_pre, x, y), (b', c_post, x, y)
+        post_cut = super().cut_beginning(post) # (b', c_post, x, y)
+
+        # create shuffled pres and posts for neg sample (traces stay the same). Use same permutation over batch for pre and post
+        pre_contr, post_contr = self.sample_contrastive_samples(pre_cut, post_cut, beginning_is_cut=True)
+
+        # calculate updates (trace * rho' * pre) for pos and neg samples. 
+        # get rho' = post_dev (derivative at activation, considering ReLU!)
+        ones = torch.ones(size=post_cut.shape, dtype=torch.float32, device=post_cut.get_device())
+        zeros = torch.zeros(size=post_cut.shape, dtype=torch.float32, device=post_cut.get_device())
+        post_dev = torch.where(post_cut > 0., ones, zeros)
+        post_contr_dev = torch.where(post_contr > 0., ones, zeros)
+
+        # trace * rho'
+        post_plast = post_trace * post_dev
+        post_contr_plast = post_trace * post_contr_dev
+        
+        # get updates for pos and contrastive samples
+        dW = SparsePoolingLayer.get_update_W_ff(self, pre_cut, post_plast, power=power)
+        dW_contr = SparsePoolingLayer.get_update_W_ff(self, pre_contr, post_contr_plast, power=power)
+        
+        # add updates with opposite sign
+        dW_eff = dW - dW_contr
+    
+        return dW_eff
