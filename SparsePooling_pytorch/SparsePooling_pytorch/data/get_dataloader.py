@@ -6,6 +6,7 @@ import os
 import numpy as np
 from torch.utils.data import Dataset
 from scipy.io import loadmat
+import h5py
 from IPython import embed
 
 from SparsePooling_pytorch.utils import utils
@@ -39,11 +40,13 @@ class NatPatchDataset(Dataset):
 
     def load_data_(self, opt):
         if opt.dataset == "olshausen":
+            print("using Olshausen dataset...")
             X = loadmat(self.fpath)
             X = torch.tensor(X['IMAGES']).unsqueeze(-2) # 512, 512, 1, 10
             #X = X['IMAGESr']
             self.n_channels = 1
         elif opt.dataset == "stl10":
+            print("using stl10 dataset...")
             _, _, _, transform_valid, unsupervised_dataset, _, _ = get_stl10(opt, ccrop=False) # 100000, 3, 96, 96
             X = torch.tensor(unsupervised_dataset.data).permute(2, 3, 1, 0) # 96, 96, 3, 100000 
             self.n_channels = 3
@@ -65,7 +68,7 @@ class NatPatchDataset(Dataset):
 
     def preprocess_patches_(self, images): # n_patches, n_channels, w, h
         s = images.shape
-        images = images.reshape(s[0], self.n_channels * self.width * self.height) # n_patches, w * h
+        images = images.reshape(s[0], self.n_channels * self.width * self.height) # n_patches, n_channels * w * h
         if self.preprocess == "subtractmean":
             images = utils.subtractmean(images) # subtract pixel-wise average
         elif self.preprocess=="whiten":
@@ -163,10 +166,14 @@ class BarsDataset(Dataset):
 # main functions
 
 def get_dataloader(opt):
-    # TODO finalise that:
     if opt.dataset == "bars":
+        print("loading bar dataset...")
         dataset = BarsDataset(opt)
+    elif opt.dataset == "smallNORB":
+        print("loading smallNORB dataset...")
+        dataset = smallNORBDataset(opt)
     else:
+        print("loading Patch dataset...")
         dataset = NatPatchDataset(opt, opt.n_patches, opt.patch_size, opt.patch_size)
     
     if opt.dataset_type=="moving":
@@ -179,19 +186,17 @@ def get_dataloader(opt):
 
 def get_dataloader_class(opt):
     if opt.dataset_class=="stl10":
-        train_loader, train_dataset, supervised_loader, supervised_dataset, test_loader, test_dataset = get_stl10_dataloader(
+        _, _, train_loader, _, test_loader, _ = get_stl10_dataloader(
             opt
         )
+    elif opt.dataset_class=="smallNORB":
+        train_loader, test_loader = get_smallNORB_loaders(opt)
     else:
         raise Exception("dataset not implemented yet!")
     
     return (
         train_loader,
-        train_dataset,
-        supervised_loader,
-        supervised_dataset,
         test_loader,
-        test_dataset,
     )
 
 #################################################################################################
@@ -354,3 +359,102 @@ def get_transforms(eval=False, aug=None, ccrop=True):
 
     trans = transforms.Compose(trans)
     return trans
+
+
+#################################################################################################
+# smallNORB
+
+class smallNORBDataset(Dataset):
+    def __init__(self, opt):
+        super(smallNORBDataset, self).__init__()
+
+        self.transform = transforms.Compose([transforms.ToPILImage(), transforms.CenterCrop(16), transforms.ToTensor()])
+        self.sequence_length = opt.sequence_length
+
+        unsupervised_dataset = get_smallNORB_unsupervised(opt)
+        self.images = unsupervised_dataset
+
+    def __len__(self):
+        return self.images.shape[0]
+
+    def __getitem__(self, idx):
+        return self.__getimg__(idx)
+
+    def __getimg__(self, idx):
+        img = self.images[idx]
+        if self.transform is not None:
+            img = self.transform(img)
+        return img
+
+        
+class smallNORBDatasetClass(smallNORBDataset):
+    def __init__(self, opt, mode='train'):
+        super(smallNORBDatasetClass, self).__init__(opt)
+
+        train_im, train_labels, test_im, test_labels = get_smallNORB_supervised(opt)
+        if mode=='train':
+            self.images = train_im
+            self.labels = train_labels
+        elif mode=='test':
+            self.images = test_im
+            self.labels = test_labels
+
+    def __getitem__(self, idx):
+        img = self.__getimg__(idx)
+        label = self.labels[idx]
+        return img, label
+
+
+def get_smallNORB_unsupervised(opt):
+    base_folder = os.path.join(opt.data_input_dir, "smallNORB/")
+
+    # 'videos' for unsupervised training
+    file_unsupervised_vids = h5py.File(base_folder+"data_train_vids.h5",'r')
+    
+    n_vids = file_unsupervised_vids['n_vids'][0]
+    seq_length = file_unsupervised_vids['vid_length'][0]
+    if seq_length != opt.sequence_length:
+        raise Exception("For smallNORB data, the sequence length (option) must be the same as the one of the saved videos: "+str(seq_length))
+    if opt.batch_size_multiGPU % seq_length != 0:
+        raise Exception("batch size (multiGPU = "+str(opt.batch_size_multiGPU)+") must be multiple of seq_length ("+str(seq_length)+") to batch training to work!")
+
+    unsupervised_dataset = torch.tensor(file_unsupervised_vids['train_vids']).unsqueeze(1) # b' (=n_vids * vid_length), 1, 96, 96
+
+    return unsupervised_dataset
+
+
+def get_smallNORB_supervised(opt):
+    base_folder = os.path.join(opt.data_input_dir, "smallNORB/")
+
+    # train set (for downstream classification)
+    file_train = h5py.File(base_folder+"data_train.h5",'r')
+    train_im = torch.tensor(file_train['images_lt']).unsqueeze(1)
+    train_labels =  torch.tensor(file_train['categories'][:])
+
+    # test set (for downstream classification)
+    file_test = h5py.File(base_folder+"data_test.h5",'r')
+    test_im = torch.tensor(file_test['images_lt']).unsqueeze(1)
+    test_labels =  torch.tensor(file_test['categories'][:])
+
+    return train_im, train_labels, test_im, test_labels
+
+
+def get_smallNORB_loaders(opt):
+
+    # construct smallNORBDatasetClass
+    train_dataset = smallNORBDatasetClass(opt, mode='train')
+    test_dataset = smallNORBDatasetClass(opt, mode='test')
+
+    # construct loaders
+    train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=opt.batch_size_multiGPU,
+            num_workers=16,
+        )
+    test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=opt.batch_size_multiGPU,
+            num_workers=16,
+        )
+
+    return train_loader, test_loader

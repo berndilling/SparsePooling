@@ -12,6 +12,22 @@ from SparsePooling_pytorch.utils import logger, utils
 from SparsePooling_pytorch.data import get_dataloader
 from IPython import embed
 
+
+def get_cumulative_response(opt, context_model, model_input):
+    for l in range(opt.class_from_layer+1):
+        z_l, _ = context_model(model_input, up_to_layer=l)
+        z_l_p = torch.nn.functional.adaptive_avg_pool2d(z_l, 1).clone().detach()
+        if l == 0:
+            #z = z_l_p.clone()
+            z = z_l_p.clone() / z_l_p.norm() * 100
+        else:
+            #z = torch.cat((z.clone(), z_l_p.clone()), dim = 1)
+            z = torch.cat((z.clone(), z_l_p.clone() / z_l_p.norm() * 100), dim = 1)
+        # if l == 5:
+        #     embed()
+        #     raise Exception()
+    return z
+
 def train_logistic_regression(opt, context_model, classification_model, train_loader):
     total_step = len(train_loader)
     classification_model.train()
@@ -26,7 +42,6 @@ def train_logistic_regression(opt, context_model, classification_model, train_lo
 
         loss_epoch = 0
         for step, (img, target) in enumerate(train_loader):
-
             classification_model.zero_grad()
 
             if opt.create_hidden_representation and epoch > 0:
@@ -36,11 +51,19 @@ def train_logistic_regression(opt, context_model, classification_model, train_lo
             else:
                 model_input = img.to(opt.device)
 
-                if opt.end_to_end_supervised:  # end-to-end supervised training
+                # TODO refactor this together with test_logistic_regression
+                # include option opt.cumulative_classification
+                if opt.end_to_end_supervised: 
                     z, _ = context_model(model_input)
                 else:
                     with torch.no_grad():
-                        z, _ = context_model(model_input, up_to_layer=opt.class_from_layer)
+                        if opt.cumulative_classification:
+                            z = get_cumulative_response(opt, context_model, model_input)
+                        else:
+                            z, _ = context_model(model_input, up_to_layer=opt.class_from_layer)
+                            z = torch.nn.functional.adaptive_avg_pool2d(z, 1).clone().detach()
+                            z = z / z.norm() * 100
+
                     z = z.detach() #double security that no gradients go to representation learning part of model
                 
                 if opt.create_hidden_representation and epoch == 0:
@@ -112,12 +135,17 @@ def test_logistic_regression(opt, context_model, classification_model, test_load
     for step, (img, target) in enumerate(test_loader):
 
         model_input = img.to(opt.device)
-
+        
         if opt.end_to_end_supervised:  # end-to-end supervised training
                 z, _ = context_model(model_input)
         else:
             with torch.no_grad():
-                z, _ = context_model(model_input, up_to_layer=opt.class_from_layer)
+                if opt.cumulative_classification:
+                    z = get_cumulative_response(opt, context_model, model_input)
+                else:
+                    z, _ = context_model(model_input, up_to_layer=opt.class_from_layer)
+                    z = torch.nn.functional.adaptive_avg_pool2d(z, 1).clone().detach()
+                    z = z / z.norm() * 100
 
         z = z.detach()
 
@@ -168,7 +196,10 @@ if __name__ == "__main__":
     if opt.class_from_layer==-1:
         print("CAREFUL! Training classifier directly on input image! Model is ignored and returns the (flattened) input images!")
 
-    _, _, train_loader, _, test_loader, _ = get_dataloader.get_dataloader_class(opt)
+    if opt.cumulative_classification:
+        print("CAREFUL: Doing cumulative classification!")
+
+    train_loader, test_loader = get_dataloader.get_dataloader_class(opt)
 
     classification_model = load_model.load_classification_model(opt)
 
@@ -206,11 +237,15 @@ if __name__ == "__main__":
         context_model.state_dict(), os.path.join(opt.log_path, "context_model.ckpt")
     )
 
-    np.save(os.path.join(opt.model_path, "classification_results_values_layer_"+str(opt.class_from_layer)+".npy"), 
-            np.array([acc1, acc5]))
+    if opt.cumulative_classification:
+        savepath = os.path.join(opt.model_path, "cumulative_classification_results_")
+    else:
+        savepath = os.path.join(opt.model_path, "classification_results_")
+    
+    np.save(savepath+"values_layer_"+str(opt.class_from_layer)+".npy", np.array([acc1, acc5]))
     L = ["Classification from layer: "+str(opt.class_from_layer)+"\n",
         "Test top1 classification accuracy: "+str(acc1)+"\n",
         "Test top5 classification accuracy: "+str(acc5)+"\n"]
-    f = open(os.path.join(opt.model_path, "classification_results_layer_"+str(opt.class_from_layer)+".txt"), "w")
+    f = open(savepath+"layer_"+str(opt.class_from_layer)+".txt", "w")
     f.writelines(L)
     f.close()

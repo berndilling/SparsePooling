@@ -3,6 +3,7 @@ import torch.nn as nn
 from IPython import embed
 
 from SparsePooling_pytorch.models import SparsePoolingLayers
+from SparsePooling_pytorch.models import CLAPPLayer
 
 
 class SparsePoolingModel(torch.nn.Module):
@@ -16,8 +17,9 @@ class SparsePoolingModel(torch.nn.Module):
         ###############################################################################################################
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
-        # architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
-        architecture = [('SC', 400, 10, 0.05, None), ('CSFA', 10, 1, 0.1, 8)]
+        #architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
+        architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 4)]
+        # architecture = [('SC', 400, 10, 0.05, None), ('CSFA', 10, 1, 0.1, 8)]
         # architecture = [('CSFA', 100, 10, 0.1, 8)]
         # architecture = [('SC', 20, 10, 0.05, None), ('SFA', 2, 1, 1/2, 8)] # for bars
         # architecture = [('SC', 100, 3, 0.05, None), ('MaxPool', 100, 2, None, None), 
@@ -28,10 +30,16 @@ class SparsePoolingModel(torch.nn.Module):
         #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]
         # architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.18, 2), 
         #                 ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 4), 
-        #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]
+        #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]        
+        # architecture = [('SC', 100, 3, 0.05, None), ('CSFA', 100, 1, 0.18, 2), 
+        #                 ('SC', 200, 3, 0.05, None), ('CSFA', 200, 1, 0.18, 4), 
+        #                 ('SC', 400, 3, 0.05, None), ('CSFA', 400, 1, 0.18, 8)]
+        # architecture = [('SC', 100, 6, 0.05, None), ('CSFA', 100, 2, 0.05, 8), 
+        #                 ('SC', 200, 3, 0.05, None), ('CSFA', 200, 2, 0.05, 8), 
+        #                 ('SC', 400, 3, 0.05, None), ('CSFA', 400, 2, 0.05, 8)]
         # # sparsity 0.18 comes from 2x2 max-pooling: new sparsity = (4 choose 1)*0.95^3*0.05^1 + negligible terms (4 choose 2) etc
+        
         # VGG-6 arch. used in CLAPP
-        # TODO BP (supervised) training!
         # architecture = [('SC', 128, 3, 0.05, None), 
         #                 ('SC', 256, 3, 0.05, None), ('MaxPool', 256, 2, None, None), 
         #                 ('SC', 256, 3, 0.05, None),
@@ -44,6 +52,12 @@ class SparsePoolingModel(torch.nn.Module):
         #                 ('SC', 512, 3, 0.05, None), ('SFA', 512, 2, 0.18, 8),
         #                 ('SC', 1024, 3, 0.05, None), ('SFA', 1024, 2, 0.18, 8),
         #                 ('SC', 1024, 3, 0.05, None), ('SFA', 1024, 2, 0.18, 8)]
+        # architecture = [('SC', 128, 3, 0.05, None), 
+        #                 ('SC', 256, 3, 0.05, None), ('CSFA', 256, 2, 0.18, 8), 
+        #                 ('SC', 256, 3, 0.05, None),
+        #                 ('SC', 512, 3, 0.05, None), ('CSFA', 512, 2, 0.18, 8),
+        #                 ('SC', 1024, 3, 0.05, None), ('CSFA', 1024, 2, 0.18, 8),
+        #                 ('SC', 1024, 3, 0.05, None), ('CSFA', 1024, 2, 0.18, 8)]
         # architecture = [('BP', 128, 3, 0.05, None), 
         #                 ('BP', 256, 3, 0.05, None), ('MaxPool', 256, 2, None, None), 
         #                 ('BP', 256, 3, 0.05, None),
@@ -126,7 +140,11 @@ class SparsePoolingModel(torch.nn.Module):
             for layer_idx, layer in enumerate(self.layers[:up_to_layer+1]):
                 layer_type = self.architecture[layer_idx][0]
 
-                post = layer(pre)
+                if layer_type=='CLAPP':
+                    post = layer(pre.detach()) # detach input to avoid potential backprop to earlier layers
+                else:
+                    post = layer(pre)
+                
                 if layer_type=='BP':
                     if not layer.update_params:
                         post = post.clone().detach() # detach to avoid potential backprop to earlier layers
@@ -138,6 +156,10 @@ class SparsePoolingModel(torch.nn.Module):
                     if (layer_type=='SC') or (layer_type=='SFA') or (layer_type=='CSFA'):
                         if layer.update_params:
                             dparams = layer.update_parameters(pre, post)
+                    if (layer_type=='CLAPP') or (layer_type=='HingeCPC'):
+                        if layer.update_params:
+                            layer.update_parameters(post)
+                
                 pre = post
         
         return post, dparams
