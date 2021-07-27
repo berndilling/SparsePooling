@@ -1,5 +1,6 @@
 from PIL import Image
 import torch
+#from torch._C import int32
 import torchvision.transforms as transforms
 import torchvision
 import os
@@ -10,6 +11,16 @@ import h5py
 from IPython import embed
 
 from SparsePooling_pytorch.utils import utils
+
+
+def preprocess_patches_(images, preprocess): # images: n_patches, n_channels, w, h
+    s = images.shape
+    images = images.reshape(s[0], s[1] * s[2] * s[3]) # n_patches, n_channels * w * h
+    if preprocess == "subtractmean":
+        images = utils.subtractmean(images) # subtract pixel-wise average
+    elif preprocess=="whiten":
+        images = utils.whiten(images) # ZCA whitening of the extracted patches
+    return images.reshape(s) # n_patches, n_channels, w, h
 
 # from https://github.com/lpjiang97/sparse-coding/blob/master/src/model/ImageDataset.py
 class NatPatchDataset(Dataset):
@@ -66,14 +77,8 @@ class NatPatchDataset(Dataset):
         n_img = X.shape[-1]
         return X.permute(3, 2, 0, 1), img_size, n_img # X: n_img, n_channels, img_size, img_size
 
-    def preprocess_patches_(self, images): # n_patches, n_channels, w, h
-        s = images.shape
-        images = images.reshape(s[0], self.n_channels * self.width * self.height) # n_patches, n_channels * w * h
-        if self.preprocess == "subtractmean":
-            images = utils.subtractmean(images) # subtract pixel-wise average
-        elif self.preprocess=="whiten":
-            images = utils.whiten(images) # ZCA whitening of the extracted patches
-        return images.reshape(s) # n_patches, n_channels, w, h
+    def preproces_patches_(self, images):
+        return preprocess_patches_(images, self.preprocess)
 
     # convention: append temporal dimension to batch dimension -> parallel processing!
     # for SC: either use only one instance of sequence or whole seq
@@ -368,7 +373,7 @@ class smallNORBDataset(Dataset):
     def __init__(self, opt):
         super(smallNORBDataset, self).__init__()
 
-        self.transform = transforms.Compose([transforms.ToPILImage(), transforms.CenterCrop(16), transforms.ToTensor()])
+        self.transform = transforms.Compose([transforms.ToPILImage(), transforms.CenterCrop(opt.random_crop_size), transforms.ToTensor()])
         self.sequence_length = opt.sequence_length
 
         unsupervised_dataset = get_smallNORB_unsupervised(opt)
@@ -419,6 +424,9 @@ def get_smallNORB_unsupervised(opt):
         raise Exception("batch size (multiGPU = "+str(opt.batch_size_multiGPU)+") must be multiple of seq_length ("+str(seq_length)+") to batch training to work!")
 
     unsupervised_dataset = torch.tensor(file_unsupervised_vids['train_vids']).unsqueeze(1) # b' (=n_vids * vid_length), 1, 96, 96
+    file_unsupervised_vids.close()
+
+    #unsupervised_dataset = preprocess_patches_(unsupervised_dataset, opt.preprocess) # b' (=n_vids * vid_length), n_channels, w, h
 
     return unsupervised_dataset
 
@@ -429,12 +437,16 @@ def get_smallNORB_supervised(opt):
     # train set (for downstream classification)
     file_train = h5py.File(base_folder+"data_train.h5",'r')
     train_im = torch.tensor(file_train['images_lt']).unsqueeze(1)
-    train_labels =  torch.tensor(file_train['categories'][:])
+    train_labels = torch.tensor(file_train['categories'][:], dtype=torch.long)
+    file_train.close()
+    #train_im = preprocess_patches_(train_im, opt.preprocess) # b' (=n_vids * vid_length), n_channels, w, h
 
     # test set (for downstream classification)
     file_test = h5py.File(base_folder+"data_test.h5",'r')
     test_im = torch.tensor(file_test['images_lt']).unsqueeze(1)
-    test_labels =  torch.tensor(file_test['categories'][:])
+    test_labels = torch.tensor(file_test['categories'][:], dtype=torch.long)
+    file_test.close()
+    #test_im = preprocess_patches_(test_im, opt.preprocess) # b' (=n_vids * vid_length), n_channels, w, h
 
     return train_im, train_labels, test_im, test_labels
 

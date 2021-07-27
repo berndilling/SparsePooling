@@ -188,6 +188,12 @@ def parse_args(parser):
         "CAREFUL: This is much faster but leads to overfitting on one of the random crops. Better test performance without that option!",
     )    
     group.add_option(
+        "--cumulative_classification",
+        action="store_true",
+        default=False,
+        help="Boolean whether to classify from the concatenated activations of all layers (up to --class_from_layer) instead of only from --class_from_layer",
+    )
+    group.add_option(
         "--download_dataset",
         action="store_true",
         default=False,

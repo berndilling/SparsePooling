@@ -35,12 +35,12 @@ def getsparsity(x:torch.tensor):
 
 # data is (b, c) array of b c-dimensional vectors
 def subtractmean(data):
-    print("Image patch preprocessing: subtracting pixel-wise mean...")
-    return data - torch.mean(data, (0))
+    print("Image preprocessing: subtracting pixel-wise mean...")
+    return data.float() - torch.mean(data.float(), (0))
 
 # data is (b, c) array of b c-dimensional vectors
 def whiten(data):
     data = subtractmean(data)
-    print("Image patch preprocessing: ZCA whitening...")
+    print("Image preprocessing: ZCA whitening...")
     U, S, V = torch.svd(data)
     return torch.matmul(U, V.t()) * np.sqrt(data.shape[0] - 1)

@@ -25,25 +25,44 @@ def train(opt, model, train_loader, logs):
     logs.create_log(model, epoch=-1)
     for epoch in range(opt.start_epoch, opt.num_epochs + opt.start_epoch + 1):   
         print("epoch ", epoch, " of ", opt.num_epochs)
-        if epoch % (opt.num_epochs // min(opt.num_epochs, 10)) == 0:
-            plot_weights.plot_receptive_fields(model.module.layers[0].W_ff.weight.clone().detach(), nh=10, nv=10) # nh=20, nv=20)
-            plt.savefig(os.path.join(opt.log_path,'W_ff'+str(epoch)+'.png'))
+        save_first_layer_weights(opt, model, epoch)
         
         sparsity = 0
+        CLAPPLoss = []
         for step, (img) in enumerate(train_loader):
             input = img.to(opt.device)
-
-            out, dparams = model(input, up_to_layer = opt.train_layer) # param updates happen online
+            out, loss = model(input, up_to_layer = opt.train_layer) # param updates happen online
             if step % 100 == 0:
                print("batch number: ", step, " out of ", len(train_loader))
-                # print("Change in W_ff :", torch.norm(dparams[0]).data)
             sparsity += utils.getsparsity(out)
+            CLAPPLoss.append(loss)
+
+        save_loss(model, CLAPPLoss)
             
         print("epoch average sparsity of last layer: ", sparsity / len(train_loader))
         logs.create_log(model, epoch=epoch)
     
     plt.show()
 
+def save_first_layer_weights(opt, model, epoch):
+    if epoch % (opt.num_epochs // min(opt.num_epochs, 10)) == 0:
+        plot_weights.plot_receptive_fields(model.module.layers[0].W_ff.weight.clone().detach(), nh=10, nv=10) # nh=20, nv=20)
+        plt.savefig(os.path.join(opt.log_path,'W_ff'+str(epoch)+'.png'))
+
+def save_loss(model, CLAPPLoss):
+    layer_type = model.module.architecture[-1][0]
+    if (layer_type=='CLAPP') or (layer_type=='HingeCPC'):
+        # calculate average loss over epoch and save it
+        for i in range(len(CLAPPLoss[0])): # for all layers
+            l = 0
+            for b in range(len(CLAPPLoss)):
+                l += CLAPPLoss[b][i]
+
+            l /= len(CLAPPLoss)
+            L = [str(l.item())+'\n']
+            f = open(os.path.join(opt.model_path, "logs", opt.save_dir, "CLAPP_loss_layer_"+str(i)+".txt"), "a")
+            f.writelines(L)
+            f.close()
 
 if __name__ == "__main__":
     opt = arg_parser.parse_args()

@@ -84,6 +84,8 @@ def load_classification_model(opt):
 
     if opt.dataset_class == "stl10":
         num_classes = 10
+    elif opt.dataset_class == "smallNORB":
+        num_classes = 5
     else:
         raise Exception("Invalid option")
 

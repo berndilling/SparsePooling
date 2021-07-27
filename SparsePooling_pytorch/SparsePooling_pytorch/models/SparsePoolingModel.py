@@ -18,7 +18,9 @@ class SparsePoolingModel(torch.nn.Module):
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
         #architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
-        architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 4)]
+        
+        #architecture = [('SC', 100, 5, 0.05, None), ('SFA', 10, 1, 0.1, 4)]
+        
         # architecture = [('SC', 400, 10, 0.05, None), ('CSFA', 10, 1, 0.1, 8)]
         # architecture = [('CSFA', 100, 10, 0.1, 8)]
         # architecture = [('SC', 20, 10, 0.05, None), ('SFA', 2, 1, 1/2, 8)] # for bars
@@ -96,6 +98,10 @@ class SparsePoolingModel(torch.nn.Module):
         #                 ('BP', 128, 3, None, None), ('SFA', 128, 2, 0.65, 2)]
 
         # architecture = [('BP', 32, 3, None, None), ('BP', 64, 3, None, None), ('BP', 128, 3, None, None)]
+
+        #CLAPP
+        architecture = [('CLAPP', 100, 3, None, None), ('CLAPP', 200, 3, None, None), ('CLAPP', 400, 3, None, None)]
+
           
         self.architecture = architecture
         self.layers = nn.ModuleList([])
@@ -109,11 +115,15 @@ class SparsePoolingModel(torch.nn.Module):
             if layer_type=='BP':
                 layer = SparsePoolingLayers.BP_layer(opt, in_channels, out_channels, kernel_size, do_update_params = not do_update_params, padding=padding)
             elif layer_type=='SC':
-                layer = SparsePoolingLayers.SC_layer(opt, in_channels, out_channels, kernel_size, p, do_update_params = do_update_params, padding=padding)
+                layer = SparsePoolingLayers.SC_layer(opt, in_channels, out_channels, kernel_size, p, do_update_params=do_update_params, padding=padding)
             elif layer_type=='SFA':
-                layer = SparsePoolingLayers.SFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = do_update_params, padding=padding)
+                layer = SparsePoolingLayers.SFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params=do_update_params, padding=padding)
             elif layer_type=='CSFA':
-                layer = SparsePoolingLayers.CSFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params = do_update_params, padding=padding)
+                layer = SparsePoolingLayers.CSFA_layer(opt, in_channels, out_channels, kernel_size, p, timescale, do_update_params=do_update_params, padding=padding)
+            elif layer_type=='HingeCPC':
+                layer = CLAPPLayer.HingeCPCLayer(opt, in_channels, out_channels, kernel_size, stride=1, padding=padding, do_update_params=do_update_params)
+            elif layer_type=='CLAPP':
+                layer = CLAPPLayer.CLAPPLayer(opt, in_channels, out_channels, kernel_size, stride=1, padding=padding, do_update_params=do_update_params)
             elif layer_type=='MaxPool':
                 layer = nn.MaxPool2d(kernel_size, stride=2)
             elif layer_type=='MeanPool':
@@ -128,7 +138,6 @@ class SparsePoolingModel(torch.nn.Module):
 
 
     def forward(self, input, up_to_layer=None):
-        dparams = None
         if up_to_layer==None:
             up_to_layer = len(self.layers)
         
@@ -137,6 +146,7 @@ class SparsePoolingModel(torch.nn.Module):
             s = pre.shape # b, in_channels, x, y
             post = pre.reshape(s[0], s[1]*s[2]*s[3]).unsqueeze(-1).unsqueeze(-1) # b, in_channels*x*y
         else:
+            loss = []
             for layer_idx, layer in enumerate(self.layers[:up_to_layer+1]):
                 layer_type = self.architecture[layer_idx][0]
 
@@ -158,11 +168,12 @@ class SparsePoolingModel(torch.nn.Module):
                             dparams = layer.update_parameters(pre, post)
                     if (layer_type=='CLAPP') or (layer_type=='HingeCPC'):
                         if layer.update_params:
-                            layer.update_parameters(post)
+                            l = layer.update_parameters(post)
+                            loss.append(l)
                 
                 pre = post
         
-        return post, dparams
+        return post, loss
 
 
     def set_update_params(self, update_model = True, update_BP = False, update_SC_SFA = True):
