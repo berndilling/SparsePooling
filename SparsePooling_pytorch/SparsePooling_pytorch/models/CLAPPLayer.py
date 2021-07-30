@@ -5,6 +5,7 @@ import torch
 import numpy as np
 from IPython import embed
 
+torch.autograd.set_detect_anomaly(True)
 
 class CPCLayer(nn.Module):
     def __init__(self, opt, in_channels, out_channels, kernel_size, stride=1, padding=0, do_update_params = True): # stride=max(kernel_size//2, 1)
@@ -20,19 +21,15 @@ class CPCLayer(nn.Module):
 
         self.update_params = do_update_params
 
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.learning_rate)
-
     def forward(self, input):
-        self.optimizer.zero_grad()
-
         u = self.W_ff(input) # b, c, x, y
         a = self.nonlin(u) # b, c, x, y
         return a
     
-    def update_parameters(self, post):
+    def update_parameters(self):
         if self.update_params:
             self.optimizer.step()
-
+            self.optimizer.zero_grad()
         return None
 
 # layer for end-to-end CLAPP (HingeLossCPC)
@@ -43,6 +40,7 @@ class HingeCPCLayer(CPCLayer):
         self.W_ff = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=True)
         self.nonlin = nn.ReLU(inplace=False)
 
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.learning_rate)
 
 class CLAPPLayer(CPCLayer):
     def __init__(self, opt, in_channels, out_channels, kernel_size, stride=1, padding=0, do_update_params = True): 
@@ -50,10 +48,12 @@ class CLAPPLayer(CPCLayer):
 
         self.Loss = CLAPPLoss(opt, out_channels)
 
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.learning_rate)
+
     # overwrite parent's method 
     def update_parameters(self, post):
         if self.update_params:
-            self.zero_grad()
+            self.optimizer.zero_grad()
             loss = self.Loss(post)
             loss.backward()
             self.optimizer.step()
@@ -61,28 +61,28 @@ class CLAPPLayer(CPCLayer):
         return loss.clone().detach()
 
 class CLAPPLoss(nn.Module):
-    def __init__(self, opt, out_channels, n_predictions = 3, spatial_collapse=False, n_negatives=1):
+    def __init__(self, opt, out_channels, n_predictions = 3, n_negatives=1):
         super(CLAPPLoss, self).__init__()
         self.n_preds = n_predictions
-        self.spatial_collapse = spatial_collapse
+        self.n_spatial_pool_patches = opt.n_spatial_pool_patches
+        self.do_spatial_pool = self.n_spatial_pool_patches != 0
         self.n_negatives = n_negatives
         self.seq_length = opt.sequence_length
 
-        self.loss = HingeLoss()
+        self.spatial_pool = nn.AdaptiveAvgPool2d((self.n_spatial_pool_patches, self.n_spatial_pool_patches)) # spatial pooling (resembles patch encoding in image CPC/CLAPP, but without overlapping patches)
+
+        self.loss = HingeLoss(async_update=opt.async_update)
 
         self.Wpred = nn.ModuleList() 
         for i in range(self.n_preds): # number of pred_steps
-            self.Wpred.append(nn.Conv2d(out_channels, out_channels, kernel_size=(1,1), bias=False))
-
-        if self.spatial_collapse: # IF SPATIAL COLLAPSE, PASS THROUGH POOLING
-            self.collapse = nn.AdaptiveAvgPool2d((1, 1))
-            
+            self.Wpred.append(nn.Conv2d(out_channels, out_channels, kernel_size=(1,1), bias=False))     
 
     def forward(self, input):
         # input: b' (=b*sequence_length), c, x, y
+        if self.do_spatial_pool:
+            input = self.spatial_pool(input) # spatial pooling (resembles patch encoding in image CPC/CLAPP)
+        
         s = input.shape
-        if self.spatial_collapse: # IF SPATIAL COLLAPSE, PASS THROUGH POOLING
-            input = self.collapse(input)
 
         input = input.reshape(-1, self.seq_length, s[1], s[2], s[3]) # b, sequence_length, c, x, y
 
@@ -113,7 +113,7 @@ class CLAPPLoss(nn.Module):
         return loss / self.n_preds
 
 class HingeLoss(nn.Module):
-    def __init__(self, async_update=True):
+    def __init__(self, async_update=False):
         super(HingeLoss, self).__init__()
         self.async_update = async_update
         

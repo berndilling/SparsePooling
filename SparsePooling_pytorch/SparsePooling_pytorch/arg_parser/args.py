@@ -124,6 +124,12 @@ def parse_args(parser):
         "2 - k-winner-take-all forward"
     )
     group.add_option(
+        "--kWTA_only_for_plast",
+        action="store_true",
+        default=False,
+        help="Boolean whether to apply k-winner-take-all only for plasticity; inference simple linear-ReLU pass",
+    )
+    group.add_option(
         "--train_layer",
         type="int",
         default=None,
@@ -229,6 +235,20 @@ def parse_args(parser):
         default=None,
         help="Option to explicitly specify the number of input channels for the linear classifier."
         "If None, the default options for resnet output is taken",
+    )
+    group.add_option(
+        "--n_spatial_pool_patches",
+        type=int,
+        default=4,
+        help="Number of patch encodings (per dimension) after adaptive spatial avg pooling (resembles patch encoding in image CPC/CLAPP, but without overlapping patches)."
+            "Set 0 for not pooling"
+            "Set 1 for total spatial collapse",
+    )
+    group.add_option(
+        "--async_update",
+        action="store_true",
+        default=False,
+        help="If true, only positive or negative sample is used for CLAPP (HingeCPC) update",
     )
 
     parser.add_option_group(group)

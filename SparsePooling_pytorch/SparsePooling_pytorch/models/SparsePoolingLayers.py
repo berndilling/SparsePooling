@@ -25,6 +25,7 @@ class SparsePoolingLayer(nn.Module):
         self.inference_recurrence = opt.inference_recurrence
         if self.inference_recurrence==2 and self.p != None:
             self.k = int(self.p * out_channels)
+        self.kWTA_only_for_plast = opt.kWTA_only_for_plast
 
         self.update_params = do_update_params
 
@@ -57,12 +58,17 @@ class SparsePoolingLayer(nn.Module):
             # print("iterations: ", i)
         
         elif self.inference_recurrence==2: # 2 - k-winner-take-all
-            a_topks, inds = torch.topk(a, self.k, dim=1) # k biggest elements: b, k, x, y
-            a_topk = a_topks[:, -1, :, :] # k-th biggest element: b, 1, x, y
-            mask = a >= a_topk.unsqueeze(1) # b, c, x, y
-            a = torch.where(mask, a, torch.zeros(a.shape, device=cur_device, requires_grad=False)) # b, c, x, y
-        
+            if not self.kWTA_only_for_plast:
+                a = self.k_winner_take_all(a, cur_device)
+            
         return a.clone().detach()
+
+    def k_winner_take_all(self, a, cur_device):
+        a_topks, _ = torch.topk(a, self.k, dim=1) # k biggest elements: b, k, x, y
+        a_topk = a_topks[:, -1, :, :] # k-th biggest element: b, 1, x, y
+        mask = a >= a_topk.unsqueeze(1) # b, c, x, y
+        a = torch.where(mask, a, torch.zeros(a.shape, device=cur_device, requires_grad=False)) # b, c, x, y
+        return a
 
     # manual implementation of SC learning rules: overwrite grads & update with opt.step()
     def update_parameters(self, pre, post):
@@ -77,8 +83,13 @@ class SparsePoolingLayer(nn.Module):
         return dparams 
 
     def get_parameters_updates(self, pre, post):
+        dthreshold = self.get_update_threshold_ff(post) # first threshold, before (potential) kWTA for plast (full activity needed to adjust thresholds)
+        
+        if self.inference_recurrence==2: # k-winner-take-all
+            if self.kWTA_only_for_plast: # k-winner-take-all not applied in forward -> apply now
+                post = self.k_winner_take_all(post, post.get_device())
+        
         dW_ff = self.get_update_W_ff(pre, post)
-        dthreshold = self.get_update_threshold_ff(post)
         dW_rec = self.get_update_W_rec(post)
         return dW_ff, dthreshold, dW_rec
 

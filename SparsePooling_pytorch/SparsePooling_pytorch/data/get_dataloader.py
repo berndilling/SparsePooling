@@ -77,7 +77,7 @@ class NatPatchDataset(Dataset):
         n_img = X.shape[-1]
         return X.permute(3, 2, 0, 1), img_size, n_img # X: n_img, n_channels, img_size, img_size
 
-    def preproces_patches_(self, images):
+    def preprocess_patches_(self, images):
         return preprocess_patches_(images, self.preprocess)
 
     # convention: append temporal dimension to batch dimension -> parallel processing!
@@ -462,11 +462,13 @@ def get_smallNORB_loaders(opt):
             train_dataset,
             batch_size=opt.batch_size_multiGPU,
             num_workers=16,
+            shuffle=True,
         )
     test_loader = torch.utils.data.DataLoader(
             test_dataset,
             batch_size=opt.batch_size_multiGPU,
             num_workers=16,
+            shuffle=True,
         )
 
     return train_loader, test_loader

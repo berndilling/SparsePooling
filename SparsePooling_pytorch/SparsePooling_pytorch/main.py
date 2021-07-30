@@ -37,7 +37,7 @@ def train(opt, model, train_loader, logs):
             sparsity += utils.getsparsity(out)
             CLAPPLoss.append(loss)
 
-        save_loss(model, CLAPPLoss)
+        save_loss(epoch, model, CLAPPLoss)
             
         print("epoch average sparsity of last layer: ", sparsity / len(train_loader))
         logs.create_log(model, epoch=epoch)
@@ -49,9 +49,8 @@ def save_first_layer_weights(opt, model, epoch):
         plot_weights.plot_receptive_fields(model.module.layers[0].W_ff.weight.clone().detach(), nh=10, nv=10) # nh=20, nv=20)
         plt.savefig(os.path.join(opt.log_path,'W_ff'+str(epoch)+'.png'))
 
-def save_loss(model, CLAPPLoss):
-    layer_type = model.module.architecture[-1][0]
-    if (layer_type=='CLAPP') or (layer_type=='HingeCPC'):
+def save_loss(epoch, model, CLAPPLoss):
+    if model.module.do_loss:
         # calculate average loss over epoch and save it
         for i in range(len(CLAPPLoss[0])): # for all layers
             l = 0
@@ -59,8 +58,14 @@ def save_loss(model, CLAPPLoss):
                 l += CLAPPLoss[b][i]
 
             l /= len(CLAPPLoss)
+            
+            print("epoch average CLAPP loss for (CLAPP-)layer ",str(i),": ",str(l.item()))
             L = [str(l.item())+'\n']
-            f = open(os.path.join(opt.model_path, "logs", opt.save_dir, "CLAPP_loss_layer_"+str(i)+".txt"), "a")
+            if epoch == 0:
+                write_mode = "w"
+            else:
+                write_mode = "a"
+            f = open(os.path.join(opt.model_path, "logs", opt.save_dir, "CLAPP_loss_CLAPPlayer_"+str(i)+".txt"), write_mode)
             f.writelines(L)
             f.close()
 
@@ -85,7 +90,6 @@ if __name__ == "__main__":
     try:
         # Train the model
         train(opt, model, train_loader, logs)
-        # embed()
 
     except KeyboardInterrupt:
         print("Training got interrupted, saving log-files now.")

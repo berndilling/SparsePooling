@@ -64,7 +64,7 @@ def train_logistic_regression(opt, context_model, classification_model, train_lo
                             z = torch.nn.functional.adaptive_avg_pool2d(z, 1).clone().detach()
                             z = z / z.norm() * 100
 
-                    z = z.detach() #double security that no gradients go to representation learning part of model
+                    z = z.clone().detach() # double security that no gradients go to representation learning part of model
                 
                 if opt.create_hidden_representation and epoch == 0:
                     # pool here already to save memory on GPU, pooling is done anyway in classification_model

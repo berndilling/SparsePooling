@@ -18,8 +18,11 @@ class SparsePoolingModel(torch.nn.Module):
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
         #architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
+        architecture = [('SC', 400, 10, 0.05, None), ('CLAPP', 10, 1, None, None)]
         
         #architecture = [('SC', 100, 5, 0.05, None), ('SFA', 10, 1, 0.1, 4)]
+        
+        #architecture = [('CLAPP', 100, 8, None, None), ('CLAPP', 10, 1, None, None)]
         
         # architecture = [('SC', 400, 10, 0.05, None), ('CSFA', 10, 1, 0.1, 8)]
         # architecture = [('CSFA', 100, 10, 0.1, 8)]
@@ -100,10 +103,24 @@ class SparsePoolingModel(torch.nn.Module):
         # architecture = [('BP', 32, 3, None, None), ('BP', 64, 3, None, None), ('BP', 128, 3, None, None)]
 
         #CLAPP
-        architecture = [('CLAPP', 100, 3, None, None), ('CLAPP', 200, 3, None, None), ('CLAPP', 400, 3, None, None)]
+        #architecture = [('CLAPP', 100, 3, None, None), ('CLAPP', 200, 3, None, None), ('CLAPP', 400, 3, None, None)]
+        # architecture = [('CLAPP', 100, 3, None, None), ('MaxPool', 100, 2, None, None),
+        #                 ('CLAPP', 200, 3, None, None), ('MaxPool', 200, 2, None, None),
+        #                 ('CLAPP', 400, 3, None, None), ('MaxPool', 400, 2, None, None)]
+
+        # architecture = [('BP', 100, 3, None, None), ('MaxPool', 100, 2, None, None), 
+        #                 ('BP', 200, 3, None, None), ('MaxPool', 200, 2, None, None), 
+        #                 ('BP', 400, 3, None, None), ('MaxPool', 400, 2, None, None)]
+
+        # architecture = [('HingeCPC', 100, 3, None, None), ('MaxPool', 100, 2, None, None),
+        #                 ('HingeCPC', 200, 3, None, None), ('MaxPool', 200, 2, None, None),
+        #                 ('CLAPP', 400, 3, None, None), ('MaxPool', 400, 2, None, None)]
 
           
         self.architecture = architecture
+        self.do_loss = sum([l[0] == 'CLAPP' for l in self.architecture]) != 0
+        self.HingeCPC_end_to_end = sum([l[0] == 'HingeCPC' for l in self.architecture]) != 0 # Boolean whether end_to_end training for HingeCPC is done (important for (not) detaching)
+
         self.layers = nn.ModuleList([])
         
         in_channels = opt.in_channels_input
@@ -142,16 +159,20 @@ class SparsePoolingModel(torch.nn.Module):
             up_to_layer = len(self.layers)
         
         pre = input
+        loss = []
         if up_to_layer==-1: # return (reshaped/flattened) input image
             s = pre.shape # b, in_channels, x, y
             post = pre.reshape(s[0], s[1]*s[2]*s[3]).unsqueeze(-1).unsqueeze(-1) # b, in_channels*x*y
         else:
-            loss = []
             for layer_idx, layer in enumerate(self.layers[:up_to_layer+1]):
                 layer_type = self.architecture[layer_idx][0]
 
-                if layer_type=='CLAPP':
-                    post = layer(pre.detach()) # detach input to avoid potential backprop to earlier layers
+                if layer_type=='HingeCPC': # update with last gradient before activations are overwritten
+                    if layer.update_params:
+                        l = layer.update_parameters()
+
+                if layer_type=='CLAPP' and not self.HingeCPC_end_to_end:
+                        post = layer(pre.clone().detach()) # detach input to avoid potential backprop to earlier layers
                 else:
                     post = layer(pre)
                 
@@ -166,13 +187,13 @@ class SparsePoolingModel(torch.nn.Module):
                     if (layer_type=='SC') or (layer_type=='SFA') or (layer_type=='CSFA'):
                         if layer.update_params:
                             dparams = layer.update_parameters(pre, post)
-                    if (layer_type=='CLAPP') or (layer_type=='HingeCPC'):
+                    if layer_type=='CLAPP':
                         if layer.update_params:
                             l = layer.update_parameters(post)
                             loss.append(l)
                 
                 pre = post
-        
+
         return post, loss
 
 
