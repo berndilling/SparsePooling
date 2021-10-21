@@ -18,7 +18,7 @@ class SparsePoolingModel(torch.nn.Module):
 
         # architecture format: (layer_type, out_channels, kernel_size, p, timescale)
         #architecture = [('SC', 400, 10, 0.05, None), ('SFA', 10, 1, 0.1, 8)] #,('MaxPool', None, 2, None, None) .. etc
-        architecture = [('SC', 400, 10, 0.05, None), ('CLAPP', 10, 1, None, None)]
+        # architecture = [('SC', 400, 10, 0.05, None), ('CLAPP', 10, 1, None, None)]
         
         #architecture = [('SC', 100, 5, 0.05, None), ('SFA', 10, 1, 0.1, 4)]
         
@@ -27,12 +27,14 @@ class SparsePoolingModel(torch.nn.Module):
         # architecture = [('SC', 400, 10, 0.05, None), ('CSFA', 10, 1, 0.1, 8)]
         # architecture = [('CSFA', 100, 10, 0.1, 8)]
         # architecture = [('SC', 20, 10, 0.05, None), ('SFA', 2, 1, 1/2, 8)] # for bars
+
         # architecture = [('SC', 100, 3, 0.05, None), ('MaxPool', 100, 2, None, None), 
         #                 ('SC', 200, 3, 0.05, None), ('MaxPool', 200, 2, None, None), 
         #                 ('SC', 400, 3, 0.05, None), ('MaxPool', 400, 2, None, None)]
         # architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.18, 8), 
         #                 ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 8), 
         #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]
+
         # architecture = [('SC', 100, 3, 0.05, None), ('SFA', 100, 2, 0.18, 2), 
         #                 ('SC', 200, 3, 0.05, None), ('SFA', 200, 2, 0.18, 4), 
         #                 ('SC', 400, 3, 0.05, None), ('SFA', 400, 2, 0.18, 8)]        
@@ -79,9 +81,11 @@ class SparsePoolingModel(torch.nn.Module):
         # sparsity from end-to-end supervised BP-MaxPool network
 
         # Pool through SFA stuff
-        # architecture = [('BP', 100, 3, None, None), ('MaxPool', 100, 2, None, None), 
-        #                 ('BP', 200, 3, None, None), ('MaxPool', 200, 2, None, None), 
-        #                 ('BP', 400, 3, None, None), ('MaxPool', 400, 2, None, None)]
+    
+        architecture = [('BP', 100, 3, None, None), ('MaxPool', 100, 2, None, None), 
+                        ('BP', 200, 3, None, None), ('MaxPool', 200, 2, None, None), 
+                        ('BP', 400, 3, None, None), ('MaxPool', 400, 2, None, None)]
+        
         # architecture = [('BP', 100, 3, None, None), ('SFA', 100, 2, 0.62, 2), 
         #                 ('BP', 200, 3, None, None), ('SFA', 200, 2, 0.05, 2), 
         #                 ('BP', 400, 3, None, None), ('SFA', 400, 2, 0.13, 2)]
